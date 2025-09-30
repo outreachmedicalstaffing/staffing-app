@@ -154,6 +154,113 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Allergies</Label>
+                      <Select defaultValue={customFields.allergies || 'select'}>
+                        <SelectTrigger className="mt-1 h-9" data-testid="select-allergies">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="select">Select</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="smoke">Smoke</SelectItem>
+                          <SelectItem value="cats-dogs">Cats, Dogs, Smoke</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Address</Label>
+                      <Input value={customFields.address || ''} className="mt-1 h-9" data-testid="input-address" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Company Related Info */}
+                <div className="mt-6 pt-6 border-t">
+                  <h3 className="font-semibold mb-3 flex items-center justify-between">
+                    Company Related Info
+                    <ChevronDown className="h-4 w-4" />
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Title *</Label>
+                      <Select defaultValue={user.role}>
+                        <SelectTrigger className="mt-1 h-9" data-testid="select-title">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="RN">RN</SelectItem>
+                          <SelectItem value="LPN">LPN</SelectItem>
+                          <SelectItem value="CNA">CNA</SelectItem>
+                          <SelectItem value="Manager">Manager</SelectItem>
+                          <SelectItem value="Admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Employment Start Date</Label>
+                      <div className="relative mt-1">
+                        <Input value={customFields.employmentStartDate || '05/06/2022'} className="h-9" data-testid="input-employment-start-date" />
+                        <CalendarIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Program</Label>
+                      <div className="mt-1 space-y-2">
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="text-xs">Vitas VHVP</Badge>
+                          <Badge variant="outline" className="text-xs">Vitas Central Florida</Badge>
+                        </div>
+                        <Select>
+                          <SelectTrigger className="h-9" data-testid="select-program">
+                            <SelectValue placeholder="Add program" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="vitas-vhvp">Vitas VHVP</SelectItem>
+                            <SelectItem value="vitas-central">Vitas Central Florida</SelectItem>
+                            <SelectItem value="advent-health">Advent/Health IPU</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Direct manager</Label>
+                      <Select defaultValue={customFields.directManager || 'amanda'}>
+                        <SelectTrigger className="mt-1 h-9" data-testid="select-direct-manager">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="amanda">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src="https://api.dicebear.com/7.x/initials/svg?seed=Amanda Ecklind" />
+                                <AvatarFallback>AE</AvatarFallback>
+                              </Avatar>
+                              <span>Amanda Ecklind</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div className="mt-6 pt-6 border-t">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <ChevronDown className="h-4 w-4" />
+                      <span>Tags (0)</span>
+                    </h3>
+                    <Button variant="ghost" size="sm" className="text-blue-600 p-0 h-auto text-sm">
+                      + Add tags
+                    </Button>
                   </div>
                 </div>
               </div>
