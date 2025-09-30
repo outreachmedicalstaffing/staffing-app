@@ -76,6 +76,20 @@ const jobLocations = [
   { id: 15, name: "Haven", color: "#EAB308" },
 ];
 
+const shiftTemplates = [
+  { id: 1, timeRange: "8:00a - 8:00p", description: "Day shift - facility", color: "#EAB308" },
+  { id: 2, timeRange: "8:00p - 8:00a", description: "Night shift - facility", color: "#64748B" },
+  { id: 3, timeRange: "8:00a - 7:00p", description: "Day shift - home case", color: "#EAB308" },
+  { id: 4, timeRange: "7:00p - 8:00a", description: "Night shift - home case", color: "#64748B" },
+  { id: 5, timeRange: "7:00p - 8:00a", description: "Night shift - facility case", color: "#7C3AED" },
+  { id: 6, timeRange: "8:00a - 7:00p", description: "Day shift - facility case", color: "#EAB308" },
+  { id: 7, timeRange: "8:00a - 8:00p", description: "Day shift - home case", color: "#EAB308" },
+  { id: 8, timeRange: "8:00p - 8:00a", description: "Night shift - home case", color: "#64748B" },
+  { id: 9, timeRange: "7:00a - 7:00p", description: "Day shift - home case", color: "#EAB308" },
+  { id: 10, timeRange: "7:00p - 7:00a", description: "Night shift - home case", color: "#B91C1C" },
+  { id: 11, timeRange: "7:00a - 7:00p", description: "Day shift - facility case", color: "#EAB308" },
+];
+
 export default function Schedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("week");
@@ -83,6 +97,8 @@ export default function Schedule() {
   const [showJobList, setShowJobList] = useState(false);
   const [jobSearchQuery, setJobSearchQuery] = useState("");
   const [editingJob, setEditingJob] = useState<typeof jobLocations[0] | null>(null);
+  const [showShiftTemplates, setShowShiftTemplates] = useState(false);
+  const [templateSearchQuery, setTemplateSearchQuery] = useState("");
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -236,7 +252,7 @@ export default function Schedule() {
                   <Plus className="h-4 w-4 mr-2" />
                   Add single shift
                 </DropdownMenuItem>
-                <DropdownMenuItem data-testid="menu-add-from-templates">
+                <DropdownMenuItem onClick={() => setShowShiftTemplates(true)} data-testid="menu-add-from-templates">
                   <CalendarClock className="h-4 w-4 mr-2" />
                   Add from shift templates
                 </DropdownMenuItem>
@@ -612,6 +628,66 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Shift Templates Dialog */}
+      <Dialog open={showShiftTemplates} onOpenChange={setShowShiftTemplates}>
+        <DialogContent className="max-w-sm p-0">
+          <DialogHeader className="p-4 pb-2 border-b">
+            <DialogTitle className="text-base">Shifts</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Instructions */}
+            <div className="px-4 pt-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Drag and drop to the schedule</span>
+                <Info className="h-4 w-4" />
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="px-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search"
+                  className="pl-9"
+                  value={templateSearchQuery}
+                  onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                  data-testid="input-template-search"
+                />
+              </div>
+            </div>
+
+            {/* Templates List */}
+            <div className="px-4 pb-4 space-y-2 max-h-96 overflow-y-auto">
+              {shiftTemplates
+                .filter(template => 
+                  template.timeRange.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
+                  template.description.toLowerCase().includes(templateSearchQuery.toLowerCase())
+                )
+                .map((template) => (
+                  <div
+                    key={template.id}
+                    className="p-3 rounded-md border bg-background hover-elevate cursor-pointer"
+                    style={{ borderLeftWidth: '3px', borderLeftColor: template.color }}
+                    data-testid={`template-item-${template.id}`}
+                  >
+                    <div className="font-medium text-sm">{template.timeRange}</div>
+                    <div className="text-sm text-muted-foreground mt-1">{template.description}</div>
+                  </div>
+                ))}
+            </div>
+
+            {/* Add Template Link */}
+            <div className="px-4 pb-4">
+              <Button variant="ghost" className="text-primary p-0 h-auto hover:bg-transparent" data-testid="button-add-template">
+                Add Template
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Job List Dialog */}
       <Dialog open={showJobList} onOpenChange={setShowJobList}>
