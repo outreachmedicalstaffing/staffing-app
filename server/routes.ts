@@ -302,6 +302,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ===== Shift Templates Routes =====
+  
+  // List shift templates
+  app.get("/api/shift-templates", requireAuth, async (req, res) => {
+    try {
+      const templates = await storage.listShiftTemplates();
+      await logAudit(req.session.userId, "view", "shift_templates", undefined, false, [], {}, req.ip);
+      res.json(templates);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to list shift templates" });
+    }
+  });
+  
+  // Create shift template
+  app.post("/api/shift-templates", requireRole('Owner', 'Admin', 'Scheduler'), async (req, res) => {
+    try {
+      const data = insertShiftTemplateSchema.parse(req.body);
+      const template = await storage.createShiftTemplate(data);
+      
+      await logAudit(req.session.userId, "create", "shift_template", template.id, false, [], {}, req.ip);
+      res.json(template);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create shift template" });
+    }
+  });
+  
+  // Update shift template
+  app.patch("/api/shift-templates/:id", requireRole('Owner', 'Admin', 'Scheduler'), async (req, res) => {
+    try {
+      const updateSchema = insertShiftTemplateSchema.partial();
+      const data = updateSchema.parse(req.body);
+      
+      const template = await storage.updateShiftTemplate(req.params.id, data);
+      if (!template) {
+        return res.status(404).json({ error: "Shift template not found" });
+      }
+      
+      await logAudit(req.session.userId, "update", "shift_template", template.id, false, [], {}, req.ip);
+      res.json(template);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update shift template" });
+    }
+  });
+  
+  // Delete shift template
+  app.delete("/api/shift-templates/:id", requireRole('Owner', 'Admin', 'Scheduler'), async (req, res) => {
+    try {
+      const success = await storage.deleteShiftTemplate(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Shift template not found" });
+      }
+      
+      await logAudit(req.session.userId, "delete", "shift_template", req.params.id, false, [], {}, req.ip);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete shift template" });
+    }
+  });
+  
+  // ===== Shift Routes =====
+  
   // List shifts
   app.get("/api/shifts", requireAuth, async (req, res) => {
     try {
