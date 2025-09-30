@@ -55,6 +55,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import type { User, Shift } from "@shared/schema";
@@ -730,6 +740,27 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Delete Template Confirmation */}
+      <AlertDialog open={!!deletingTemplateId} onOpenChange={(open) => !open && setDeletingTemplateId(null)}>
+        <AlertDialogContent data-testid="dialog-delete-template">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Shift Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this shift template? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Shift Templates Dialog */}
       <Dialog open={showShiftTemplates} onOpenChange={setShowShiftTemplates}>
