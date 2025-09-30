@@ -321,6 +321,10 @@ export default function Schedule() {
     queryKey: ['/api/shift-templates'],
   });
 
+  const { data: shiftAssignments = [] } = useQuery<any[]>({
+    queryKey: ['/api/shift-assignments'],
+  });
+
   const createShiftMutation = useMutation({
     mutationFn: async (shiftData: any): Promise<Shift> => {
       const response = await apiRequest('POST', '/api/shifts', shiftData);
@@ -436,7 +440,17 @@ export default function Schedule() {
   };
 
   const getUserForShift = (shift: Shift) => {
-    return users[0];
+    const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
+    if (!assignment) return null;
+    return users.find(u => u.id === assignment.userId) || null;
+  };
+
+  const getShiftsForUserAndDay = (userId: string, day: Date) => {
+    return shifts.filter(s => {
+      const shiftDate = new Date(s.startTime);
+      const assignment = shiftAssignments.find(a => a.shiftId === s.id && a.userId === userId);
+      return assignment && shiftDate.toDateString() === day.toDateString();
+    });
   };
 
   const calculateDayStats = (day: Date) => {
@@ -666,7 +680,10 @@ export default function Schedule() {
         <Card className="flex-1 overflow-x-auto">
           <div className="min-w-[800px]">
             {/* Calendar Header */}
-            <div className="grid grid-cols-7 border-b">
+            <div className="grid grid-cols-8 border-b">
+              {/* Empty cell for user column */}
+              <div className="border-r p-3 bg-muted/30"></div>
+              
               {weekDays.map((day, idx) => {
                 const stats = calculateDayStats(day);
                 const isToday = day.toDateString() === new Date().toDateString();
@@ -710,61 +727,65 @@ export default function Schedule() {
               })}
             </div>
 
-            {/* Calendar Body */}
-            <div className="grid grid-cols-7 min-h-[400px]">
-              {weekDays.map((day, idx) => {
-                const dayShifts = getShiftsForDay(day);
-                
-                return (
-                  <div
-                    key={idx}
-                    className="border-r last:border-r-0 p-2 space-y-2"
-                    data-testid={`day-shifts-${idx}`}
-                  >
-                    {dayShifts.map((shift) => {
-                      const user = getUserForShift(shift);
-                      const startTime = format(new Date(shift.startTime), 'h:mma');
-                      const endTime = format(new Date(shift.endTime), 'h:mma');
-                      
-                      return (
-                        <div
-                          key={shift.id}
-                          className="rounded-md p-2 text-xs bg-primary text-primary-foreground cursor-pointer hover-elevate"
-                          data-testid={`shift-${shift.id}`}
-                        >
-                          <div className="font-medium">
-                            {startTime} - {endTime}
-                          </div>
-                          {user && (
-                            <div className="mt-1 truncate">
-                              {user.fullName}
-                            </div>
-                          )}
-                          {shift.location && (
-                            <div className="mt-1 text-primary-foreground/80 truncate">
-                              {shift.location}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Placeholder for unavailable/prefer to work */}
-                    {idx === 3 && (
-                      <>
-                        <div className="rounded-md p-2 text-xs bg-destructive/10 text-destructive border border-destructive/20">
-                          <div className="font-medium">Unavailable</div>
-                          <div className="mt-1">All day</div>
-                        </div>
-                        <div className="rounded-md p-2 text-xs bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
-                          <div className="font-medium">Prefer to work</div>
-                          <div className="mt-1">6:00a - 7:00p</div>
-                        </div>
-                      </>
-                    )}
+            {/* Calendar Body - User Rows */}
+            <div>
+              {users.map((user) => (
+                <div key={user.id} className="grid grid-cols-8 border-b last:border-b-0">
+                  {/* User Column */}
+                  <div className="border-r p-2 flex items-center gap-2 bg-muted/30">
+                    <Avatar className="h-7 w-7 flex-shrink-0">
+                      <AvatarFallback className="text-xs">
+                        {user.fullName.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">
+                        {user.fullName}
+                      </div>
+                      <div className="text-xs text-muted-foreground">0h - $0</div>
+                    </div>
                   </div>
-                );
-              })}
+                  
+                  {/* Day Columns */}
+                  {weekDays.map((day, dayIdx) => {
+                    const userShifts = getShiftsForUserAndDay(user.id, day);
+                    
+                    return (
+                      <div
+                        key={dayIdx}
+                        className="border-r last:border-r-0 p-2 min-h-[80px] space-y-1"
+                        data-testid={`user-${user.id}-day-${dayIdx}`}
+                      >
+                        {userShifts.map((shift) => {
+                          const startTime = format(new Date(shift.startTime), 'h:mma');
+                          const endTime = format(new Date(shift.endTime), 'h:mma');
+                          
+                          return (
+                            <div
+                              key={shift.id}
+                              className="rounded p-2 text-xs cursor-pointer hover-elevate"
+                              style={{
+                                backgroundColor: shift.color || '#3b82f6',
+                                color: 'white'
+                              }}
+                              data-testid={`shift-${shift.id}`}
+                            >
+                              <div className="font-medium text-white">
+                                {startTime} - {endTime}
+                              </div>
+                              {shift.location && (
+                                <div className="mt-0.5 text-white/90 text-[10px] truncate">
+                                  {shift.location}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </Card>
