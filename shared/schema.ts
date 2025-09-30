@@ -72,12 +72,11 @@ export type Schedule = typeof schedules.$inferSelect;
 // Shift templates - reusable shift definitions
 export const shiftTemplates = pgTable("shift_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
-  description: text("description"),
-  durationHours: decimal("duration_hours", { precision: 5, scale: 2 }).notNull(), // e.g., 8.5 hours
-  location: text("location"),
-  color: text("color"), // for calendar display
-  roleRequired: text("role_required"), // e.g., "RN", "LPN", "CNA"
+  title: text("title").notNull(), // e.g., "Day shift - facility"
+  startTime: text("start_time").notNull(), // e.g., "8:00a"
+  endTime: text("end_time").notNull(), // e.g., "8:00p"
+  color: text("color").notNull().default('#64748B'), // hex color for left border indicator
+  description: text("description"), // optional additional notes
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
