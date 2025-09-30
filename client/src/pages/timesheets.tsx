@@ -61,12 +61,11 @@ export default function Timesheets() {
     return {
       user,
       job: latestEntry?.location || '—',
-      subJob: '—',
       clockIn: latestEntry ? format(new Date(latestEntry.clockIn), 'h:mm a') : '—',
       clockOut: latestEntry?.clockOut ? format(new Date(latestEntry.clockOut), 'h:mm a') : '—',
       totalHours,
       regularHours,
-      paidTimeOff: 0,
+      holidayHours: 0,
     };
   });
 
@@ -168,12 +167,11 @@ export default function Timesheets() {
                     <TableRow>
                       <TableHead className="w-[200px]">First name</TableHead>
                       <TableHead>Job</TableHead>
-                      <TableHead>Sub items</TableHead>
                       <TableHead>Clock in</TableHead>
                       <TableHead>Clock out</TableHead>
                       <TableHead>Total hours</TableHead>
                       <TableHead>Regular</TableHead>
-                      <TableHead>Paid time off</TableHead>
+                      <TableHead>Holiday hours</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -189,7 +187,6 @@ export default function Timesheets() {
                           </div>
                         </TableCell>
                         <TableCell>{item.job}</TableCell>
-                        <TableCell>{item.subJob}</TableCell>
                         <TableCell>{item.clockIn}</TableCell>
                         <TableCell>{item.clockOut}</TableCell>
                         <TableCell>{item.totalHours > 0 ? item.totalHours.toFixed(2) : '—'}</TableCell>
@@ -199,7 +196,7 @@ export default function Timesheets() {
                     ))}
                     {filteredTodayData.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           No clock entries for today
                         </TableCell>
                       </TableRow>
