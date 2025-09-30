@@ -633,6 +633,104 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
         </SheetContent>
       </Sheet>
 
+      {/* Edit Shift Template Sheet */}
+      <Sheet open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplate(null)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader className="pb-4">
+            <SheetTitle>{editingTemplate?.id ? 'Edit Shift Template' : 'New Shift Template'}</SheetTitle>
+          </SheetHeader>
+
+          {editingTemplate && (
+            <div className="space-y-6">
+              {/* Time Range */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start-time">
+                    Start time <span className="text-destructive">*</span>
+                  </Label>
+                  <Input 
+                    id="start-time" 
+                    placeholder="8:00am"
+                    defaultValue={editingTemplate.timeRange.split(' - ')[0]}
+                    data-testid="input-start-time"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-time">
+                    End time <span className="text-destructive">*</span>
+                  </Label>
+                  <Input 
+                    id="end-time" 
+                    placeholder="8:00pm"
+                    defaultValue={editingTemplate.timeRange.split(' - ')[1]}
+                    data-testid="input-end-time"
+                  />
+                </div>
+              </div>
+
+              {/* Title */}
+              <div className="space-y-2">
+                <Label htmlFor="template-title">
+                  Shift title <span className="text-destructive">*</span>
+                </Label>
+                <Input 
+                  id="template-title" 
+                  placeholder="Day shift - facility"
+                  defaultValue={editingTemplate.description}
+                  data-testid="input-template-title"
+                />
+              </div>
+
+              {/* Color Picker */}
+              <div className="space-y-2">
+                <Label htmlFor="template-color">
+                  Color
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    id="template-color" 
+                    type="color"
+                    defaultValue={editingTemplate.color}
+                    className="w-20 h-9 cursor-pointer"
+                    data-testid="input-template-color"
+                  />
+                  <span className="text-sm text-muted-foreground">{editingTemplate.color}</span>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="template-description">Additional notes</Label>
+                <Textarea
+                  id="template-description"
+                  rows={4}
+                  placeholder="Optional description or notes..."
+                  data-testid="textarea-template-description"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  variant="default" 
+                  className="flex-1"
+                  data-testid="button-save-template"
+                >
+                  Save Template
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setEditingTemplate(null)}
+                  data-testid="button-cancel-template"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* Shift Templates Dialog */}
       <Dialog open={showShiftTemplates} onOpenChange={setShowShiftTemplates}>
         <DialogContent className="max-w-sm p-0">
