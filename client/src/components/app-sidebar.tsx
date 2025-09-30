@@ -7,7 +7,8 @@ import {
   BookOpen, 
   Settings, 
   Shield,
-  ClipboardList
+  ClipboardList,
+  FolderTree
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -32,6 +33,7 @@ const menuItems = [
   { title: "Documents", url: "/documents", icon: FileText },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
   { title: "Users", url: "/users", icon: Users },
+  { title: "Smart Groups", url: "/smart-groups", icon: FolderTree },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

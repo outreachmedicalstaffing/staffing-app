@@ -14,6 +14,7 @@ import Timesheets from "@/pages/timesheets";
 import Documents from "@/pages/documents";
 import Knowledge from "@/pages/knowledge";
 import Users from "@/pages/users";
+import SmartGroups from "@/pages/smart-groups";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import type { User } from "@shared/schema";
@@ -54,6 +55,7 @@ function AuthenticatedRouter() {
       <Route path="/documents" component={Documents} />
       <Route path="/knowledge" component={Knowledge} />
       <Route path="/users" component={Users} />
+      <Route path="/smart-groups" component={SmartGroups} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
