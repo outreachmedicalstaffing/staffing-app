@@ -18,7 +18,10 @@ import {
   FileText,
   CalendarClock,
   XCircle,
-  Heart
+  Heart,
+  X,
+  Lightbulb,
+  MoreHorizontal
 } from "lucide-react";
 import {
   Select,
@@ -33,6 +36,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import type { User, Shift } from "@shared/schema";
@@ -42,6 +51,8 @@ export default function Schedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showJobList, setShowJobList] = useState(false);
+  const [jobSearchQuery, setJobSearchQuery] = useState("");
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -128,7 +139,7 @@ export default function Schedule() {
             <FileText className="h-4 w-4 mr-2" />
             Requests
           </Button>
-          <Button variant="outline" size="sm" data-testid="button-job-list">
+          <Button variant="outline" size="sm" onClick={() => setShowJobList(true)} data-testid="button-job-list">
             <ClipboardList className="h-4 w-4 mr-2" />
             Job list
           </Button>
@@ -444,6 +455,108 @@ export default function Schedule() {
           </div>
         </div>
       </Card>
+
+      {/* Job List Dialog */}
+      <Dialog open={showJobList} onOpenChange={setShowJobList}>
+        <DialogContent className="max-w-md max-h-[80vh] p-0">
+          <DialogHeader className="p-4 pb-3 border-b">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                Job list
+                <span className="text-muted-foreground font-normal text-sm cursor-pointer">ⓘ</span>
+              </DialogTitle>
+              <Button variant="ghost" className="text-primary p-0 h-auto hover:bg-transparent" data-testid="link-shift-layers">
+                Shift layers
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="p-4 space-y-4">
+            {/* Info Message */}
+            <div className="flex gap-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md">
+              <Lightbulb className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <span className="text-muted-foreground">These are the resources assigned to this schedule. You can view and manage each resource in your account from the </span>
+                <Button variant="ghost" className="text-primary p-0 h-auto text-sm hover:bg-transparent underline" data-testid="link-job-sidebar">
+                  Job Sidebar tab
+                </Button>
+                <span className="text-muted-foreground">.</span>
+              </div>
+            </div>
+
+            {/* Search and Create */}
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" className="flex-shrink-0" data-testid="button-job-more">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search"
+                  className="pl-9"
+                  value={jobSearchQuery}
+                  onChange={(e) => setJobSearchQuery(e.target.value)}
+                  data-testid="input-job-search"
+                />
+              </div>
+              <Button variant="default" size="sm" data-testid="button-create-job">
+                <Plus className="h-4 w-4 mr-2" />
+                Create new
+              </Button>
+            </div>
+
+            {/* Job List */}
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {jobLocations
+                .filter(job => job.name.toLowerCase().includes(jobSearchQuery.toLowerCase()))
+                .map((job) => (
+                  <div
+                    key={job.id}
+                    className="flex items-center justify-between p-3 rounded-md hover-elevate group"
+                    data-testid={`job-item-${job.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="h-3 w-3 rounded-full flex-shrink-0" 
+                        style={{ backgroundColor: job.color }}
+                      />
+                      <span className="text-sm">{job.name}</span>
+                      {job.subItems && (
+                        <Badge variant="secondary" className="text-xs">
+                          <span className="text-muted-foreground">↳</span> {job.subItems} job sub items
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-job-settings-${job.id}`}>
+                        <SettingsIcon className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-job-more-${job.id}`}>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+const jobLocations = [
+  { id: 1, name: "Vitas Citrus", color: "#B91C1C" },
+  { id: 2, name: "Vitas Nature Coast", color: "#BE185D" },
+  { id: 3, name: "Vitas Jacksonville", color: "#0F766E" },
+  { id: 4, name: "Vitas V/F/P", color: "#0F766E", subItems: 3 },
+  { id: 5, name: "Vitas Central Florida", color: "#1D4ED8" },
+  { id: 6, name: "Vitas Midstate", color: "#A16207" },
+  { id: 7, name: "Vitas Brevard", color: "#9333EA" },
+  { id: 8, name: "Vitas Treasure Coast", color: "#EA580C" },
+  { id: 9, name: "Vitas Palm Beach", color: "#1D4ED8" },
+  { id: 10, name: "Vitas Dade/Monroe", color: "#B91C1C" },
+  { id: 11, name: "Vitas Jacksonville ( St. Johns)", color: "#7C3AED" },
+  { id: 12, name: "Vitas Broward", color: "#7C3AED" },
+  { id: 13, name: "AdventHealth IPU", color: "#1D4ED8", subItems: 3 },
+];
