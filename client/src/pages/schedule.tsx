@@ -15,7 +15,10 @@ import {
   Search,
   Clock,
   Users as UsersIcon,
-  FileText
+  FileText,
+  CalendarClock,
+  XCircle,
+  Heart
 } from "lucide-react";
 import {
   Select,
@@ -24,6 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import type { User, Shift } from "@shared/schema";
@@ -180,10 +189,33 @@ export default function Schedule() {
               Actions
               <ChevronDown className="h-4 w-4 ml-2" />
             </Button>
-            <Button variant="outline" size="sm" data-testid="button-add-shift">
-              <Plus className="h-4 w-4 mr-2" />
-              Add
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="button-add-menu">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem data-testid="menu-add-single-shift">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add single shift
+                </DropdownMenuItem>
+                <DropdownMenuItem data-testid="menu-add-from-templates">
+                  <CalendarClock className="h-4 w-4 mr-2" />
+                  Add from shift templates
+                </DropdownMenuItem>
+                <DropdownMenuItem data-testid="menu-add-unavailability">
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Add unavailability
+                </DropdownMenuItem>
+                <DropdownMenuItem data-testid="menu-add-work-preference">
+                  <Heart className="h-4 w-4 mr-2" />
+                  Add work preference
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="default" size="sm" data-testid="button-publish-schedule">
               Publish
             </Button>
