@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, ChevronDown, FileText, Search, Gift, Clock, FileCheck } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CalendarIcon, ChevronDown, FileText, Search, Gift, Clock, FileCheck, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import type { User } from "@shared/schema";
 import { useState } from "react";
 
@@ -290,14 +291,30 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base">Overtime & Pay rules</CardTitle>
-                          <Button variant="ghost" size="sm">
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        <div className="text-sm text-muted-foreground">
-                          Effective date: 01/01/1970
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-muted-foreground">
+                            Effective date: 01/01/1970
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" data-testid="button-overtime-menu">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem data-testid="menu-update-overtime">
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Update
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" data-testid="menu-delete-overtime">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                         <div className="flex items-center gap-2">
                           <FileCheck className="h-4 w-4 text-muted-foreground" />
@@ -330,8 +347,27 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                         <CardTitle className="text-base">Pay rate</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="text-sm text-muted-foreground">
-                          Effective date: 05/29/2025
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-muted-foreground">
+                            Effective date: 05/29/2025
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" data-testid="button-payrate-menu">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem data-testid="menu-update-payrate">
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Update
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" data-testid="menu-delete-payrate">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                         
                         <div className="space-y-3">
