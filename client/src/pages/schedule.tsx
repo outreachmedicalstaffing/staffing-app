@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -56,6 +57,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -65,7 +79,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
+import { format, addDays, startOfWeek, endOfWeek, parse, differenceInMinutes } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { User, Shift, ShiftTemplate } from "@shared/schema";
@@ -102,6 +116,38 @@ export default function Schedule() {
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
   const [editingTemplate, setEditingTemplate] = useState<ShiftTemplate | null>(null);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+  const [showAddShift, setShowAddShift] = useState(false);
+  const [shiftFormData, setShiftFormData] = useState({
+    date: new Date(),
+    allDay: false,
+    startTime: '8:00am',
+    endTime: '8:00pm',
+    shiftTitle: '',
+    job: '',
+    selectedUsers: [] as string[],
+    address: '',
+    note: '',
+    timezone: 'America/New_York',
+  });
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+
+  // Calculate shift duration
+  const calculateDuration = () => {
+    if (shiftFormData.allDay) {
+      return "All day";
+    }
+    try {
+      const start = parse(shiftFormData.startTime, 'h:mma', new Date());
+      const end = parse(shiftFormData.endTime, 'h:mma', new Date());
+      let minutes = differenceInMinutes(end, start);
+      if (minutes < 0) minutes += 24 * 60; // Handle overnight shifts
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    } catch {
+      return "";
+    }
+  };
   const { toast } = useToast();
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
@@ -298,7 +344,7 @@ export default function Schedule() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem data-testid="menu-add-single-shift">
+                <DropdownMenuItem onClick={() => setShowAddShift(true)} data-testid="menu-add-single-shift">
                   <Plus className="h-4 w-4 mr-2" />
                   Add single shift
                 </DropdownMenuItem>
@@ -1028,6 +1074,350 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 ))}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Shift Dialog */}
+      <Dialog open={showAddShift} onOpenChange={setShowAddShift}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Shift</DialogTitle>
+          </DialogHeader>
+
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="details" data-testid="tab-shift-details">Shift details</TabsTrigger>
+              <TabsTrigger value="tasks" data-testid="tab-shift-tasks">Shift tasks</TabsTrigger>
+              <TabsTrigger value="templates" data-testid="tab-templates">Templates</TabsTrigger>
+            </TabsList>
+
+            {/* Shift Details Tab */}
+            <TabsContent value="details" className="space-y-4 mt-4">
+              {/* Date and Time */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <Label htmlFor="shift-date">Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          data-testid="button-date-picker"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {shiftFormData.date ? format(shiftFormData.date, 'MM/dd/yyyy') : 'Pick a date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={shiftFormData.date}
+                          onSelect={(date) => date && setShiftFormData({ ...shiftFormData, date })}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="flex items-center gap-2 pt-6">
+                    <Switch
+                      id="all-day"
+                      checked={shiftFormData.allDay}
+                      onCheckedChange={(checked) => setShiftFormData({ ...shiftFormData, allDay: checked })}
+                      data-testid="switch-all-day"
+                    />
+                    <Label htmlFor="all-day">All day</Label>
+                  </div>
+                </div>
+
+                {!shiftFormData.allDay && (
+                  <>
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <Label htmlFor="start-time">Start time</Label>
+                        <Input
+                          id="start-time"
+                          type="text"
+                          value={shiftFormData.startTime}
+                          onChange={(e) => setShiftFormData({ ...shiftFormData, startTime: e.target.value })}
+                          data-testid="input-start-time"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Label htmlFor="end-time">End time</Label>
+                        <Input
+                          id="end-time"
+                          type="text"
+                          value={shiftFormData.endTime}
+                          onChange={(e) => setShiftFormData({ ...shiftFormData, endTime: e.target.value })}
+                          data-testid="input-end-time"
+                        />
+                      </div>
+                    </div>
+                    {calculateDuration() && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>Duration: {calculateDuration()}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Shift Title */}
+              <div>
+                <Label htmlFor="shift-title">Shift title</Label>
+                <Input
+                  id="shift-title"
+                  value={shiftFormData.shiftTitle}
+                  onChange={(e) => setShiftFormData({ ...shiftFormData, shiftTitle: e.target.value })}
+                  placeholder="Enter shift title"
+                  data-testid="input-shift-title"
+                />
+              </div>
+
+              {/* Job Selection */}
+              <div>
+                <Label htmlFor="job-select">Job</Label>
+                <Select
+                  value={shiftFormData.job}
+                  onValueChange={(value) => setShiftFormData({ ...shiftFormData, job: value })}
+                >
+                  <SelectTrigger id="job-select" data-testid="select-job">
+                    <SelectValue placeholder="Select a job" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {jobLocations.map((job) => (
+                      <SelectItem key={job.id} value={job.name} data-testid={`job-option-${job.id}`}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="h-2 w-2 rounded-full" 
+                            style={{ backgroundColor: job.color }}
+                          />
+                          {job.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* User Assignment */}
+              <div>
+                <Label>Assign to</Label>
+                <div className="mt-2 space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users..."
+                      className="pl-9"
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      data-testid="input-user-search"
+                    />
+                  </div>
+                  
+                  <div className="border rounded-md max-h-48 overflow-y-auto">
+                    {users
+                      .filter(user => 
+                        user.fullName.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                        user.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+                      )
+                      .map((user) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center gap-3 p-2 hover-elevate cursor-pointer"
+                          onClick={() => {
+                            const isSelected = shiftFormData.selectedUsers.includes(String(user.id));
+                            setShiftFormData({
+                              ...shiftFormData,
+                              selectedUsers: isSelected
+                                ? shiftFormData.selectedUsers.filter(id => id !== String(user.id))
+                                : [...shiftFormData.selectedUsers, String(user.id)]
+                            });
+                          }}
+                          data-testid={`user-option-${user.id}`}
+                        >
+                          <div className={`h-4 w-4 rounded border flex items-center justify-center ${
+                            shiftFormData.selectedUsers.includes(String(user.id)) 
+                              ? 'bg-primary border-primary' 
+                              : 'border-input'
+                          }`}>
+                            {shiftFormData.selectedUsers.includes(String(user.id)) && (
+                              <div className="h-2 w-2 bg-primary-foreground rounded-sm" />
+                            )}
+                          </div>
+                          <Avatar className="h-7 w-7">
+                            <AvatarFallback className="text-xs">
+                              {user.fullName.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">{user.fullName}</div>
+                            <div className="text-xs text-muted-foreground">{user.email}</div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+
+                  {shiftFormData.selectedUsers.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {shiftFormData.selectedUsers.map((userId) => {
+                        const user = users.find(u => String(u.id) === userId);
+                        if (!user) return null;
+                        return (
+                          <Badge key={userId} variant="secondary" className="gap-1" data-testid={`selected-user-${userId}`}>
+                            {user.fullName}
+                            <X 
+                              className="h-3 w-3 cursor-pointer" 
+                              onClick={() => {
+                                setShiftFormData({
+                                  ...shiftFormData,
+                                  selectedUsers: shiftFormData.selectedUsers.filter(id => id !== userId)
+                                });
+                              }}
+                            />
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="address"
+                    className="pl-9"
+                    value={shiftFormData.address}
+                    onChange={(e) => setShiftFormData({ ...shiftFormData, address: e.target.value })}
+                    placeholder="Enter address"
+                    data-testid="input-address"
+                  />
+                </div>
+              </div>
+
+              {/* Note */}
+              <div>
+                <Label htmlFor="note">Note</Label>
+                <Textarea
+                  id="note"
+                  value={shiftFormData.note}
+                  onChange={(e) => setShiftFormData({ ...shiftFormData, note: e.target.value })}
+                  placeholder="Add a note..."
+                  rows={3}
+                  data-testid="textarea-note"
+                />
+              </div>
+
+              {/* Timezone */}
+              <div>
+                <Label htmlFor="timezone">Timezone</Label>
+                <Select
+                  value={shiftFormData.timezone}
+                  onValueChange={(value) => setShiftFormData({ ...shiftFormData, timezone: value })}
+                >
+                  <SelectTrigger id="timezone" data-testid="select-timezone">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-between pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowAddShift(false)}
+                  data-testid="button-cancel-shift"
+                >
+                  Cancel
+                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    data-testid="button-save-template"
+                  >
+                    Save as template
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    data-testid="button-save-draft"
+                  >
+                    Save draft
+                  </Button>
+                  <Button 
+                    variant="default"
+                    data-testid="button-publish-shift"
+                  >
+                    Publish
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Shift Tasks Tab */}
+            <TabsContent value="tasks" className="space-y-4 mt-4">
+              <div className="text-center py-8 text-muted-foreground">
+                <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>Shift tasks functionality coming soon</p>
+              </div>
+            </TabsContent>
+
+            {/* Templates Tab */}
+            <TabsContent value="templates" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Select a template to apply</Label>
+                <div className="border rounded-md max-h-96 overflow-y-auto">
+                  {shiftTemplates.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CalendarClock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No shift templates available</p>
+                    </div>
+                  ) : (
+                    shiftTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="flex items-center justify-between p-3 hover-elevate cursor-pointer"
+                        onClick={() => {
+                          setShiftFormData({
+                            ...shiftFormData,
+                            startTime: template.startTime,
+                            endTime: template.endTime,
+                            shiftTitle: template.title,
+                          });
+                          toast({ title: `Applied template: ${template.title}` });
+                        }}
+                        data-testid={`template-option-${template.id}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="h-3 w-3 rounded-full" 
+                            style={{ backgroundColor: template.color }}
+                          />
+                          <div>
+                            <div className="font-medium">{template.title}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {template.startTime} - {template.endTime}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>
