@@ -842,7 +842,19 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
 
             {/* Add Template Link */}
             <div className="px-4 pb-4">
-              <Button variant="ghost" className="text-primary p-0 h-auto hover:bg-transparent" data-testid="button-add-template">
+              <Button 
+                variant="ghost" 
+                className="text-primary p-0 h-auto hover:bg-transparent" 
+                onClick={() => {
+                  setEditingTemplate({
+                    id: 0,
+                    timeRange: "",
+                    description: "",
+                    color: "#64748B"
+                  });
+                }}
+                data-testid="button-add-template"
+              >
                 Add Template
               </Button>
             </div>
