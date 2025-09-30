@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
 import type { Timesheet, User } from "@shared/schema";
-import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -36,8 +35,8 @@ export default function Timesheets() {
       totalHours,
       regularHours,
       overtimeHours,
-      paidTimeOff: 0, // TODO: Calculate from data
-      totalPay: totalHours * 25, // TODO: Calculate based on actual pay rates
+      holidayHours: 0,
+      totalPay: totalHours * 25,
       status: userTimesheets.length > 0 ? userTimesheets[0].status : 'pending',
       issues: userTimesheets.filter(ts => ts.status === 'rejected').length
     };
@@ -51,7 +50,7 @@ export default function Timesheets() {
   });
 
   const totalRegular = timesheetsByUser.reduce((sum, item) => sum + item.regularHours, 0);
-  const totalPaidTimeOff = timesheetsByUser.reduce((sum, item) => sum + item.paidTimeOff, 0);
+  const totalHours = timesheetsByUser.reduce((sum, item) => sum + item.totalHours, 0);
   const totalPayroll = timesheetsByUser.reduce((sum, item) => sum + item.totalPay, 0);
 
   if (loadingTimesheets || loadingUsers) {
@@ -113,20 +112,15 @@ export default function Timesheets() {
           </div>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-4 gap-4 mb-6 pb-6 border-b">
+          <div className="grid grid-cols-3 gap-6 mb-6 pb-6 border-b">
             <div>
               <p className="text-sm text-muted-foreground">Regular</p>
               <p className="text-lg font-semibold">{totalRegular.toFixed(1)}</p>
               <p className="text-xs text-muted-foreground">Total time off</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Paid time off</p>
-              <p className="text-lg font-semibold">{totalPaidTimeOff}</p>
-              <p className="text-xs text-muted-foreground">Total paid hours</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total paid off</p>
-              <p className="text-lg font-semibold">0</p>
+              <p className="text-sm text-muted-foreground">Total paid hours</p>
+              <p className="text-lg font-semibold">{totalHours.toFixed(1)}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Pay per date</p>
@@ -139,13 +133,13 @@ export default function Timesheets() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[250px]">First name</TableHead>
+                  <TableHead className="w-[200px]">First name</TableHead>
                   <TableHead>Total hours</TableHead>
-                  <TableHead>Paid time off</TableHead>
                   <TableHead>Total pay</TableHead>
                   <TableHead>Admin approval</TableHead>
                   <TableHead>Issues</TableHead>
                   <TableHead>Regular</TableHead>
+                  <TableHead>Holiday</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -161,7 +155,6 @@ export default function Timesheets() {
                       </div>
                     </TableCell>
                     <TableCell>{item.totalHours > 0 ? item.totalHours.toFixed(1) : '—'}</TableCell>
-                    <TableCell>—</TableCell>
                     <TableCell>{item.totalHours > 0 ? `$${item.totalPay.toFixed(2)}` : '—'}</TableCell>
                     <TableCell>
                       {item.status === 'approved' ? (
@@ -174,6 +167,7 @@ export default function Timesheets() {
                     </TableCell>
                     <TableCell>{item.issues > 0 ? item.issues : '—'}</TableCell>
                     <TableCell>{item.regularHours > 0 ? item.regularHours.toFixed(1) : '—'}</TableCell>
+                    <TableCell>—</TableCell>
                   </TableRow>
                 ))}
                 {filteredData.length === 0 && (
