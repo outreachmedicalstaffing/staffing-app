@@ -81,10 +81,14 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
           </div>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-3 gap-4 pb-4 border-b">
+          <div className="grid grid-cols-4 gap-4 pb-4 border-b">
             <div>
               <p className="text-sm text-muted-foreground">Regular</p>
               <p className="text-lg font-semibold">{regularHours.toFixed(1)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Holiday paid hours</p>
+              <p className="text-lg font-semibold">0</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Paid hours</p>
