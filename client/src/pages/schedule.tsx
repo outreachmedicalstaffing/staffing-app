@@ -324,7 +324,7 @@ export default function Schedule() {
   const createShiftMutation = useMutation({
     mutationFn: async (shiftData: any): Promise<Shift> => {
       const response = await apiRequest('POST', '/api/shifts', shiftData);
-      return response as Shift;
+      return response.json();
     },
     onSuccess: async (shift: Shift) => {
       // Assign users to the shift
