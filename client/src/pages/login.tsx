@@ -122,8 +122,9 @@ export default function Login() {
           </Form>
           <div className="mt-6 text-sm text-center text-muted-foreground">
             <p>Demo Accounts:</p>
-            <p className="mt-1">Owner: admin / admin123</p>
-            <p>Staff: sarah / sarah123</p>
+            <p className="mt-1">Owner: owner / password123</p>
+            <p>Admin: admin / password123</p>
+            <p>Staff: jsmith / password123</p>
           </div>
         </CardContent>
       </Card>
