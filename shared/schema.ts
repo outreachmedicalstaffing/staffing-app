@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   fullName: text("full_name").notNull(),
   role: text("role").notNull(), // Owner, Admin, Scheduler, Payroll, HR, Manager, Staff
+  hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }).default('25.00'), // Hourly pay rate
   groups: text("groups").array().default(sql`ARRAY[]::text[]`),
   customFields: jsonb("custom_fields").default(sql`'{}'::jsonb`), // Encrypted PHI: license, SSN, etc.
   status: text("status").notNull().default('active'), // active, archived

@@ -465,23 +465,75 @@ export default function Schedule() {
     });
   };
 
+  // Calculate hours for a shift
+  const calculateShiftHours = (shift: Shift) => {
+    const start = new Date(shift.startTime);
+    const end = new Date(shift.endTime);
+    return (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  };
+
+  // Calculate labor cost for a shift based on user's hourly rate
+  const calculateShiftLabor = (shift: Shift) => {
+    const user = getUserForShift(shift);
+    if (!user) return 0;
+    const hours = calculateShiftHours(shift);
+    const hourlyRate = parseFloat(user.hourlyRate || '25.00');
+    return hours * hourlyRate;
+  };
+
+  // Calculate stats for a specific user for the week
+  const calculateUserWeekStats = (userId: string) => {
+    const userShifts = shifts.filter(s => {
+      const assignment = shiftAssignments.find(a => a.shiftId === s.id && a.userId === userId);
+      const shiftDate = new Date(s.startTime);
+      return assignment && shiftDate >= weekStart && shiftDate <= weekEnd;
+    });
+    
+    const hours = userShifts.reduce((sum, s) => sum + calculateShiftHours(s), 0);
+    const labor = userShifts.reduce((sum, s) => sum + calculateShiftLabor(s), 0);
+    
+    return { hours, labor };
+  };
+
   const calculateDayStats = (day: Date) => {
     const dayShifts = getShiftsForDay(day);
-    const scheduledLabor = dayShifts.length * 150;
-    const actualLabor = dayShifts.filter(s => s.status === 'assigned').length * 150;
-    return { scheduled: scheduledLabor, actual: actualLabor, shifts: dayShifts.length };
+    
+    const scheduledLabor = dayShifts.reduce((sum, shift) => {
+      return sum + calculateShiftLabor(shift);
+    }, 0);
+    
+    const actualLabor = dayShifts
+      .filter(s => s.status === 'assigned' || s.status === 'in-progress' || s.status === 'completed')
+      .reduce((sum, shift) => sum + calculateShiftLabor(shift), 0);
+    
+    const hours = dayShifts.reduce((sum, shift) => sum + calculateShiftHours(shift), 0);
+    
+    return { scheduled: scheduledLabor, actual: actualLabor, shifts: dayShifts.length, hours };
   };
 
   const calculateWeekStats = () => {
-    const totalShifts = shifts.length;
-    const totalHours = shifts.reduce((sum, s) => {
-      const start = new Date(s.startTime);
-      const end = new Date(s.endTime);
-      return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-    }, 0);
-    const uniqueUsers = users.length;
-    const totalLabor = shifts.length * 150;
-    return { hours: totalHours.toFixed(1), shifts: totalShifts, users: uniqueUsers, labor: totalLabor };
+    const weekShifts = shifts.filter(s => {
+      const shiftDate = new Date(s.startTime);
+      return shiftDate >= weekStart && shiftDate <= weekEnd;
+    });
+    
+    const totalShifts = weekShifts.length;
+    const totalHours = weekShifts.reduce((sum, s) => sum + calculateShiftHours(s), 0);
+    
+    const assignedUsers = new Set(
+      shiftAssignments
+        .filter(a => weekShifts.some(s => s.id === a.shiftId))
+        .map(a => a.userId)
+    );
+    
+    const totalLabor = weekShifts.reduce((sum, s) => sum + calculateShiftLabor(s), 0);
+    
+    return { 
+      hours: totalHours.toFixed(1), 
+      shifts: totalShifts, 
+      users: assignedUsers.size, 
+      labor: totalLabor 
+    };
   };
 
   const weekStats = calculateWeekStats();
@@ -614,7 +666,7 @@ export default function Schedule() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Actual</span>
-                <span className="font-medium">${weekStats.labor}</span>
+                <span className="font-medium">${weekStats.labor.toFixed(2)}</span>
               </div>
             </div>
           </Card>
@@ -628,11 +680,14 @@ export default function Schedule() {
           <Card className="p-3">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium">Unassigned shifts</span>
-              <Badge variant="secondary" className="text-xs">{unassignedUsers.length}</Badge>
+              <Badge variant="secondary" className="text-xs">
+                {shifts.filter(s => !shiftAssignments.some(a => a.shiftId === s.id)).length}
+              </Badge>
             </div>
             <div className="space-y-2">
               {unassignedUsers.map((user) => {
                 const initials = user.fullName.split(' ').map(n => n[0]).join('');
+                const userStats = calculateUserWeekStats(user.id);
                 return (
                   <div key={user.id} className="flex items-center gap-2" data-testid={`unassigned-user-${user.id}`}>
                     <Avatar className="h-6 w-6">
@@ -644,7 +699,9 @@ export default function Schedule() {
                       <div className="text-xs font-medium truncate">
                         {user.fullName}
                       </div>
-                      <div className="text-xs text-muted-foreground">0h - $0</div>
+                      <div className="text-xs text-muted-foreground">
+                        {userStats.hours.toFixed(1)}h - ${userStats.labor.toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 );
@@ -682,7 +739,7 @@ export default function Schedule() {
                   <DollarSign className="h-3 w-3" />
                   <span>Labor</span>
                 </div>
-                <div className="font-medium">${weekStats.labor}</div>
+                <div className="font-medium">${weekStats.labor.toFixed(2)}</div>
               </div>
             </div>
           </Card>
@@ -714,11 +771,11 @@ export default function Schedule() {
                         <Badge variant="default" className="text-xs mt-1">Today</Badge>
                       )}
                       <div className="flex items-center justify-center gap-1 mt-2 text-xs text-muted-foreground">
-                        <span>0</span>
+                        <span>{stats.hours.toFixed(1)}h</span>
                         <span>·</span>
-                        <span>$0</span>
+                        <span>${stats.scheduled.toFixed(0)}</span>
                         <span>·</span>
-                        <span>0</span>
+                        <span>{stats.shifts}</span>
                       </div>
                     </div>
                     <div className="mt-2 space-y-1 text-xs">
@@ -727,11 +784,11 @@ export default function Schedule() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Scheduled</span>
-                        <span className="font-medium">${stats.scheduled}</span>
+                        <span className="font-medium">${stats.scheduled.toFixed(0)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Actual</span>
-                        <span className="font-medium">${stats.actual}</span>
+                        <span className="font-medium">${stats.actual.toFixed(0)}</span>
                       </div>
                     </div>
                   </div>
@@ -754,7 +811,12 @@ export default function Schedule() {
                       <div className="text-xs font-medium truncate">
                         {user.fullName}
                       </div>
-                      <div className="text-xs text-muted-foreground">0h - $0</div>
+                      <div className="text-xs text-muted-foreground">
+                        {(() => {
+                          const stats = calculateUserWeekStats(user.id);
+                          return `${stats.hours.toFixed(1)}h - $${stats.labor.toFixed(0)}`;
+                        })()}
+                      </div>
                     </div>
                   </div>
                   
@@ -827,11 +889,6 @@ export default function Schedule() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">Labor:</span>
               <span className="font-medium">${weekStats.labor.toFixed(2)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Sales:</span>
-              <span className="font-medium">--</span>
             </div>
           </div>
         </div>
