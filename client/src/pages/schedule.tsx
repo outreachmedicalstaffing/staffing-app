@@ -32,7 +32,9 @@ import {
   MoreHorizontal,
   MapPin,
   Paperclip,
-  Info
+  Info,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import {
   Select,
@@ -99,6 +101,8 @@ export default function Schedule() {
   const [editingJob, setEditingJob] = useState<typeof jobLocations[0] | null>(null);
   const [showShiftTemplates, setShowShiftTemplates] = useState(false);
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
+  const [editingTemplate, setEditingTemplate] = useState<typeof shiftTemplates[0] | null>(null);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -669,12 +673,40 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 .map((template) => (
                   <div
                     key={template.id}
-                    className="p-3 rounded-md border bg-background hover-elevate cursor-pointer"
+                    className="flex items-center justify-between p-3 rounded-md border bg-background hover-elevate cursor-pointer group"
                     style={{ borderLeftWidth: '3px', borderLeftColor: template.color }}
                     data-testid={`template-item-${template.id}`}
                   >
-                    <div className="font-medium text-sm">{template.timeRange}</div>
-                    <div className="text-sm text-muted-foreground mt-1">{template.description}</div>
+                    <div>
+                      <div className="font-medium text-sm">{template.timeRange}</div>
+                      <div className="text-sm text-muted-foreground mt-1">{template.description}</div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingTemplate(template);
+                        }}
+                        data-testid={`button-edit-template-${template.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletingTemplateId(template.id);
+                        }}
+                        data-testid={`button-delete-template-${template.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
             </div>
