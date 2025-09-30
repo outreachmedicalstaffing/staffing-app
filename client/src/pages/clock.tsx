@@ -13,7 +13,7 @@ export default function Clock() {
   });
 
   const { data: timeEntries = [], isLoading } = useQuery<TimeEntry[]>({
-    queryKey: ['/api/time-entries'],
+    queryKey: ['/api/time/entries'],
   });
 
   const activeEntry = timeEntries.find(entry => entry.status === 'active' && !entry.clockOut);

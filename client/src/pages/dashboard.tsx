@@ -19,7 +19,7 @@ export default function Dashboard() {
 
   // Fetch time entries
   const { data: timeEntries = [], isLoading: timeEntriesLoading } = useQuery<TimeEntry[]>({
-    queryKey: ['/api/time-entries'],
+    queryKey: ['/api/time/entries'],
   });
 
   // Fetch shifts

@@ -42,14 +42,15 @@ export function ClockInterface({
 
   const clockInMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/time-entries/clock-in", {
+      const res = await apiRequest("POST", "/api/time/clock-in", {
         location: "Office",
         notes: "",
       });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/time-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/time/entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/time/active'] });
       toast({
         title: "Clocked In",
         description: "You have successfully clocked in",
@@ -66,11 +67,12 @@ export function ClockInterface({
 
   const clockOutMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/time-entries/clock-out", {});
+      const res = await apiRequest("POST", "/api/time/clock-out", {});
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/time-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/time/entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/time/active'] });
       toast({
         title: "Clocked Out",
         description: "You have successfully clocked out",
