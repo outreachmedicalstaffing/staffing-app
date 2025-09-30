@@ -126,11 +126,56 @@ export default function Login() {
               </Button>
             </form>
           </Form>
-          <div className="mt-6 text-sm text-center text-muted-foreground">
-            <p>Demo Accounts:</p>
-            <p className="mt-1">Owner: owner / admin123</p>
-            <p>Admin: admin / admin123</p>
-            <p>Staff: jsmith / password123</p>
+          <div className="mt-6 space-y-4">
+            <div className="text-sm text-center text-muted-foreground">
+              <p>Demo Accounts:</p>
+              <p className="mt-1">Owner: owner / admin123</p>
+              <p>Admin: admin / admin123</p>
+              <p>Staff: jsmith / password123</p>
+            </div>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  form.setValue("username", "owner");
+                  form.setValue("password", "admin123");
+                  form.handleSubmit(onSubmit)();
+                }}
+                data-testid="button-quick-login-owner"
+              >
+                Quick Login as Owner
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  console.log("[DIRECT] Attempting direct fetch...");
+                  try {
+                    const res = await fetch("/api/auth/login", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ username: "owner", password: "admin123" }),
+                      credentials: "include",
+                    });
+                    console.log("[DIRECT] Response status:", res.status);
+                    const data = await res.json();
+                    console.log("[DIRECT] Response data:", data);
+                    if (res.ok) {
+                      toast({ title: "Success", description: "Logged in!" });
+                      setLocation("/");
+                    } else {
+                      toast({ title: "Error", description: "Login failed", variant: "destructive" });
+                    }
+                  } catch (error) {
+                    console.error("[DIRECT] Error:", error);
+                  }
+                }}
+                data-testid="button-direct-login"
+              >
+                Direct Login Test
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
