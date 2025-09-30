@@ -99,17 +99,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
+      console.log("[LOGIN] Attempt for username:", username);
       
       if (!username || !password) {
+        console.log("[LOGIN] Missing username or password");
         return res.status(400).json({ error: "Username and password required" });
       }
       
       const user = await storage.getUserByUsername(username);
       if (!user) {
+        console.log("[LOGIN] User not found:", username);
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
+      console.log("[LOGIN] User found, checking password...");
       const validPassword = await bcrypt.compare(password, user.passwordHash);
+      console.log("[LOGIN] Password valid:", validPassword);
+      
       if (!validPassword) {
         await logAudit(user.id, "failed_login", "user", user.id, false, [], {}, req.ip);
         return res.status(401).json({ error: "Invalid credentials" });
@@ -118,9 +124,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.userId = user.id;
       await logAudit(user.id, "login", "user", user.id, false, [], {}, req.ip);
       
+      console.log("[LOGIN] Success for user:", username);
       const { passwordHash: _, ...userResponse } = user;
       res.json(userResponse);
     } catch (error) {
+      console.error("[LOGIN] Error:", error);
       res.status(500).json({ error: "Failed to login" });
     }
   });
