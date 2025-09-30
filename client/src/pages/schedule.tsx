@@ -66,9 +66,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
-import type { User, Shift } from "@shared/schema";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { User, Shift, ShiftTemplate } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 const jobLocations = [
   { id: 1, name: "Vitas Citrus", color: "#B91C1C" },
@@ -88,19 +90,6 @@ const jobLocations = [
   { id: 15, name: "Haven", color: "#EAB308" },
 ];
 
-const shiftTemplates = [
-  { id: 1, timeRange: "8:00a - 8:00p", description: "Day shift - facility", color: "#EAB308" },
-  { id: 2, timeRange: "8:00p - 8:00a", description: "Night shift - facility", color: "#64748B" },
-  { id: 3, timeRange: "8:00a - 7:00p", description: "Day shift - home case", color: "#EAB308" },
-  { id: 4, timeRange: "7:00p - 8:00a", description: "Night shift - home case", color: "#64748B" },
-  { id: 5, timeRange: "7:00p - 8:00a", description: "Night shift - facility case", color: "#7C3AED" },
-  { id: 6, timeRange: "8:00a - 7:00p", description: "Day shift - facility case", color: "#EAB308" },
-  { id: 7, timeRange: "8:00a - 8:00p", description: "Day shift - home case", color: "#EAB308" },
-  { id: 8, timeRange: "8:00p - 8:00a", description: "Night shift - home case", color: "#64748B" },
-  { id: 9, timeRange: "7:00a - 7:00p", description: "Day shift - home case", color: "#EAB308" },
-  { id: 10, timeRange: "7:00p - 7:00a", description: "Night shift - home case", color: "#B91C1C" },
-  { id: 11, timeRange: "7:00a - 7:00p", description: "Day shift - facility case", color: "#EAB308" },
-];
 
 export default function Schedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -111,8 +100,9 @@ export default function Schedule() {
   const [editingJob, setEditingJob] = useState<typeof jobLocations[0] | null>(null);
   const [showShiftTemplates, setShowShiftTemplates] = useState(false);
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
-  const [editingTemplate, setEditingTemplate] = useState<typeof shiftTemplates[0] | null>(null);
-  const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<ShiftTemplate | null>(null);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -120,6 +110,52 @@ export default function Schedule() {
 
   const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
     queryKey: ['/api/shifts'],
+  });
+
+  const { data: shiftTemplates = [], isLoading: templatesLoading } = useQuery<ShiftTemplate[]>({
+    queryKey: ['/api/shift-templates'],
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: async (data: { title: string; startTime: string; endTime: string; color: string; description?: string }) => {
+      return apiRequest('POST', '/api/shift-templates', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shift-templates'] });
+      setEditingTemplate(null);
+      toast({ title: "Template created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to create template", variant: "destructive" });
+    },
+  });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<{ title: string; startTime: string; endTime: string; color: string; description?: string }> }) => {
+      return apiRequest('PATCH', `/api/shift-templates/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shift-templates'] });
+      setEditingTemplate(null);
+      toast({ title: "Template updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update template", variant: "destructive" });
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/shift-templates/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shift-templates'] });
+      setDeletingTemplateId(null);
+      toast({ title: "Template deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete template", variant: "destructive" });
+    },
   });
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -661,7 +697,7 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                   <Input 
                     id="start-time" 
                     placeholder="8:00am"
-                    defaultValue={editingTemplate.timeRange.split(' - ')[0]}
+                    defaultValue={editingTemplate.startTime}
                     data-testid="input-start-time"
                   />
                 </div>
@@ -672,7 +708,7 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                   <Input 
                     id="end-time" 
                     placeholder="8:00pm"
-                    defaultValue={editingTemplate.timeRange.split(' - ')[1]}
+                    defaultValue={editingTemplate.endTime}
                     data-testid="input-end-time"
                   />
                 </div>
@@ -686,7 +722,7 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 <Input 
                   id="template-title" 
                   placeholder="Day shift - facility"
-                  defaultValue={editingTemplate.description}
+                  defaultValue={editingTemplate.title}
                   data-testid="input-template-title"
                 />
               </div>
@@ -715,6 +751,7 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                   id="template-description"
                   rows={4}
                   placeholder="Optional description or notes..."
+                  defaultValue={editingTemplate.description || ""}
                   data-testid="textarea-template-description"
                 />
               </div>
@@ -724,9 +761,37 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 <Button 
                   variant="default" 
                   className="flex-1"
+                  onClick={() => {
+                    const startTime = (document.getElementById('start-time') as HTMLInputElement).value;
+                    const endTime = (document.getElementById('end-time') as HTMLInputElement).value;
+                    const title = (document.getElementById('template-title') as HTMLInputElement).value;
+                    const color = (document.getElementById('template-color') as HTMLInputElement).value;
+                    const description = (document.getElementById('template-description') as HTMLTextAreaElement).value;
+
+                    if (!startTime || !endTime || !title) {
+                      toast({ title: "Please fill in all required fields", variant: "destructive" });
+                      return;
+                    }
+
+                    if (editingTemplate.id) {
+                      updateTemplateMutation.mutate({
+                        id: editingTemplate.id,
+                        data: { title, startTime, endTime, color, description: description || undefined }
+                      });
+                    } else {
+                      createTemplateMutation.mutate({
+                        title,
+                        startTime,
+                        endTime,
+                        color,
+                        description: description || undefined
+                      });
+                    }
+                  }}
+                  disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}
                   data-testid="button-save-template"
                 >
-                  Save Template
+                  {(createTemplateMutation.isPending || updateTemplateMutation.isPending) ? "Saving..." : "Save Template"}
                 </Button>
                 <Button 
                   variant="outline" 
@@ -754,9 +819,15 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
             <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingTemplateId) {
+                  deleteTemplateMutation.mutate(deletingTemplateId);
+                }
+              }}
+              disabled={deleteTemplateMutation.isPending}
               data-testid="button-confirm-delete"
             >
-              Delete
+              {deleteTemplateMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -795,10 +866,13 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
             {/* Templates List */}
             <div className="px-4 pb-4 space-y-2 max-h-96 overflow-y-auto">
               {shiftTemplates
-                .filter(template => 
-                  template.timeRange.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
-                  template.description.toLowerCase().includes(templateSearchQuery.toLowerCase())
-                )
+                .filter(template => {
+                  const timeRange = `${template.startTime} - ${template.endTime}`;
+                  const query = templateSearchQuery.toLowerCase();
+                  return timeRange.toLowerCase().includes(query) ||
+                         template.title.toLowerCase().includes(query) ||
+                         (template.description && template.description.toLowerCase().includes(query));
+                })
                 .map((template) => (
                   <div
                     key={template.id}
@@ -807,8 +881,8 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                     data-testid={`template-item-${template.id}`}
                   >
                     <div>
-                      <div className="font-medium text-sm">{template.timeRange}</div>
-                      <div className="text-sm text-muted-foreground mt-1">{template.description}</div>
+                      <div className="font-medium text-sm">{template.startTime} - {template.endTime}</div>
+                      <div className="text-sm text-muted-foreground mt-1">{template.title}</div>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button 
@@ -847,10 +921,13 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 className="text-primary p-0 h-auto hover:bg-transparent" 
                 onClick={() => {
                   setEditingTemplate({
-                    id: 0,
-                    timeRange: "",
-                    description: "",
-                    color: "#64748B"
+                    id: "",
+                    title: "",
+                    startTime: "",
+                    endTime: "",
+                    color: "#64748B",
+                    description: null,
+                    createdAt: new Date()
                   });
                 }}
                 data-testid="button-add-template"
