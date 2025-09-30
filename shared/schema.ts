@@ -94,6 +94,7 @@ export const shifts = pgTable("shifts", {
   scheduleId: varchar("schedule_id").references(() => schedules.id),
   templateId: varchar("template_id").references(() => shiftTemplates.id),
   title: text("title").notNull(),
+  jobName: text("job_name"), // The job/location this shift is for
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
   location: text("location"),

@@ -35,7 +35,8 @@ import {
   Paperclip,
   Info,
   Pencil,
-  Trash2
+  Trash2,
+  Moon
 } from "lucide-react";
 import {
   Select,
@@ -137,6 +138,16 @@ export default function Schedule() {
     lon: number;
   }>>([]);
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const [editingShift, setEditingShift] = useState<Shift | null>(null);
+
+  // Helper function to detect night shifts
+  const isNightShift = (startTime: Date, endTime: Date) => {
+    const startHour = startTime.getHours();
+    const endHour = endTime.getHours();
+    // Consider it a night shift if it starts after 7pm or ends before 7am
+    // or if end time is before start time (crosses midnight)
+    return startHour >= 19 || endHour <= 7 || endTime < startTime;
+  };
 
   // Calculate shift duration
   const calculateDuration = () => {
@@ -281,6 +292,7 @@ export default function Schedule() {
       // Prepare shift data
       const shiftData = {
         title: shiftFormData.shiftTitle,
+        jobName: shiftFormData.job || null,
         startTime: startTime,
         endTime: endTime,
         location: shiftFormData.address || null,
@@ -759,10 +771,12 @@ export default function Schedule() {
                         {userShifts.map((shift) => {
                           const startTime = format(new Date(shift.startTime), 'h:mma');
                           const endTime = format(new Date(shift.endTime), 'h:mma');
+                          const isNight = isNightShift(new Date(shift.startTime), new Date(shift.endTime));
                           
                           return (
                             <div
                               key={shift.id}
+                              onClick={() => setEditingShift(shift)}
                               className="rounded p-2 text-xs cursor-pointer hover-elevate"
                               style={{
                                 backgroundColor: shift.color || '#3b82f6',
@@ -770,14 +784,13 @@ export default function Schedule() {
                               }}
                               data-testid={`shift-${shift.id}`}
                             >
-                              <div className="font-medium text-white">
+                              <div className="font-medium text-white flex items-center gap-1">
                                 {startTime} - {endTime}
+                                {isNight && <Moon className="h-3 w-3 flex-shrink-0" />}
                               </div>
-                              {shift.location && (
-                                <div className="mt-0.5 text-white/90 text-[10px] truncate">
-                                  {shift.location}
-                                </div>
-                              )}
+                              <div className="mt-0.5 text-white/90 text-[10px] truncate">
+                                {shift.jobName && `${shift.jobName} • `}{shift.title}
+                              </div>
                             </div>
                           );
                         })}
