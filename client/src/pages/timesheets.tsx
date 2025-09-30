@@ -10,10 +10,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { Timesheet, User } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserTimesheetDetail } from "@/components/user-timesheet-detail";
 
 export default function Timesheets() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const { data: timesheets = [], isLoading: loadingTimesheets } = useQuery<Timesheet[]>({
     queryKey: ['/api/timesheets'],
@@ -144,7 +146,12 @@ export default function Timesheets() {
               </TableHeader>
               <TableBody>
                 {filteredData.map((item) => (
-                  <TableRow key={item.user.id} data-testid={`row-user-${item.user.id}`}>
+                  <TableRow 
+                    key={item.user.id} 
+                    data-testid={`row-user-${item.user.id}`}
+                    className="cursor-pointer hover-elevate"
+                    onClick={() => setSelectedUser(item.user)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
@@ -205,6 +212,12 @@ export default function Timesheets() {
           )}
         </CardContent>
       </Card>
+
+      <UserTimesheetDetail 
+        user={selectedUser}
+        open={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+      />
     </div>
   );
 }
