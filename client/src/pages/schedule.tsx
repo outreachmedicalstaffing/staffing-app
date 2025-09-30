@@ -136,9 +136,6 @@ export default function Schedule() {
             <SettingsIcon className="h-4 w-4 mr-2" />
             Settings
           </Button>
-          <Button variant="default" size="sm" data-testid="button-publish">
-            Publish
-          </Button>
         </div>
       </div>
 
@@ -185,10 +182,6 @@ export default function Schedule() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" data-testid="button-actions">
-              Actions
-              <ChevronDown className="h-4 w-4 ml-2" />
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" data-testid="button-add-menu">
@@ -216,9 +209,6 @@ export default function Schedule() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="default" size="sm" data-testid="button-publish-schedule">
-              Publish
-            </Button>
           </div>
         </div>
       </Card>
