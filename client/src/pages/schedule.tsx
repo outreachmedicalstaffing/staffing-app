@@ -1743,6 +1743,117 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Shift Dialog */}
+      <Dialog open={!!editingShift} onOpenChange={(open) => !open && setEditingShift(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Shift</DialogTitle>
+          </DialogHeader>
+          {editingShift && (
+            <div className="space-y-4">
+              {/* Shift Title */}
+              <div>
+                <Label htmlFor="edit-shift-title">Shift title</Label>
+                <Input
+                  id="edit-shift-title"
+                  defaultValue={editingShift.title}
+                  data-testid="input-edit-shift-title"
+                />
+              </div>
+
+              {/* Job Selection */}
+              <div>
+                <Label htmlFor="edit-job-select">Job</Label>
+                <Select defaultValue={editingShift.jobName || undefined}>
+                  <SelectTrigger id="edit-job-select" data-testid="select-edit-job">
+                    <SelectValue placeholder="Select a job" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {jobLocations.map((job) => (
+                      <SelectItem key={job.id} value={job.name}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="h-2 w-2 rounded-full" 
+                            style={{ backgroundColor: job.color }}
+                          />
+                          {job.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date and Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Start Time</Label>
+                  <Input
+                    type="text"
+                    defaultValue={format(new Date(editingShift.startTime), 'h:mma')}
+                    data-testid="input-edit-start-time"
+                  />
+                </div>
+                <div>
+                  <Label>End Time</Label>
+                  <Input
+                    type="text"
+                    defaultValue={format(new Date(editingShift.endTime), 'h:mma')}
+                    data-testid="input-edit-end-time"
+                  />
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <Label htmlFor="edit-address">Address</Label>
+                <Input
+                  id="edit-address"
+                  defaultValue={editingShift.location || ''}
+                  data-testid="input-edit-address"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  rows={3}
+                  defaultValue={editingShift.notes || ''}
+                  data-testid="textarea-edit-notes"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-between pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setEditingShift(null)}
+                  data-testid="button-cancel-edit"
+                >
+                  Cancel
+                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="destructive"
+                    data-testid="button-delete-shift"
+                  >
+                    Delete
+                  </Button>
+                  <Button 
+                    variant="default"
+                    data-testid="button-save-shift"
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
