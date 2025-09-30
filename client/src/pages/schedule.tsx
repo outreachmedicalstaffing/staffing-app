@@ -4,6 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   ChevronLeft,
   ChevronRight,
@@ -21,7 +29,10 @@ import {
   Heart,
   X,
   Lightbulb,
-  MoreHorizontal
+  MoreHorizontal,
+  MapPin,
+  Paperclip,
+  Info
 } from "lucide-react";
 import {
   Select,
@@ -47,12 +58,31 @@ import { useQuery } from "@tanstack/react-query";
 import type { User, Shift } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const jobLocations = [
+  { id: 1, name: "Vitas Citrus", color: "#B91C1C" },
+  { id: 2, name: "Vitas Nature Coast", color: "#BE185D" },
+  { id: 3, name: "Vitas Jacksonville", color: "#0F766E" },
+  { id: 4, name: "Vitas V/F/P", color: "#0F766E", subItems: 3 },
+  { id: 5, name: "Vitas Central Florida", color: "#1D4ED8" },
+  { id: 6, name: "Vitas Midstate", color: "#A16207" },
+  { id: 7, name: "Vitas Brevard", color: "#9333EA" },
+  { id: 8, name: "Vitas Treasure Coast", color: "#EA580C" },
+  { id: 9, name: "Vitas Palm Beach", color: "#1D4ED8" },
+  { id: 10, name: "Vitas Dade/Monroe", color: "#B91C1C" },
+  { id: 11, name: "Vitas Jacksonville ( St. Johns)", color: "#7C3AED" },
+  { id: 12, name: "Vitas Broward", color: "#7C3AED" },
+  { id: 13, name: "AdventHealth IPU", color: "#1D4ED8", subItems: 3 },
+  { id: 14, name: "AdventHealth Central Florida", color: "#7C3AED" },
+  { id: 15, name: "Haven", color: "#EAB308" },
+];
+
 export default function Schedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
   const [showJobList, setShowJobList] = useState(false);
   const [jobSearchQuery, setJobSearchQuery] = useState("");
+  const [editingJob, setEditingJob] = useState<typeof jobLocations[0] | null>(null);
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -456,6 +486,133 @@ export default function Schedule() {
         </div>
       </Card>
 
+      {/* Edit Job Sheet */}
+      <Sheet open={!!editingJob} onOpenChange={(open) => !open && setEditingJob(null)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <SheetTitle>Edit Job</SheetTitle>
+            <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="button-edit-job-settings">
+              <SettingsIcon className="h-4 w-4" />
+            </Button>
+          </SheetHeader>
+
+          {editingJob && (
+            <div className="space-y-6">
+              {/* Job Name and Code */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="job-name">
+                    Job name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input 
+                    id="job-name" 
+                    defaultValue={editingJob.name}
+                    data-testid="input-job-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="job-code" className="flex items-center gap-1">
+                    Code
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      id="job-code" 
+                      placeholder="Type here"
+                      data-testid="input-job-code"
+                    />
+                    <button
+                      type="button"
+                      className="h-9 w-9 rounded border flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: editingJob.color }}
+                      data-testid="button-color-picker"
+                    >
+                      <div className="h-6 w-6 rounded" style={{ backgroundColor: editingJob.color }} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="job-description">Description</Label>
+                <Textarea
+                  id="job-description"
+                  rows={10}
+                  placeholder="Enter job description..."
+                  defaultValue="Overlapping Shift Start times and End times: Dayshift hours are 8a-8p and Nightshift hours are 8p-8a, unless modified by scheduling/supervision/management determining and scheduling later coverage hours or Patient need. Contractors should start at scheduled start times, unless direct patient care requires a 2 person assist. CC documentation must reflect the direct assigned patient, based on the tech Plan. Contractor should end at scheduled end times. Reports should be short, sweet, and to the point. Remember the shift has 12 hrs to read documentation from off-going shifts.
+
+**Please upload all of your notes in this app by the end of your shift.
+If you have any trouble uploading your notes, use the Adobe Scan app on your phone to scan all of your notes and email them to staffing@outreachmedicalstaffing.com"
+                  data-testid="textarea-job-description"
+                />
+              </div>
+
+              {/* Attach Button */}
+              <Button variant="ghost" className="text-primary p-0 h-auto hover:bg-transparent" data-testid="button-attach">
+                <Paperclip className="h-4 w-4 mr-2" />
+                Attach
+              </Button>
+
+              {/* Qualified Section */}
+              <div className="space-y-2">
+                <Label>Qualified</Label>
+                <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                  <span className="text-sm">
+                    <span className="font-medium">3 users</span> are qualified for this job
+                  </span>
+                  <Button variant="ghost" className="text-primary p-0 h-auto hover:bg-transparent" data-testid="button-edit-qualified">
+                    Edit
+                  </Button>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className="space-y-2">
+                <Label htmlFor="job-address">Address</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input 
+                    id="job-address" 
+                    placeholder="Type here"
+                    className="pl-9"
+                    data-testid="input-job-address"
+                  />
+                </div>
+              </div>
+
+              {/* Use in clocks and Use in schedules */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="use-in-clocks">Use in clocks:</Label>
+                  <Select defaultValue="time-clock">
+                    <SelectTrigger id="use-in-clocks" data-testid="select-use-in-clocks">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="time-clock">Time Clock</SelectItem>
+                      <SelectItem value="disabled">Disabled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="use-in-schedules">Use in schedules:</Label>
+                  <Select defaultValue="schedule">
+                    <SelectTrigger id="use-in-schedules" data-testid="select-use-in-schedules">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="schedule">Schedule</SelectItem>
+                      <SelectItem value="disabled">Disabled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* Job List Dialog */}
       <Dialog open={showJobList} onOpenChange={setShowJobList}>
         <DialogContent className="max-w-md max-h-[80vh] p-0">
@@ -528,7 +685,13 @@ export default function Schedule() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-job-settings-${job.id}`}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8" 
+                        onClick={() => setEditingJob(job)}
+                        data-testid={`button-job-settings-${job.id}`}
+                      >
                         <SettingsIcon className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-job-more-${job.id}`}>
@@ -544,21 +707,3 @@ export default function Schedule() {
     </div>
   );
 }
-
-const jobLocations = [
-  { id: 1, name: "Vitas Citrus", color: "#B91C1C" },
-  { id: 2, name: "Vitas Nature Coast", color: "#BE185D" },
-  { id: 3, name: "Vitas Jacksonville", color: "#0F766E" },
-  { id: 4, name: "Vitas V/F/P", color: "#0F766E", subItems: 3 },
-  { id: 5, name: "Vitas Central Florida", color: "#1D4ED8" },
-  { id: 6, name: "Vitas Midstate", color: "#A16207" },
-  { id: 7, name: "Vitas Brevard", color: "#9333EA" },
-  { id: 8, name: "Vitas Treasure Coast", color: "#EA580C" },
-  { id: 9, name: "Vitas Palm Beach", color: "#1D4ED8" },
-  { id: 10, name: "Vitas Dade/Monroe", color: "#B91C1C" },
-  { id: 11, name: "Vitas Jacksonville ( St. Johns)", color: "#7C3AED" },
-  { id: 12, name: "Vitas Broward", color: "#7C3AED" },
-  { id: 13, name: "AdventHealth IPU", color: "#1D4ED8", subItems: 3 },
-  { id: 14, name: "AdventHealth Central Florida", color: "#7C3AED" },
-  { id: 15, name: "Haven", color: "#EAB308" },
-];
