@@ -33,10 +33,15 @@ export default function Login() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
+      console.log("[FRONTEND] Attempting login with:", { username: data.username });
       const res = await apiRequest("POST", "/api/auth/login", data);
-      return res.json();
+      console.log("[FRONTEND] Login response status:", res.status);
+      const result = await res.json();
+      console.log("[FRONTEND] Login response data:", result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[FRONTEND] Login success:", data);
       toast({
         title: "Success",
         description: "Logged in successfully",
@@ -44,6 +49,7 @@ export default function Login() {
       setLocation("/");
     },
     onError: (error: Error) => {
+      console.error("[FRONTEND] Login error:", error);
       toast({
         title: "Error",
         description: error.message || "Invalid credentials",
@@ -122,8 +128,8 @@ export default function Login() {
           </Form>
           <div className="mt-6 text-sm text-center text-muted-foreground">
             <p>Demo Accounts:</p>
-            <p className="mt-1">Owner: owner / password123</p>
-            <p>Admin: admin / password123</p>
+            <p className="mt-1">Owner: owner / admin123</p>
+            <p>Admin: admin / admin123</p>
             <p>Staff: jsmith / password123</p>
           </div>
         </CardContent>
