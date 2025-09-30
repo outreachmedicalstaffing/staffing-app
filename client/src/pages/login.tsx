@@ -15,7 +15,6 @@ export default function Login() {
 
   const handleLogin = async (user: string, pass: string) => {
     setLoading(true);
-    console.log("[LOGIN] Attempting login with:", user);
     
     try {
       const res = await fetch("/api/auth/login", {
@@ -25,9 +24,7 @@ export default function Login() {
         credentials: "include",
       });
 
-      console.log("[LOGIN] Response status:", res.status);
       const data = await res.json();
-      console.log("[LOGIN] Response data:", data);
 
       if (res.ok) {
         toast({
@@ -43,7 +40,6 @@ export default function Login() {
         });
       }
     } catch (error) {
-      console.error("[LOGIN] Error:", error);
       toast({
         title: "Error",
         description: "Failed to login",
