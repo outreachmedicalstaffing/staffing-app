@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, MapPin, Camera, PenTool } from "lucide-react";
@@ -24,6 +24,7 @@ export function ClockInterface({
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isClockedIn = !!activeEntry;
 
@@ -102,6 +103,37 @@ export function ClockInterface({
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleAddPhoto = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        toast({
+          title: "Photo Selected",
+          description: `Selected: ${file.name}`,
+        });
+        // TODO: Implement photo upload to server/storage
+      } else {
+        toast({
+          title: "Invalid File",
+          description: "Please select an image file",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleAddSignature = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Signature feature will be implemented soon",
+    });
+    // TODO: Implement signature pad modal
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -140,11 +172,28 @@ export function ClockInterface({
 
           {isClockedIn && (
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="gap-2" data-testid="button-add-photo">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <Button 
+                variant="outline" 
+                className="gap-2" 
+                onClick={handleAddPhoto}
+                data-testid="button-add-photo"
+              >
                 <Camera className="h-4 w-4" />
                 Add Photo
               </Button>
-              <Button variant="outline" className="gap-2" data-testid="button-add-signature">
+              <Button 
+                variant="outline" 
+                className="gap-2" 
+                onClick={handleAddSignature}
+                data-testid="button-add-signature"
+              >
                 <PenTool className="h-4 w-4" />
                 Signature
               </Button>
