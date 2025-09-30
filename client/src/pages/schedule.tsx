@@ -128,6 +128,7 @@ export default function Schedule() {
     address: '',
     note: '',
     timezone: 'America/New_York',
+    attachments: [] as File[],
   });
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [addressSuggestions, setAddressSuggestions] = useState<Array<{
@@ -158,6 +159,7 @@ export default function Schedule() {
   // Address autocomplete with Geoapify
   const addressInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAddressSuggestions = async (query: string) => {
     if (!query || query.length < 3) {
@@ -208,6 +210,36 @@ export default function Schedule() {
     setShiftFormData({ ...shiftFormData, address });
     setShowAddressSuggestions(false);
     setAddressSuggestions([]);
+  };
+
+  // File attachment handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      setShiftFormData({
+        ...shiftFormData,
+        attachments: [...shiftFormData.attachments, ...newFiles]
+      });
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setShiftFormData({
+      ...shiftFormData,
+      attachments: shiftFormData.attachments.filter((_, i) => i !== index)
+    });
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
   useEffect(() => {
