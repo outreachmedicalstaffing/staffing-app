@@ -3,39 +3,94 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, MapPin, Camera, PenTool } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { TimeEntry } from "@shared/schema";
 
 interface ClockInterfaceProps {
   userName?: string;
   currentJob?: string;
   currentSubJob?: string;
+  activeEntry?: TimeEntry;
 }
 
 export function ClockInterface({ 
   userName = "John Doe",
   currentJob = "Central Florida",
-  currentSubJob = "7P-7A"
+  currentSubJob = "7P-7A",
+  activeEntry
 }: ClockInterfaceProps) {
-  const [isClockedIn, setIsClockedIn] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { toast } = useToast();
+
+  const isClockedIn = !!activeEntry;
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-      if (isClockedIn) {
-        setElapsedTime(prev => prev + 1);
+      if (activeEntry) {
+        const clockInTime = new Date(activeEntry.clockIn).getTime();
+        const now = Date.now();
+        setElapsedTime(Math.floor((now - clockInTime) / 1000));
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isClockedIn]);
+  }, [activeEntry]);
+
+  const clockInMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/time-entries/clock-in", {
+        location: "Office",
+        notes: "",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/time-entries'] });
+      toast({
+        title: "Clocked In",
+        description: "You have successfully clocked in",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const clockOutMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/time-entries/clock-out", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/time-entries'] });
+      toast({
+        title: "Clocked Out",
+        description: "You have successfully clocked out",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleClockToggle = () => {
-    if (!isClockedIn) {
-      setElapsedTime(0);
+    if (isClockedIn) {
+      clockOutMutation.mutate();
+    } else {
+      clockInMutation.mutate();
     }
-    setIsClockedIn(!isClockedIn);
-    console.log(isClockedIn ? 'Clocked out' : 'Clocked in');
   };
 
   const formatTime = (seconds: number) => {

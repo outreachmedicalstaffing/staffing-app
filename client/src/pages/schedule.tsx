@@ -5,86 +5,69 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Grid, List, Search, Plus, Settings as SettingsIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import type { Shift } from "@shared/schema";
+import { format, isAfter } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Schedule() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const myShifts = [
-    { 
-      id: "1", 
-      job: "Central Florida", 
-      subJob: "7A-7P Day", 
-      date: "Dec 15, 2024", 
-      startTime: "7:00 AM", 
-      endTime: "7:00 PM", 
-      location: "Orlando Medical", 
-      status: "approved" as const, 
-      tasksCount: 5, 
-      attachmentsCount: 2,
-      assignedTo: "You"
-    },
-    { 
-      id: "2", 
-      job: "Treasure Coast", 
-      subJob: "7P-7A Night", 
-      date: "Dec 16, 2024", 
-      startTime: "7:00 PM", 
-      endTime: "7:00 AM", 
-      location: "Stuart Regional", 
-      status: "approved" as const, 
-      tasksCount: 3,
-      assignedTo: "You"
-    },
-  ];
+  const { data: shifts = [], isLoading } = useQuery<Shift[]>({
+    queryKey: ['/api/shifts'],
+  });
 
-  const openShifts = [
-    { 
-      id: "3", 
-      job: "Jacksonville", 
-      subJob: "12P-12A Evening", 
-      date: "Dec 18, 2024", 
-      startTime: "12:00 PM", 
-      endTime: "12:00 AM", 
-      location: "Jacksonville General", 
-      status: "open" as const, 
-      tasksCount: 4
-    },
-    { 
-      id: "4", 
-      job: "Brevard", 
-      subJob: "7A-7P Day", 
-      date: "Dec 19, 2024", 
-      startTime: "7:00 AM", 
-      endTime: "7:00 PM", 
-      status: "open" as const, 
-      tasksCount: 6
-    },
-  ];
+  const now = new Date();
+  
+  const myShifts = shifts.filter(s => s.status === 'assigned' && isAfter(new Date(s.startTime), now))
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    .map(s => ({
+      id: s.id,
+      job: s.location || 'Unknown',
+      subJob: s.title,
+      date: format(new Date(s.startTime), 'MMM d, yyyy'),
+      startTime: format(new Date(s.startTime), 'h:mm a'),
+      endTime: format(new Date(s.endTime), 'h:mm a'),
+      location: s.location || 'Unknown',
+      status: s.status as any,
+      assignedTo: "You"
+    }));
 
-  const teamShifts = [
-    { 
-      id: "5", 
-      job: "Nature Coast", 
-      subJob: "7A-7P Day", 
-      date: "Dec 15, 2024", 
-      startTime: "7:00 AM", 
-      endTime: "7:00 PM", 
-      status: "approved" as const, 
-      tasksCount: 4,
-      assignedTo: "Jane Smith"
-    },
-    { 
-      id: "6", 
-      job: "Citrus", 
-      subJob: "7P-7A Night", 
-      date: "Dec 15, 2024", 
-      startTime: "7:00 PM", 
-      endTime: "7:00 AM", 
-      status: "pending" as const, 
-      tasksCount: 5,
-      assignedTo: "Mike Johnson"
-    },
-  ];
+  const openShifts = shifts.filter(s => s.status === 'open' && isAfter(new Date(s.startTime), now))
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    .map(s => ({
+      id: s.id,
+      job: s.location || 'Unknown',
+      subJob: s.title,
+      date: format(new Date(s.startTime), 'MMM d, yyyy'),
+      startTime: format(new Date(s.startTime), 'h:mm a'),
+      endTime: format(new Date(s.endTime), 'h:mm a'),
+      location: s.location || 'Unknown',
+      status: s.status as any
+    }));
+
+  const teamShifts = shifts.filter(s => isAfter(new Date(s.startTime), now))
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    .map(s => ({
+      id: s.id,
+      job: s.location || 'Unknown',
+      subJob: s.title,
+      date: format(new Date(s.startTime), 'MMM d, yyyy'),
+      startTime: format(new Date(s.startTime), 'h:mm a'),
+      endTime: format(new Date(s.endTime), 'h:mm a'),
+      location: s.location || 'Unknown',
+      status: s.status as any,
+      assignedTo: s.status === 'assigned' ? 'Team Member' : 'Unassigned'
+    }));
+  
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

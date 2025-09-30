@@ -6,18 +6,44 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Download, Lock, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import type { Timesheet } from "@shared/schema";
+import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Timesheets() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const timesheetEntries = [
-    { id: "1", date: "Dec 12, 2024", job: "Central Florida", subJob: "7A-7P Day", clockIn: "7:02 AM", clockOut: "7:15 PM", totalHours: 12.22, status: "approved" as const, hasEdit: false, hasAttachments: true },
-    { id: "2", date: "Dec 13, 2024", job: "Treasure Coast", subJob: "7P-7A Night", clockIn: "7:00 PM", clockOut: "7:30 AM", totalHours: 12.5, status: "pending" as const, hasEdit: true, hasAttachments: false },
-    { id: "3", date: "Dec 14, 2024", job: "Jacksonville", subJob: "12P-12A", clockIn: "12:00 PM", clockOut: "11:45 PM", totalHours: 11.75, status: "approved" as const, hasEdit: false, hasAttachments: true },
-    { id: "4", date: "Dec 15, 2024", job: "Central Florida", subJob: "7A-7P Day", clockIn: "6:58 AM", clockOut: "7:10 PM", totalHours: 12.2, status: "pending" as const, hasEdit: true, hasAttachments: false },
-  ];
+  const { data: timesheets = [], isLoading } = useQuery<Timesheet[]>({
+    queryKey: ['/api/timesheets'],
+  });
 
-  const totalHours = timesheetEntries.reduce((sum, entry) => sum + entry.totalHours, 0);
+  const timesheetEntries = timesheets.map(ts => ({
+    id: ts.id,
+    date: format(new Date(ts.periodEnd), 'MMM d, yyyy'),
+    job: "Timesheet",
+    subJob: `${format(new Date(ts.periodStart), 'MMM d')} - ${format(new Date(ts.periodEnd), 'MMM d')}`,
+    clockIn: format(new Date(ts.periodStart), 'h:mm a'),
+    clockOut: format(new Date(ts.periodEnd), 'h:mm a'),
+    totalHours: parseFloat(ts.totalHours),
+    status: ts.status as any,
+    hasEdit: false,
+    hasAttachments: false
+  }));
+
+  const totalHours = timesheets.reduce((sum, ts) => sum + parseFloat(ts.totalHours), 0);
+  const approvedCount = timesheets.filter(ts => ts.status === 'approved').length;
+  const pendingCount = timesheets.filter(ts => ts.status === 'pending' || ts.status === 'submitted').length;
+  
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -57,7 +83,7 @@ export default function Timesheets() {
             <CardTitle className="text-sm font-medium">Approved</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">{approvedCount}</div>
             <p className="text-xs text-muted-foreground">Entries approved</p>
           </CardContent>
         </Card>
@@ -66,17 +92,17 @@ export default function Timesheets() {
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">{pendingCount}</div>
             <p className="text-xs text-muted-foreground">Awaiting approval</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Edited</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground">Manual edits</p>
+            <div className="text-2xl font-bold">{timesheets.length}</div>
+            <p className="text-xs text-muted-foreground">All timesheets</p>
           </CardContent>
         </Card>
       </div>

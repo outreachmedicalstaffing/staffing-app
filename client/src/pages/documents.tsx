@@ -5,21 +5,57 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Plus, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
+import type { Document } from "@shared/schema";
+import { format, differenceInDays } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Documents() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const myDocuments = [
-    { id: "1", title: "RN License", description: "Florida Registered Nurse License", status: "approved" as const, uploadedDate: "Nov 1, 2024", expiryDate: "Dec 31, 2025" },
-    { id: "2", title: "CPR Certification", description: "American Heart Association BLS", status: "expiring" as const, uploadedDate: "Jan 15, 2024", expiryDate: "Jan 15, 2025" },
-    { id: "3", title: "Background Check", description: "Level 2 Background Screening", status: "expired" as const, uploadedDate: "Dec 1, 2023", expiryDate: "Dec 1, 2024" },
-    { id: "4", title: "TB Test", description: "Annual Tuberculosis Screening", status: "submitted" as const, uploadedDate: "Dec 10, 2024" },
-  ];
+  const { data: documents = [], isLoading } = useQuery<Document[]>({
+    queryKey: ['/api/documents'],
+  });
 
-  const requiredDocuments = [
-    { id: "5", title: "HIPAA Training", description: "Annual HIPAA compliance certification", status: "expired" as const },
-    { id: "6", title: "Physical Exam", description: "Annual health screening", status: "expiring" as const, expiryDate: "Jan 5, 2025" },
-  ];
+  const now = new Date();
+  
+  const myDocuments = documents.map(doc => {
+    let status = doc.status as any;
+    if (doc.expiryDate) {
+      const daysUntilExpiry = differenceInDays(new Date(doc.expiryDate), now);
+      if (daysUntilExpiry < 0) status = 'expired';
+      else if (daysUntilExpiry <= 30) status = 'expiring';
+    }
+    
+    return {
+      id: doc.id,
+      title: doc.title,
+      description: doc.description || '',
+      status,
+      uploadedDate: format(new Date(doc.uploadedDate), 'MMM d, yyyy'),
+      expiryDate: doc.expiryDate ? format(new Date(doc.expiryDate), 'MMM d, yyyy') : undefined
+    };
+  });
+
+  const approvedCount = documents.filter(d => d.status === 'approved').length;
+  const pendingCount = documents.filter(d => d.status === 'submitted').length;
+  const actionRequired = documents.filter(d => {
+    if (!d.expiryDate) return false;
+    const days = differenceInDays(new Date(d.expiryDate), now);
+    return days <= 30;
+  }).length;
+
+  const requiredDocuments: any[] = [];
+  
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -41,7 +77,7 @@ export default function Documents() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1</div>
+            <div className="text-2xl font-bold">{approvedCount}</div>
             <p className="text-xs text-muted-foreground">Documents approved</p>
           </CardContent>
         </Card>
@@ -51,7 +87,7 @@ export default function Documents() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1</div>
+            <div className="text-2xl font-bold">{pendingCount}</div>
             <p className="text-xs text-muted-foreground">Awaiting approval</p>
           </CardContent>
         </Card>
@@ -61,7 +97,7 @@ export default function Documents() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{actionRequired}</div>
             <p className="text-xs text-muted-foreground">Expired or expiring</p>
           </CardContent>
         </Card>
