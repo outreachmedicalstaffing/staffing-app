@@ -441,6 +441,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update timesheet
+  app.patch("/api/timesheets/:id", requireAuth, async (req, res) => {
+    try {
+      // Check ownership or admin role
+      const existing = await storage.getTimesheet(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Timesheet not found" });
+      }
+      
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      // Define allowed fields based on role
+      const isPrivileged = ['Owner', 'Admin', 'Payroll', 'Manager'].includes(user.role);
+      const isOwner = existing.userId === req.session.userId;
+      
+      if (!isOwner && !isPrivileged) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      // Parse and validate data
+      const updateSchema = insertTimesheetSchema.partial();
+      const data = updateSchema.parse(req.body);
+      
+      // Filter allowed fields based on role
+      const allowedSelfFields = ['notes']; // Staff can only update notes on their own timesheet
+      const privilegedFields = ['status', 'approvedBy', 'approvedAt', 'totalHours', 'regularHours', 'overtimeHours', 'periodStart', 'periodEnd'];
+      
+      // Remove protected fields if user is not privileged
+      if (!isPrivileged) {
+        for (const field of privilegedFields) {
+          if (field in data) {
+            delete (data as any)[field];
+          }
+        }
+        
+        // Additionally, only allow self-editable fields for owners
+        const dataKeys = Object.keys(data);
+        for (const key of dataKeys) {
+          if (!allowedSelfFields.includes(key)) {
+            delete (data as any)[key];
+          }
+        }
+      }
+      
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: "No valid fields to update" });
+      }
+      
+      const timesheet = await storage.updateTimesheet(req.params.id, data);
+      await logAudit(req.session.userId, "update", "timesheet", timesheet!.id, false, [], {}, req.ip);
+      res.json(timesheet);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update timesheet" });
+    }
+  });
+  
+  // Submit timesheet for approval
+  app.post("/api/timesheets/:id/submit", requireAuth, async (req, res) => {
+    try {
+      // Check ownership
+      const existing = await storage.getTimesheet(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Timesheet not found" });
+      }
+      
+      // Only owner can submit their own timesheet
+      if (existing.userId !== req.session.userId) {
+        return res.status(403).json({ error: "Forbidden - can only submit your own timesheet" });
+      }
+      
+      const timesheet = await storage.updateTimesheet(req.params.id, {
+        status: 'submitted',
+      });
+      
+      await logAudit(req.session.userId, "submit", "timesheet", timesheet!.id, false, [], {}, req.ip);
+      res.json(timesheet);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to submit timesheet" });
+    }
+  });
+  
   // Approve timesheet
   app.post("/api/timesheets/:id/approve", requireRole('Owner', 'Admin', 'Payroll', 'Manager'), async (req, res) => {
     try {
@@ -448,6 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'approved',
         approvedBy: req.session.userId!,
         approvedAt: new Date(),
+        notes: req.body.notes || null,
       });
       
       if (!timesheet) {
@@ -458,6 +546,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(timesheet);
     } catch (error) {
       res.status(500).json({ error: "Failed to approve timesheet" });
+    }
+  });
+  
+  // Reject timesheet
+  app.post("/api/timesheets/:id/reject", requireRole('Owner', 'Admin', 'Payroll', 'Manager'), async (req, res) => {
+    try {
+      const timesheet = await storage.updateTimesheet(req.params.id, {
+        status: 'rejected',
+        notes: req.body.notes || 'Rejected by manager',
+      });
+      
+      if (!timesheet) {
+        return res.status(404).json({ error: "Timesheet not found" });
+      }
+      
+      await logAudit(req.session.userId, "reject", "timesheet", timesheet.id, false, [], {}, req.ip);
+      res.json(timesheet);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reject timesheet" });
+    }
+  });
+  
+  // Export timesheet for payroll
+  app.post("/api/timesheets/:id/export", requireRole('Owner', 'Admin', 'Payroll'), async (req, res) => {
+    try {
+      const timesheet = await storage.updateTimesheet(req.params.id, {
+        status: 'exported',
+      });
+      
+      if (!timesheet) {
+        return res.status(404).json({ error: "Timesheet not found" });
+      }
+      
+      await logAudit(req.session.userId, "export", "timesheet", timesheet.id, true, ['totalHours', 'regularHours', 'overtimeHours'], {}, req.ip);
+      res.json(timesheet);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to export timesheet" });
     }
   });
   
@@ -505,6 +630,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update document
+  app.patch("/api/documents/:id", requireRole('Owner', 'Admin', 'HR'), async (req, res) => {
+    try {
+      const updateSchema = insertDocumentSchema.partial();
+      const data = updateSchema.parse(req.body);
+      
+      const document = await storage.updateDocument(req.params.id, data);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      await logAudit(req.session.userId, "update", "document", document.id, true, ['encryptedMetadata'], {}, req.ip);
+      res.json(document);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update document" });
+    }
+  });
+  
+  // Submit document for review
+  app.post("/api/documents/:id/submit", requireAuth, async (req, res) => {
+    try {
+      // Check ownership or HR role
+      const existing = await storage.getDocument(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      // Only owner or HR roles can submit documents
+      if (existing.userId !== req.session.userId && !['Owner', 'Admin', 'HR'].includes(user.role)) {
+        return res.status(403).json({ error: "Forbidden - can only submit your own documents" });
+      }
+      
+      const document = await storage.updateDocument(req.params.id, {
+        status: 'submitted',
+      });
+      
+      await logAudit(req.session.userId, "submit", "document", document!.id, true, ['encryptedMetadata'], {}, req.ip);
+      res.json(document);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to submit document" });
+    }
+  });
+  
   // Approve document
   app.post("/api/documents/:id/approve", requireRole('Owner', 'Admin', 'HR'), async (req, res) => {
     try {
@@ -512,16 +688,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'approved',
         approvedBy: req.session.userId!,
         approvedAt: new Date(),
+        notes: req.body.notes || null,
       });
       
       if (!document) {
         return res.status(404).json({ error: "Document not found" });
       }
       
-      await logAudit(req.session.userId, "approve", "document", document.id, false, [], {}, req.ip);
+      await logAudit(req.session.userId, "approve", "document", document.id, true, ['encryptedMetadata'], {}, req.ip);
       res.json(document);
     } catch (error) {
       res.status(500).json({ error: "Failed to approve document" });
+    }
+  });
+  
+  // Reject document
+  app.post("/api/documents/:id/reject", requireRole('Owner', 'Admin', 'HR'), async (req, res) => {
+    try {
+      const document = await storage.updateDocument(req.params.id, {
+        status: 'rejected',
+        notes: req.body.notes || 'Document rejected',
+      });
+      
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      await logAudit(req.session.userId, "reject", "document", document.id, false, [], {}, req.ip);
+      res.json(document);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reject document" });
+    }
+  });
+  
+  // Check for expiring documents (for system/admin use)
+  app.get("/api/documents/check-expiry", requireRole('Owner', 'Admin', 'HR'), async (req, res) => {
+    try {
+      const daysThreshold = parseInt(req.query.days as string) || 30;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + daysThreshold);
+      
+      // Get all documents and filter for expiring ones
+      const allDocs = await storage.listDocuments();
+      const expiringDocs = allDocs.filter(doc => 
+        doc.expiryDate && 
+        doc.expiryDate <= expiryDate && 
+        doc.expiryDate > new Date() &&
+        doc.status === 'approved'
+      );
+      
+      // Update status to expiring
+      for (const doc of expiringDocs) {
+        await storage.updateDocument(doc.id, { status: 'expiring' });
+      }
+      
+      await logAudit(req.session.userId, "check_expiry", "documents", undefined, false, [], { count: expiringDocs.length }, req.ip);
+      res.json({ count: expiringDocs.length, documents: expiringDocs });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check document expiry" });
     }
   });
   
