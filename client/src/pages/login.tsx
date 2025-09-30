@@ -1,65 +1,62 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { Shield } from "lucide-react";
-
-const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const form = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
-  });
-
-  const loginMutation = useMutation({
-    mutationFn: async (data: LoginForm) => {
-      console.log("[FRONTEND] Attempting login with:", { username: data.username });
-      const res = await apiRequest("POST", "/api/auth/login", data);
-      console.log("[FRONTEND] Login response status:", res.status);
-      const result = await res.json();
-      console.log("[FRONTEND] Login response data:", result);
-      return result;
-    },
-    onSuccess: (data) => {
-      console.log("[FRONTEND] Login success:", data);
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
+  const handleLogin = async (user: string, pass: string) => {
+    setLoading(true);
+    console.log("[LOGIN] Attempting login with:", user);
+    
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user, password: pass }),
+        credentials: "include",
       });
-      setLocation("/");
-    },
-    onError: (error: Error) => {
-      console.error("[FRONTEND] Login error:", error);
+
+      console.log("[LOGIN] Response status:", res.status);
+      const data = await res.json();
+      console.log("[LOGIN] Response data:", data);
+
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: "Logged in successfully",
+        });
+        setLocation("/");
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Invalid credentials",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("[LOGIN] Error:", error);
       toast({
         title: "Error",
-        description: error.message || "Invalid credentials",
+        description: "Failed to login",
         variant: "destructive",
       });
-    },
-  });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const onSubmit = (data: LoginForm) => {
-    loginMutation.mutate(data);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleLogin(username, password);
   };
 
   return (
@@ -77,103 +74,83 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Enter your username"
-                        data-testid="input-username"
-                        disabled={loginMutation.isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="username" className="text-sm font-medium">
+                Username
+              </label>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                data-testid="input-username"
+                disabled={loading}
               />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="password"
-                        placeholder="Enter your password"
-                        data-testid="input-password"
-                        disabled={loginMutation.isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                data-testid="input-password"
+                disabled={loading}
               />
-              <Button
-                type="submit"
-                className="w-full"
-                data-testid="button-login"
-                disabled={loginMutation.isPending}
-              >
-                {loginMutation.isPending ? "Logging in..." : "Log In"}
-              </Button>
-            </form>
-          </Form>
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              data-testid="button-login"
+              disabled={loading}
+            >
+              {loading ? "Logging in..." : "Log In"}
+            </Button>
+          </form>
+          
           <div className="mt-6 space-y-4">
             <div className="text-sm text-center text-muted-foreground">
-              <p>Demo Accounts:</p>
-              <p className="mt-1">Owner: owner / admin123</p>
+              <p className="font-medium mb-2">Demo Accounts:</p>
+              <p>Owner: owner / admin123</p>
               <p>Admin: admin / admin123</p>
               <p>Staff: jsmith / password123</p>
             </div>
-            <div className="space-y-2">
+            
+            <div className="border-t pt-4 space-y-2">
+              <p className="text-xs text-center text-muted-foreground mb-2">Quick Login:</p>
               <Button
+                type="button"
                 variant="outline"
                 className="w-full"
-                onClick={() => {
-                  form.setValue("username", "owner");
-                  form.setValue("password", "admin123");
-                  form.handleSubmit(onSubmit)();
-                }}
+                onClick={() => handleLogin("owner", "admin123")}
+                disabled={loading}
                 data-testid="button-quick-login-owner"
               >
-                Quick Login as Owner
+                Login as Owner
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 className="w-full"
-                onClick={async () => {
-                  console.log("[DIRECT] Attempting direct fetch...");
-                  try {
-                    const res = await fetch("/api/auth/login", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ username: "owner", password: "admin123" }),
-                      credentials: "include",
-                    });
-                    console.log("[DIRECT] Response status:", res.status);
-                    const data = await res.json();
-                    console.log("[DIRECT] Response data:", data);
-                    if (res.ok) {
-                      toast({ title: "Success", description: "Logged in!" });
-                      setLocation("/");
-                    } else {
-                      toast({ title: "Error", description: "Login failed", variant: "destructive" });
-                    }
-                  } catch (error) {
-                    console.error("[DIRECT] Error:", error);
-                  }
-                }}
-                data-testid="button-direct-login"
+                onClick={() => handleLogin("admin", "admin123")}
+                disabled={loading}
+                data-testid="button-quick-login-admin"
               >
-                Direct Login Test
+                Login as Admin
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => handleLogin("jsmith", "password123")}
+                disabled={loading}
+                data-testid="button-quick-login-staff"
+              >
+                Login as Staff (jsmith)
               </Button>
             </div>
           </div>
