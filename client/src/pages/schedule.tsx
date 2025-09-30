@@ -1437,14 +1437,65 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
               {/* Note */}
               <div>
                 <Label htmlFor="note">Note</Label>
-                <Textarea
-                  id="note"
-                  value={shiftFormData.note}
-                  onChange={(e) => setShiftFormData({ ...shiftFormData, note: e.target.value })}
-                  placeholder="Add a note..."
-                  rows={3}
-                  data-testid="textarea-note"
-                />
+                <div className="relative">
+                  <Textarea
+                    id="note"
+                    value={shiftFormData.note}
+                    onChange={(e) => setShiftFormData({ ...shiftFormData, note: e.target.value })}
+                    placeholder="Type description"
+                    rows={3}
+                    data-testid="textarea-note"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute bottom-2 left-2 h-8 text-primary hover:text-primary"
+                    onClick={() => fileInputRef.current?.click()}
+                    data-testid="button-attach"
+                  >
+                    <Paperclip className="h-4 w-4 mr-1" />
+                    Attach
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    data-testid="input-file"
+                  />
+                </div>
+                
+                {shiftFormData.attachments.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {shiftFormData.attachments.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-2 rounded-md border bg-muted/50"
+                        data-testid={`attachment-${index}`}
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{file.name}</div>
+                            <div className="text-xs text-muted-foreground">{formatFileSize(file.size)}</div>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 flex-shrink-0"
+                          onClick={() => removeAttachment(index)}
+                          data-testid={`button-remove-attachment-${index}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Timezone */}
