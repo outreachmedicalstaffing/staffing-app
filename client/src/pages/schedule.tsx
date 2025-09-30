@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -130,6 +130,12 @@ export default function Schedule() {
     timezone: 'America/New_York',
   });
   const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<Array<{
+    formatted: string;
+    lat: number;
+    lon: number;
+  }>>([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
 
   // Calculate shift duration
   const calculateDuration = () => {
@@ -148,6 +154,70 @@ export default function Schedule() {
       return "";
     }
   };
+
+  // Address autocomplete with Geoapify
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchAddressSuggestions = async (query: string) => {
+    if (!query || query.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      return;
+    }
+
+    try {
+      const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+      if (!apiKey) {
+        console.warn('Geoapify API key not configured');
+        return;
+      }
+
+      const response = await fetch(
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}&apiKey=${apiKey}&limit=5`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const suggestions = data.features?.map((feature: any) => ({
+          formatted: feature.properties.formatted,
+          lat: feature.properties.lat,
+          lon: feature.properties.lon,
+        })) || [];
+        setAddressSuggestions(suggestions);
+        setShowAddressSuggestions(suggestions.length > 0);
+      }
+    } catch (error) {
+      console.error('Error fetching address suggestions:', error);
+    }
+  };
+
+  const handleAddressChange = (value: string) => {
+    setShiftFormData({ ...shiftFormData, address: value });
+    
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      fetchAddressSuggestions(value);
+    }, 300);
+  };
+
+  const selectAddress = (address: string) => {
+    setShiftFormData({ ...shiftFormData, address });
+    setShowAddressSuggestions(false);
+    setAddressSuggestions([]);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
   const { toast } = useToast();
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
@@ -1289,15 +1359,46 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
               <div>
                 <Label htmlFor="address">Address</Label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                   <Input
+                    ref={addressInputRef}
                     id="address"
                     className="pl-9"
                     value={shiftFormData.address}
-                    onChange={(e) => setShiftFormData({ ...shiftFormData, address: e.target.value })}
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                    onFocus={() => {
+                      if (addressSuggestions.length > 0) {
+                        setShowAddressSuggestions(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setShowAddressSuggestions(false), 200);
+                    }}
                     placeholder="Enter address"
                     data-testid="input-address"
+                    autoComplete="off"
                   />
+                  
+                  {showAddressSuggestions && addressSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                      {addressSuggestions.map((suggestion, index) => (
+                        <div
+                          key={index}
+                          className="px-3 py-2 hover-elevate cursor-pointer text-sm"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectAddress(suggestion.formatted);
+                          }}
+                          data-testid={`address-suggestion-${index}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                            <span>{suggestion.formatted}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
