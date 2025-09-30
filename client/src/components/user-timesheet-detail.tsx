@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, X } from "lucide-react";
+import { Calendar, X, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { TimeEntry, User } from "@shared/schema";
 import { format } from "date-fns";
@@ -34,6 +34,12 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
     acc[date].push(entry);
     return acc;
   }, {} as Record<string, TimeEntry[]>);
+
+  // Check if shift crosses midnight (night shift)
+  const isNightShift = (clockIn: Date, clockOut: Date | null) => {
+    if (!clockOut) return false;
+    return clockOut.getDate() !== clockIn.getDate() || clockOut.getMonth() !== clockIn.getMonth();
+  };
 
   // Calculate totals
   const regularHours = timeEntries.reduce((sum, entry) => {
@@ -135,8 +141,8 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                         <TableCell className="font-medium">{date}</TableCell>
                         <TableCell>
                           {entry.clockOut ? (
-                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                              View On...
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              Advent/Hospi...
                             </Badge>
                           ) : (
                             <Select defaultValue="select">
@@ -146,16 +152,23 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                               <SelectContent>
                                 <SelectItem value="select">Select</SelectItem>
                                 <SelectItem value="job1">Central Florida</SelectItem>
-                                <SelectItem value="job2">North Region</SelectItem>
+                                <SelectItem value="job2">Advent/Hospice</SelectItem>
                               </SelectContent>
                             </Select>
                           )}
                         </TableCell>
                         <TableCell>
-                          {entry.clockOut ? format(new Date(entry.clockIn), 'h:mm a') : '—'}
+                          {entry.clockOut ? format(new Date(entry.clockIn), 'hh:mm a') : '—'}
                         </TableCell>
                         <TableCell>
-                          {entry.clockOut ? format(new Date(entry.clockOut), 'h:mm a') : '—'}
+                          {entry.clockOut ? (
+                            <div className="flex items-center gap-1">
+                              <span>{format(new Date(entry.clockOut), 'hh:mm')}</span>
+                              {isNightShift(new Date(entry.clockIn), new Date(entry.clockOut)) && (
+                                <ArrowRight className="h-3 w-3 text-blue-600" />
+                              )}
+                            </div>
+                          ) : '—'}
                         </TableCell>
                         <TableCell>{entry.clockOut ? hours.toFixed(2) : '—'}</TableCell>
                         <TableCell>{entry.clockOut ? '$30' : '—'}</TableCell>
