@@ -1,66 +1,99 @@
 import { useState } from "react";
-import { ShiftCard } from "@/components/shift-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Grid, List, Search, Plus, Settings as SettingsIcon } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Settings as SettingsIcon,
+  ClipboardList,
+  DollarSign,
+  Plus,
+  Search,
+  Clock,
+  Users as UsersIcon,
+  FileText
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import type { Shift } from "@shared/schema";
-import { format, isAfter } from "date-fns";
+import type { User, Shift } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Schedule() {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: shifts = [], isLoading } = useQuery<Shift[]>({
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+  });
+
+  const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
     queryKey: ['/api/shifts'],
   });
 
-  const now = new Date();
-  
-  const myShifts = shifts.filter(s => s.status === 'assigned' && isAfter(new Date(s.startTime), now))
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    .map(s => ({
-      id: s.id,
-      job: s.location || 'Unknown',
-      subJob: s.title,
-      date: format(new Date(s.startTime), 'MMM d, yyyy'),
-      startTime: format(new Date(s.startTime), 'h:mm a'),
-      endTime: format(new Date(s.endTime), 'h:mm a'),
-      location: s.location || 'Unknown',
-      status: s.status as any,
-      assignedTo: "You"
-    }));
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
 
-  const openShifts = shifts.filter(s => s.status === 'open' && isAfter(new Date(s.startTime), now))
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    .map(s => ({
-      id: s.id,
-      job: s.location || 'Unknown',
-      subJob: s.title,
-      date: format(new Date(s.startTime), 'MMM d, yyyy'),
-      startTime: format(new Date(s.startTime), 'h:mm a'),
-      endTime: format(new Date(s.endTime), 'h:mm a'),
-      location: s.location || 'Unknown',
-      status: s.status as any
-    }));
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const teamShifts = shifts.filter(s => isAfter(new Date(s.startTime), now))
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    .map(s => ({
-      id: s.id,
-      job: s.location || 'Unknown',
-      subJob: s.title,
-      date: format(new Date(s.startTime), 'MMM d, yyyy'),
-      startTime: format(new Date(s.startTime), 'h:mm a'),
-      endTime: format(new Date(s.endTime), 'h:mm a'),
-      location: s.location || 'Unknown',
-      status: s.status as any,
-      assignedTo: s.status === 'assigned' ? 'Team Member' : 'Unassigned'
-    }));
-  
-  if (isLoading) {
+  const goToPreviousWeek = () => {
+    setCurrentDate(addDays(currentDate, -7));
+  };
+
+  const goToNextWeek = () => {
+    setCurrentDate(addDays(currentDate, 7));
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  const unassignedUsers = users.slice(0, 10);
+
+  const getShiftsForDay = (day: Date) => {
+    return shifts.filter(s => {
+      const shiftDate = new Date(s.startTime);
+      return shiftDate.toDateString() === day.toDateString();
+    });
+  };
+
+  const getUserForShift = (shift: Shift) => {
+    return users[0];
+  };
+
+  const calculateDayStats = (day: Date) => {
+    const dayShifts = getShiftsForDay(day);
+    const scheduledLabor = dayShifts.length * 150;
+    const actualLabor = dayShifts.filter(s => s.status === 'assigned').length * 150;
+    return { scheduled: scheduledLabor, actual: actualLabor, shifts: dayShifts.length };
+  };
+
+  const calculateWeekStats = () => {
+    const totalShifts = shifts.length;
+    const totalHours = shifts.reduce((sum, s) => {
+      const start = new Date(s.startTime);
+      const end = new Date(s.endTime);
+      return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    }, 0);
+    const uniqueUsers = users.length;
+    const totalLabor = shifts.length * 150;
+    return { hours: totalHours.toFixed(1), shifts: totalShifts, users: uniqueUsers, labor: totalLabor };
+  };
+
+  const weekStats = calculateWeekStats();
+
+  if (usersLoading || shiftsLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-20 w-full" />
@@ -70,117 +103,325 @@ export default function Schedule() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold" data-testid="heading-schedule">Schedule</h1>
-          <p className="text-muted-foreground">Manage your shifts and view team schedules</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" data-testid="button-calendar-view">
-            <Calendar className="h-4 w-4" />
+        <h1 className="text-2xl font-semibold flex items-center gap-2" data-testid="heading-schedule">
+          <ClipboardList className="h-6 w-6 text-primary" />
+          Schedule
+        </h1>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" data-testid="button-permissions">
+            <SettingsIcon className="h-4 w-4 mr-2" />
+            Permissions
           </Button>
-          <Button variant="outline" size="icon" data-testid="button-grid-view">
-            <Grid className="h-4 w-4" />
+          <Button variant="outline" size="sm" data-testid="button-requests">
+            <FileText className="h-4 w-4 mr-2" />
+            Requests
           </Button>
-          <Button variant="outline" size="icon" data-testid="button-settings">
-            <SettingsIcon className="h-4 w-4" />
+          <Button variant="outline" size="sm" data-testid="button-job-list">
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Job list
           </Button>
-          <Button data-testid="button-create-shift">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Shift
+          <Button variant="outline" size="sm" data-testid="button-settings">
+            <SettingsIcon className="h-4 w-4 mr-2" />
+            Settings
           </Button>
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search shifts by job, location, or date..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-testid="input-search-shifts"
-          />
+          <Button variant="default" size="sm" data-testid="button-publish">
+            Publish
+          </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="my-shifts" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="my-shifts" data-testid="tab-my-shifts">
-            <List className="h-4 w-4 mr-2" />
-            My Shifts
-          </TabsTrigger>
-          <TabsTrigger value="open-shifts" data-testid="tab-open-shifts">
-            Open Shifts
-          </TabsTrigger>
-          <TabsTrigger value="team-schedule" data-testid="tab-team-schedule">
-            Team Schedule
-          </TabsTrigger>
-        </TabsList>
+      {/* Top Controls */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Select value={viewMode} onValueChange={setViewMode}>
+              <SelectTrigger className="w-40" data-testid="select-view-options">
+                <SelectValue placeholder="View options" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Week view</SelectItem>
+                <SelectItem value="day">Day view</SelectItem>
+                <SelectItem value="month">Month view</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <TabsContent value="my-shifts" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Assigned Shifts</CardTitle>
-              <CardDescription>{myShifts.length} upcoming shifts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {myShifts.map((shift) => (
-                  <ShiftCard
-                    key={shift.id}
-                    {...shift}
-                    onView={() => console.log(`View shift ${shift.id}`)}
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            <Select value="week">
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Week" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Week</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <TabsContent value="open-shifts" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Shifts</CardTitle>
-              <CardDescription>{openShifts.length} shifts available to claim</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {openShifts.map((shift) => (
-                  <ShiftCard
-                    key={shift.id}
-                    {...shift}
-                    onClaim={() => console.log(`Claim shift ${shift.id}`)}
-                    onView={() => console.log(`View shift ${shift.id}`)}
-                  />
-                ))}
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={goToPreviousWeek} data-testid="button-previous-week">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="px-3 py-1 text-sm font-medium whitespace-nowrap">
+                {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d')}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              <Button variant="outline" size="icon" onClick={goToNextWeek} data-testid="button-next-week">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-        <TabsContent value="team-schedule" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Shifts</CardTitle>
-              <CardDescription>{teamShifts.length} team members scheduled</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {teamShifts.map((shift) => (
-                  <ShiftCard
-                    key={shift.id}
-                    {...shift}
-                    onView={() => console.log(`View shift ${shift.id}`)}
-                  />
-                ))}
+            <Button variant="outline" size="sm" onClick={goToToday} data-testid="button-today">
+              Today
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" data-testid="button-actions">
+              Actions
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </Button>
+            <Button variant="outline" size="sm" data-testid="button-add-shift">
+              <Plus className="h-4 w-4 mr-2" />
+              Add
+            </Button>
+            <Button variant="default" size="sm" data-testid="button-publish-schedule">
+              Publish
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Main Content */}
+      <div className="flex gap-4">
+        {/* Left Sidebar */}
+        <div className="w-64 space-y-4 flex-shrink-0">
+          {/* Labor & Sales */}
+          <Card className="p-3">
+            <div className="flex items-center gap-2 mb-3">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Labor & Sales</span>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Labor</span>
+                <span className="font-medium">Scheduled</span>
               </div>
-            </CardContent>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Actual</span>
+                <span className="font-medium">${weekStats.labor}</span>
+              </div>
+            </div>
           </Card>
-        </TabsContent>
-      </Tabs>
+
+          {/* Daily Info */}
+          <Card className="p-3">
+            <div className="text-sm font-medium mb-2">Daily info</div>
+          </Card>
+
+          {/* Unassigned Shifts */}
+          <Card className="p-3">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium">Unassigned shifts</span>
+              <Badge variant="secondary" className="text-xs">{unassignedUsers.length}</Badge>
+            </div>
+            <div className="space-y-2">
+              {unassignedUsers.map((user) => {
+                const initials = user.fullName.split(' ').map(n => n[0]).join('');
+                return (
+                  <div key={user.id} className="flex items-center gap-2" data-testid={`unassigned-user-${user.id}`}>
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">
+                        {user.fullName}
+                      </div>
+                      <div className="text-xs text-muted-foreground">0h - $0</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Weekly Summary */}
+          <Card className="p-3">
+            <div className="text-sm font-medium mb-3">Weekly summary</div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                  <Clock className="h-3 w-3" />
+                  <span>Hours</span>
+                </div>
+                <div className="font-medium">{weekStats.hours}</div>
+              </div>
+              <div>
+                <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                  <ClipboardList className="h-3 w-3" />
+                  <span>Shifts</span>
+                </div>
+                <div className="font-medium">{weekStats.shifts}</div>
+              </div>
+              <div>
+                <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                  <UsersIcon className="h-3 w-3" />
+                  <span>Users</span>
+                </div>
+                <div className="font-medium">{weekStats.users}</div>
+              </div>
+              <div>
+                <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                  <DollarSign className="h-3 w-3" />
+                  <span>Labor</span>
+                </div>
+                <div className="font-medium">${weekStats.labor}</div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Calendar Grid */}
+        <Card className="flex-1 overflow-x-auto">
+          <div className="min-w-[800px]">
+            {/* Calendar Header */}
+            <div className="grid grid-cols-7 border-b">
+              {weekDays.map((day, idx) => {
+                const stats = calculateDayStats(day);
+                const isToday = day.toDateString() === new Date().toDateString();
+                
+                return (
+                  <div
+                    key={idx}
+                    className={`border-r last:border-r-0 p-3 ${isToday ? 'bg-primary/5' : ''}`}
+                    data-testid={`day-column-${idx}`}
+                  >
+                    <div className="text-center">
+                      <div className="text-sm font-medium">
+                        {format(day, 'EEE M/d')}
+                      </div>
+                      {isToday && (
+                        <Badge variant="default" className="text-xs mt-1">Today</Badge>
+                      )}
+                      <div className="flex items-center justify-center gap-1 mt-2 text-xs text-muted-foreground">
+                        <span>0</span>
+                        <span>·</span>
+                        <span>$0</span>
+                        <span>·</span>
+                        <span>0</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Labor</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Scheduled</span>
+                        <span className="font-medium">${stats.scheduled}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Actual</span>
+                        <span className="font-medium">${stats.actual}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Calendar Body */}
+            <div className="grid grid-cols-7 min-h-[400px]">
+              {weekDays.map((day, idx) => {
+                const dayShifts = getShiftsForDay(day);
+                
+                return (
+                  <div
+                    key={idx}
+                    className="border-r last:border-r-0 p-2 space-y-2"
+                    data-testid={`day-shifts-${idx}`}
+                  >
+                    {dayShifts.map((shift) => {
+                      const user = getUserForShift(shift);
+                      const startTime = format(new Date(shift.startTime), 'h:mma');
+                      const endTime = format(new Date(shift.endTime), 'h:mma');
+                      
+                      return (
+                        <div
+                          key={shift.id}
+                          className="rounded-md p-2 text-xs bg-primary text-primary-foreground cursor-pointer hover-elevate"
+                          data-testid={`shift-${shift.id}`}
+                        >
+                          <div className="font-medium">
+                            {startTime} - {endTime}
+                          </div>
+                          {user && (
+                            <div className="mt-1 truncate">
+                              {user.fullName}
+                            </div>
+                          )}
+                          {shift.location && (
+                            <div className="mt-1 text-primary-foreground/80 truncate">
+                              {shift.location}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Placeholder for unavailable/prefer to work */}
+                    {idx === 3 && (
+                      <>
+                        <div className="rounded-md p-2 text-xs bg-destructive/10 text-destructive border border-destructive/20">
+                          <div className="font-medium">Unavailable</div>
+                          <div className="mt-1">All day</div>
+                        </div>
+                        <div className="rounded-md p-2 text-xs bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
+                          <div className="font-medium">Prefer to work</div>
+                          <div className="mt-1">6:00a - 7:00p</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Bottom Summary Bar */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Hours:</span>
+              <span className="font-medium">{weekStats.hours}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Shifts:</span>
+              <span className="font-medium">{weekStats.shifts}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <UsersIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Users:</span>
+              <span className="font-medium">{weekStats.users}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Labor:</span>
+              <span className="font-medium">${weekStats.labor.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Sales:</span>
+              <span className="font-medium">--</span>
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }
