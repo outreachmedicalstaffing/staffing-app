@@ -9,10 +9,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
+import { UserDetailView } from "@/components/user-detail-view";
 
 export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("users");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -127,7 +129,12 @@ export default function Users() {
                       const lastName = lastNameParts.join(' ');
                       
                       return (
-                        <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                        <TableRow 
+                          key={user.id} 
+                          data-testid={`row-user-${user.id}`}
+                          className="cursor-pointer hover-elevate"
+                          onClick={() => setSelectedUser(user)}
+                        >
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
@@ -220,7 +227,12 @@ export default function Users() {
                       const lastName = lastNameParts.join(' ');
                       
                       return (
-                        <TableRow key={user.id} data-testid={`row-admin-${user.id}`}>
+                        <TableRow 
+                          key={user.id} 
+                          data-testid={`row-admin-${user.id}`}
+                          className="cursor-pointer hover-elevate"
+                          onClick={() => setSelectedUser(user)}
+                        >
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
@@ -294,7 +306,12 @@ export default function Users() {
                       const lastName = lastNameParts.join(' ');
                       
                       return (
-                        <TableRow key={user.id} data-testid={`row-archived-${user.id}`}>
+                        <TableRow 
+                          key={user.id} 
+                          data-testid={`row-archived-${user.id}`}
+                          className="cursor-pointer hover-elevate"
+                          onClick={() => setSelectedUser(user)}
+                        >
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
@@ -328,6 +345,12 @@ export default function Users() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <UserDetailView 
+        user={selectedUser}
+        open={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+      />
     </div>
   );
 }
