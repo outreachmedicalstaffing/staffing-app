@@ -1,0 +1,187 @@
+You are a senior full-stack architect building **OutreachOps**, a HIPAA-aware workforce platform to replace Connecteam for a hospice staffing company (Outreach Medical Staffing). Deliver a production-ready monorepo with backend, web app, and mobile-friendly UI. Implement the features below to parity with our current Connecteam plan mix: Operations (Advanced), Communications (Basic → Knowledge Base only), HR & Skills (Expert → Documents only).
+
+# 0) Constraints & Quality Bar
+- Stack: TypeScript; Next.js 14 (App Router) + React; Node.js 20; Postgres 15 via Prisma ORM; tRPC (or REST with Zod validation); NextAuth (email + OTP + optional SSO later); Redis for jobs/ratelimiting; WebSockets (Pusher or socket.io) for realtime; Expo React Native wrapper or responsive PWA first; file storage S3-compatible (e.g., R2/S3) with signed URLs; background jobs via BullMQ; auditing via immutable append-only log table.
+- Security & HIPAA posture: role-based access control (RBAC), least privilege, PHI tagging on fields, encryption at rest (Postgres pgcrypto for PHI columns) and in transit (HTTPS), org/tenant isolation by org_id, signed URL expiry ≤15 min, access logs with who/what/when/context, admin-only data exports, soft-delete with tombstones, full audit trail on edits to timesheets, shifts, documents. Include a “HIPAA Mode” feature flag to force stricter defaults (no public links, masked PHI in logs, forced MFA).
+- Testing: Unit tests for core services; integration tests for timesheet math, auto clock-out, permissions; seed script for demo data; CI config.
+- DX: Monorepo with `apps/web`, `apps/api`, `packages/ui`, `packages/types`. Include full README with environment variables and bootstrapping steps. Provide seed admin user.
+
+# 1) Core Entities (Prisma models)
+Org, User, Role, Permission, Group, SmartGroupRule
+Job (e.g., “Region: Treasure Coast”), SubJob (e.g., “7P–7A”), ShiftTemplate, Shift, ShiftTask, ShiftAttachment
+TimeEntry (clock in/out punches), Timesheet (rolls up entries by period), TimesheetLock
+PayrollPeriod, PayrollExport, PayrollIntegration (QuickBooks/ADP placeholders)
+Notification, NotificationRule
+KnowledgeCategory, KnowledgeBase, KnowledgeFolder, KnowledgeFile
+DocumentPack, DocumentDef, DocumentInstance, DocumentReview, DocumentExpiry
+CustomFieldDef (user-level), CustomFieldValue
+ActivityLog (append-only)
+ArchiveRecord (for archived users)
+Attachment (generic file/ref), Signature (image/JSON)
+Settings (per-org: HIPAA mode, payroll cadence, auto clock-out rules, reminder cadences, etc.)
+
+# 2) RBAC & Admin
+- Roles: Owner, Admin, Scheduler, Payroll, HR, Manager, Staff.
+- Permission map examples:
+  - Staff: view own profile, clock in/out, view own shifts/timesheets, upload doc instances.
+  - Manager: approve shifts, approve time, view team docs, manage schedule within assigned groups.
+  - Scheduler: full schedule CRUD, open-shift approvals, replacements.
+  - Payroll: export timesheets, lock periods, manage integrations.
+  - HR: manage document packs, reviews, expirations.
+  - Admin/Owner: org-wide settings, HIPAA mode, custom fields, smart groups, advanced filters.
+- Advanced permissions UI: matrix by role × resource × actions (read, create, update, delete, approve, export, lock).
+
+# 3) Operations — Employee Time Clock (feature parity)
+Implement:
+1) Real-Time Clock In/Out
+   - Web & mobile PWA buttons; background presence via sockets.
+   - Optional geofence (scaffold only) and device fingerprinting.
+2) Add Unlimited Custom Jobs & Create Sub-jobs
+   - Hierarchy: Org > Job > SubJob.
+3) Mobile Admin Capabilities
+   - Admins can clock in/out on behalf (with audit “on behalf of” flag).
+4) Timesheet Edit Indication
+   - Any manual edits are flagged and visible in UI + ActivityLog with diff.
+5) Set Payroll Period
+   - Settings: weekly/biweekly/semimonthly/monthly; timezone-aware; holidays table placeholder.
+6) View Timesheets > 30 Days
+   - Paginated historic view with filters and exports.
+7) Push Notification Reminders
+   - Missed clock-in/out; shift start in X minutes; overdue timesheet submission.
+8) Custom Admin Notifications
+   - Rule builder: event → channel (push/email/in-app) → audience (role/group/user).
+9) Exportable Timesheet
+   - CSV/XLSX with org branding; include hours, job/subjob, differentials, signatures (link), edit flags. Provide QuickBooks/ADP-ready columns.
+10) Payroll Integration (scaffold)
+   - Create integration entity; upload/export endpoints; webhooks stub.
+11) Lock Days in Timesheets
+   - Lock by date range or after approval; only Payroll/Admin can unlock (logged).
+12) Modify Options to Track Time
+   - Track by job/subjob; allow shift attachment requirements (photo, signature).
+13) Auto Clock Out
+   - Rule: X hours after last punch or at end-of-shift; notify user & manager; mark as “AutoClosed”.
+14) Shift Attachments (pictures, signatures, etc.)
+   - Attach to TimeEntry and/or Shift; require before submission if policy demands.
+
+Endpoints (illustrative; tRPC or REST):
+- POST /clock/in, POST /clock/out
+- GET /timesheets?user_id&from&to&job_id
+- POST /timesheets/:id/approve
+- POST /timesheets/lock, POST /timesheets/unlock
+- POST /notifications/rules
+- GET /exports/timesheets.csv
+- POST /attachments, POST /signatures
+
+# 4) Operations — Employee Scheduling (feature parity)
+Implement:
+- Unlimited Jobs/Sub-jobs (reuse Job/SubJob).
+- In-shift clock in/out (clock buttons embedded in shift view; checks assignment).
+- Claiming Open Shifts & Approval workflow (state machine: Draft → Published → Open → Claimed → Approved → Completed → Cancelled; guard rails for conflicts).
+- Dedicated In-Shift Tasks (ShiftTask checklist with required/optional items).
+- Search Schedule & Basic Filters (by job, subjob, date, user, status).
+- Auto Scheduling (MVP): fill open shifts using eligibility rules (role, licenses, groups, hour limits); expose dry-run + apply; log decisions.
+- Shift Replacements (propose replacement; notify; approval by Manager/Scheduler).
+- Import Categories (CSV import for Jobs/SubJobs/Groups).
+- Single Shift Templates (ShiftTemplate → quick create).
+- Add Attachments to Shifts (files/signatures; PHI-aware).
+
+UI Views:
+- Calendar (week/month/list), Open Shifts board, My Shifts, Shift Detail with tasks/attachments, Replacement wizard, Auto-schedule dialog.
+
+# 5) Operations — User Mgmt & General Settings (feature parity)
+Implement:
+- Customized User Fields (CustomFieldDef + values; types: text, number, dropdown, date, file; PHI flag).
+- Unlimited Activity & Entries History (ActivityLog with human-readable diffs).
+- Dropdown User Field (include in CustomField types).
+- Advanced Permission Management (RBAC matrix + per-group scoping).
+- Smart Group Management (rule builder: license=RN, region=Treasure Coast, availability contains “nights”, etc.).
+- Archive Users (soft-archive; prevent login; retain records).
+- Advanced Filtering Across System (uniform filter bar component).
+- Duplicate Content (duplicate shift/templates/docs/KB folders with new IDs).
+- Custom Publishers (designate who can publish schedule/KB/docs).
+- Allow Users to View/Edit Personal Info (per-field permissions).
+- HIPAA Mode / “Registered” posture (enforce stricter settings, no public links, forced MFA, shorter session TTLs, PHI masking).
+
+# 6) Communications — Knowledge Base (feature parity)
+Implement:
+- Unlimited Knowledge Categories
+- Unlimited Knowledge Bases per Category
+- Unlimited Folders in Knowledge Base
+- File types: rich text pages, PDFs, images; search across titles/content.
+- Permissions: general (view/edit/publish) and per-folder overrides.
+- Versioning & publish states (Draft/Published/Archived).
+
+# 7) HR & Skills — Documents (feature parity)
+Implement:
+- Unlimited Packs (DocumentPack) and Documents in a Pack (DocumentDef).
+- Users Upload Documents (DocumentInstance with status: Required/Submitted/Approved/Rejected/Expired).
+- Visibility: per-document flag to show/hide from users.
+- Add Blank Documents (staff-fillable fields + signature).
+- General Permissions + Pack Permissions (who can view/request/approve).
+- Require Document Review Process (two-step review, optional dual approvers).
+- Set Document Expiration Dates (cron to flag upcoming expiries; notifications).
+- Audit every action; export compliance report per user/job.
+
+# 8) Notifications & Reminders
+- Channels: in-app, email, push (Web Push MVP).
+- Templates: shift start, missed clock, open shift published, document expiring, timesheet due, replacement needed.
+- Quiet hours setting; per-user opt-ins (except critical compliance).
+
+# 9) Payroll & Exports
+- Admin can set payroll cadence/timezone.
+- Approvals: per-user or bulk; lock after export.
+- Exports: CSV/XLSX; QuickBooks/ADP mappers; include edit flags and attachments links.
+
+# 10) Auditability & Logs
+- Append-only ActivityLog for sensitive objects (Timesheet, TimeEntry, Shift, DocumentInstance, User profile changes).
+- Include {actor_id, org_id, ip, user_agent, before/after JSON (PHI-masked), timestamp}.
+- Tamper-evident: rolling hash chain per org.
+
+# 11) UX Details
+- Mobile-first PWA with install prompt.
+- Accessible components (WCAG AA).
+- Brand-ready theme (primary red #D91E47, blue #0072B5, gray #F8F8F8/white).
+- Global search (users, shifts, jobs, docs, KB).
+- Empty states, toasts, skeleton loaders.
+
+# 12) Seed Data & Demos
+- Org “Outreach Medical Staffing”
+- Jobs: Central Florida, Treasure Coast, Nature Coast, Jacksonville, Brevard, Citrus
+- SubJobs: Day/Night variants
+- Roles: pre-populated RBAC
+- Sample users (RN/LPN/CNA/Admin), sample shifts, doc packs (e.g., “Quick Start”), KB structure.
+
+# 13) Deliverables
+1) Running dev environment: `pnpm i && pnpm db:migrate && pnpm dev`
+2) Prisma schema covering all models above.
+3) API routes/tRPC procedures for Time Clock, Scheduling, User Mgmt, KB, Documents.
+4) Web UI pages:
+   - Dashboard (my shifts, my tasks, reminders)
+   - Clock (in/out, attachments, history)
+   - Schedule (calendar, open shifts, search/filters, auto-scheduler)
+   - Timesheets (approve/lock/export)
+   - Users (fields, smart groups, archive)
+   - Documents (packs, approvals, expirations)
+   - Knowledge Base (categories, folders, pages/files)
+   - Settings (payroll, HIPAA mode, notifications, custom fields, permissions)
+5) Background jobs: reminders, auto clock-out, doc expiry checks, export generation.
+6) Test suite for: timesheet math, auto clock-out, claim/approve flow, permissions.
+7) README with env vars, example `.env`, and seed instructions.
+
+# 14) Acceptance Criteria (must pass)
+- Clock in/out works real-time; manual edits clearly flagged with who/why.
+- Can set payroll period; approve & lock; export CSV with edit flags and job/subjob.
+- View timesheets for any date range, not limited to 30 days.
+- Unlimited jobs/sub-jobs; open shift claim + approval; in-shift tasks and attachments.
+- Auto-scheduler fills at least one day of open shifts based on simple eligibility rules.
+- Smart groups dynamically include users by rules; filters consistent app-wide.
+- Archive user retains history but disables login.
+- Knowledge Base supports unlimited nesting per spec and search.
+- Document packs: assign, user uploads, review/approve, expirations trigger reminders.
+- HIPAA mode forces MFA and disables public links; PHI masked in logs.
+- Full audit trail present for sensitive operations.
+
+# 15) Nice-to-Have (scaffold only)
+- Geofencing on clock events, license/credential validators, ADP/QuickBooks live OAuth, kiosk mode.
+
+Build now. Provide clear file tree, Prisma schema, key API procedures, and the initial UI pages wired to real data. Include seed script and example exports.
