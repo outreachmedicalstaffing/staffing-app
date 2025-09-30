@@ -107,6 +107,13 @@ export const shifts = pgTable("shifts", {
 export const insertShiftSchema = createInsertSchema(shifts).omit({
   id: true,
   createdAt: true,
+}).extend({
+  startTime: z.union([z.date(), z.string()]).transform((val) => 
+    typeof val === 'string' ? new Date(val) : val
+  ),
+  endTime: z.union([z.date(), z.string()]).transform((val) => 
+    typeof val === 'string' ? new Date(val) : val
+  ),
 });
 
 export type InsertShift = z.infer<typeof insertShiftSchema>;

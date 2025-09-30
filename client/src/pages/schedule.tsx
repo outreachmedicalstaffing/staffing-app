@@ -242,6 +242,63 @@ export default function Schedule() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  const handlePublishShift = () => {
+    // Validate required fields
+    if (!shiftFormData.shiftTitle.trim()) {
+      toast({ 
+        title: "Shift title is required", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    try {
+      // Convert date and time strings to timestamps
+      let startTime: Date;
+      let endTime: Date;
+
+      if (shiftFormData.allDay) {
+        // For all-day shifts, set start to midnight and end to 11:59 PM
+        startTime = new Date(shiftFormData.date);
+        startTime.setHours(0, 0, 0, 0);
+        
+        endTime = new Date(shiftFormData.date);
+        endTime.setHours(23, 59, 59, 999);
+      } else {
+        // Parse time strings and combine with date
+        const startTimeParsed = parse(shiftFormData.startTime, 'h:mma', shiftFormData.date);
+        const endTimeParsed = parse(shiftFormData.endTime, 'h:mma', shiftFormData.date);
+        
+        startTime = startTimeParsed;
+        endTime = endTimeParsed;
+
+        // Handle overnight shifts
+        if (endTime < startTime) {
+          endTime = addDays(endTime, 1);
+        }
+      }
+
+      // Prepare shift data
+      const shiftData = {
+        title: shiftFormData.shiftTitle,
+        startTime: startTime,
+        endTime: endTime,
+        location: shiftFormData.address || null,
+        notes: shiftFormData.note || null,
+        status: 'open',
+        color: jobLocations.find(j => j.name === shiftFormData.job)?.color || null,
+      };
+
+      createShiftMutation.mutate(shiftData);
+    } catch (error) {
+      toast({ 
+        title: "Invalid date or time format", 
+        description: "Please check your inputs and try again",
+        variant: "destructive" 
+      });
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -262,6 +319,52 @@ export default function Schedule() {
 
   const { data: shiftTemplates = [], isLoading: templatesLoading } = useQuery<ShiftTemplate[]>({
     queryKey: ['/api/shift-templates'],
+  });
+
+  const createShiftMutation = useMutation({
+    mutationFn: async (shiftData: any): Promise<Shift> => {
+      const response = await apiRequest('POST', '/api/shifts', shiftData);
+      return response as Shift;
+    },
+    onSuccess: async (shift: Shift) => {
+      // Assign users to the shift
+      for (const userId of shiftFormData.selectedUsers) {
+        try {
+          await apiRequest('POST', `/api/shifts/${shift.id}/assign`, {
+            userId,
+            shiftId: shift.id,
+          });
+        } catch (error) {
+          console.error('Error assigning user to shift:', error);
+        }
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/shifts'] });
+      toast({ title: "Shift created successfully" });
+      
+      // Reset form and close dialog
+      setShiftFormData({
+        date: new Date(),
+        allDay: false,
+        startTime: '8:00am',
+        endTime: '8:00pm',
+        shiftTitle: '',
+        job: '',
+        selectedUsers: [],
+        address: '',
+        note: '',
+        timezone: 'America/New_York',
+        attachments: [],
+      });
+      setShowAddShift(false);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to create shift", 
+        description: error.message || "Please try again",
+        variant: "destructive" 
+      });
+    },
   });
 
   const createTemplateMutation = useMutation({
@@ -1541,9 +1644,11 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                   </Button>
                   <Button 
                     variant="default"
+                    onClick={handlePublishShift}
+                    disabled={createShiftMutation.isPending}
                     data-testid="button-publish-shift"
                   >
-                    Publish
+                    {createShiftMutation.isPending ? "Publishing..." : "Publish"}
                   </Button>
                 </div>
               </div>
