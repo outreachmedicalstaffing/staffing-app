@@ -559,4 +559,6 @@ const jobLocations = [
   { id: 11, name: "Vitas Jacksonville ( St. Johns)", color: "#7C3AED" },
   { id: 12, name: "Vitas Broward", color: "#7C3AED" },
   { id: 13, name: "AdventHealth IPU", color: "#1D4ED8", subItems: 3 },
+  { id: 14, name: "AdventHealth Central Florida", color: "#7C3AED" },
+  { id: 15, name: "Haven", color: "#EAB308" },
 ];
