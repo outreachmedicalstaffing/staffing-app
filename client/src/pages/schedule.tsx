@@ -1983,48 +1983,125 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 </Select>
               </div>
 
-              {/* Date */}
-              <div>
-                <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                      data-testid="button-edit-shift-date"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {editingShift.startTime ? format(new Date(editingShift.startTime), 'PPP') : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={new Date(editingShift.startTime)}
-                      onSelect={(date) => {
-                        if (date) {
-                          // Update the editingShift startTime to the new date while preserving the time
-                          const currentStart = new Date(editingShift.startTime);
-                          const currentEnd = new Date(editingShift.endTime);
-                          
-                          const newStart = new Date(date);
-                          newStart.setHours(currentStart.getHours(), currentStart.getMinutes());
-                          
-                          const newEnd = new Date(date);
-                          newEnd.setHours(currentEnd.getHours(), currentEnd.getMinutes());
-                          
-                          setEditingShift({
-                            ...editingShift,
-                            startTime: newStart,
-                            endTime: newEnd,
-                          });
-                        }
-                      }}
-                      data-testid="calendar-edit-shift-date"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {/* Date - Show separate start/end dates for night shifts that cross midnight */}
+              {(() => {
+                const shiftStart = new Date(editingShift.startTime);
+                const shiftEnd = new Date(editingShift.endTime);
+                const crossesMidnight = shiftStart.toDateString() !== shiftEnd.toDateString();
+                
+                if (crossesMidnight) {
+                  // Night shift spanning multiple days - show start and end date pickers
+                  return (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Start Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                              data-testid="button-edit-shift-start-date"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {format(shiftStart, 'MMM d')}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={shiftStart}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const newStart = new Date(date);
+                                  newStart.setHours(shiftStart.getHours(), shiftStart.getMinutes());
+                                  setEditingShift({
+                                    ...editingShift,
+                                    startTime: newStart,
+                                  });
+                                }
+                              }}
+                              data-testid="calendar-edit-shift-start-date"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div>
+                        <Label>End Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                              data-testid="button-edit-shift-end-date"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {format(shiftEnd, 'MMM d')}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={shiftEnd}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const newEnd = new Date(date);
+                                  newEnd.setHours(shiftEnd.getHours(), shiftEnd.getMinutes());
+                                  setEditingShift({
+                                    ...editingShift,
+                                    endTime: newEnd,
+                                  });
+                                }
+                              }}
+                              data-testid="calendar-edit-shift-end-date"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  // Regular shift - single date picker
+                  return (
+                    <div>
+                      <Label>Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                            data-testid="button-edit-shift-date"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {format(shiftStart, 'PPP')}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={shiftStart}
+                            onSelect={(date) => {
+                              if (date) {
+                                const newStart = new Date(date);
+                                newStart.setHours(shiftStart.getHours(), shiftStart.getMinutes());
+                                
+                                const newEnd = new Date(date);
+                                newEnd.setHours(shiftEnd.getHours(), shiftEnd.getMinutes());
+                                
+                                setEditingShift({
+                                  ...editingShift,
+                                  startTime: newStart,
+                                  endTime: newEnd,
+                                });
+                              }
+                            }}
+                            data-testid="calendar-edit-shift-date"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  );
+                }
+              })()}
 
               {/* Time */}
               <div className="grid grid-cols-2 gap-4">
