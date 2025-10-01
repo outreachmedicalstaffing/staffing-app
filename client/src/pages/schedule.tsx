@@ -358,6 +358,7 @@ export default function Schedule() {
       }
       
       queryClient.invalidateQueries({ queryKey: ['/api/shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shift-assignments'] });
       toast({ title: "Shift created successfully" });
       
       // Reset form and close dialog
@@ -433,6 +434,7 @@ export default function Schedule() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shift-assignments'] });
       setEditingShift(null);
       toast({ title: "Shift updated successfully" });
     },
