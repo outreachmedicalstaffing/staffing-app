@@ -1882,23 +1882,20 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                           key={user.id}
                           className="flex items-center gap-3 p-2 hover-elevate cursor-pointer"
                           onClick={() => {
-                            const isSelected = shiftFormData.selectedUsers.includes(String(user.id));
                             setShiftFormData({
                               ...shiftFormData,
-                              selectedUsers: isSelected
-                                ? shiftFormData.selectedUsers.filter(id => id !== String(user.id))
-                                : [...shiftFormData.selectedUsers, String(user.id)]
+                              selectedUsers: [String(user.id)]
                             });
                           }}
                           data-testid={`user-option-${user.id}`}
                         >
-                          <div className={`h-4 w-4 rounded border flex items-center justify-center ${
+                          <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${
                             shiftFormData.selectedUsers.includes(String(user.id)) 
                               ? 'bg-primary border-primary' 
                               : 'border-input'
                           }`}>
                             {shiftFormData.selectedUsers.includes(String(user.id)) && (
-                              <div className="h-2 w-2 bg-primary-foreground rounded-sm" />
+                              <div className="h-2 w-2 bg-primary-foreground rounded-full" />
                             )}
                           </div>
                           <Avatar className="h-7 w-7">
