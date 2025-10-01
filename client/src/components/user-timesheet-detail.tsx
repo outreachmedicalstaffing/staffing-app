@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Calendar, 
   X, 
@@ -12,7 +11,10 @@ import {
   ChevronRight, 
   Lock, 
   Unlock,
-  AlertCircle 
+  AlertCircle,
+  Search,
+  Check,
+  ChevronsUpDown
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimeEntry, User } from "@shared/schema";
@@ -29,6 +31,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const jobLocations = [
   { id: 1, name: "Vitas Citrus", color: "#B91C1C" },
@@ -59,6 +75,7 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<{ date: Date; entry: TimeEntry | null | undefined } | null>(null);
+  const [jobPopoverOpen, setJobPopoverOpen] = useState<Record<string, boolean>>({});
 
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
@@ -102,7 +119,10 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
       return result.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/time/entries'] });
+      // Invalidate all time entries queries (including those with userId params)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/time/entries') ?? false
+      });
       toast({
         title: selectedDay?.entry?.locked ? "Day unlocked" : "Day locked",
         description: selectedDay?.entry?.locked 
@@ -121,7 +141,10 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
       return result.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/time/entries'] });
+      // Invalidate all time entries queries (including those with userId params)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/time/entries') ?? false
+      });
       toast({
         title: "Entry updated",
         description: "Time entry has been updated successfully",
@@ -304,22 +327,70 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                         <TableCell>
                           {entry ? (
                             canEdit && !isLocked ? (
-                              <Select 
-                                value={entry.location || ""}
-                                onValueChange={(value) => handleJobChange(entry.id, value)}
-                                disabled={isLocked}
+                              <Popover 
+                                open={jobPopoverOpen[entry.id] || false} 
+                                onOpenChange={(open) => setJobPopoverOpen(prev => ({ ...prev, [entry.id]: open }))}
                               >
-                                <SelectTrigger className="w-[200px] h-8" data-testid={`select-job-${format(date, 'yyyy-MM-dd')}`}>
-                                  <SelectValue placeholder="Select job" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {jobLocations.map((job) => (
-                                    <SelectItem key={job.id} value={job.name}>
-                                      {job.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className="w-[200px] justify-between h-8 font-normal"
+                                    data-testid={`select-job-${format(date, 'yyyy-MM-dd')}`}
+                                  >
+                                    {entry.location || "Select"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[250px] p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="Search" />
+                                    <CommandList>
+                                      <CommandEmpty>No job found.</CommandEmpty>
+                                      <CommandGroup>
+                                        <CommandItem
+                                          onSelect={() => {
+                                            handleJobChange(entry.id, '');
+                                            setJobPopoverOpen(prev => ({ ...prev, [entry.id]: false }));
+                                          }}
+                                          className="text-muted-foreground"
+                                        >
+                                          Clear
+                                        </CommandItem>
+                                        <CommandItem disabled className="text-muted-foreground opacity-100">
+                                          Manage job items
+                                        </CommandItem>
+                                      </CommandGroup>
+                                      <CommandSeparator />
+                                      <CommandGroup>
+                                        {jobLocations.map((job) => (
+                                          <CommandItem
+                                            key={job.id}
+                                            value={job.name}
+                                            onSelect={() => {
+                                              handleJobChange(entry.id, job.name);
+                                              setJobPopoverOpen(prev => ({ ...prev, [entry.id]: false }));
+                                            }}
+                                          >
+                                            <div className="flex items-center gap-2 w-full">
+                                              <div 
+                                                className="w-3 h-3 rounded-full shrink-0" 
+                                                style={{ backgroundColor: job.color }}
+                                              />
+                                              <span className="flex-1">{job.name}</span>
+                                              <Check
+                                                className={`ml-auto h-4 w-4 ${
+                                                  entry.location === job.name ? "opacity-100" : "opacity-0"
+                                                }`}
+                                              />
+                                            </div>
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             ) : (
                               <span className="text-sm">{entry.location || '—'}</span>
                             )
