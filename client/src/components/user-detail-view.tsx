@@ -59,17 +59,16 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  if (!user) return null;
-
-  const customFields = user.customFields as any || {};
-  const [firstName, ...lastNameParts] = user.fullName.split(' ');
+  // Initialize with safe defaults, then use actual user data below
+  const customFields = (user?.customFields as any) || {};
+  const [firstName, ...lastNameParts] = user?.fullName.split(' ') || ['', ''];
   const lastName = lastNameParts.join(' ');
 
   const [formData, setFormData] = useState<EditableUser>({
-    firstName,
-    lastName,
-    email: user.email,
-    role: user.role,
+    firstName: firstName || '',
+    lastName: lastName || '',
+    email: user?.email || '',
+    role: user?.role || 'Staff',
     mobilePhone: customFields.mobilePhone || '',
     birthday: customFields.birthday || '',
     emergencyContact: customFields.emergencyContact || '',
@@ -98,6 +97,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     ],
   });
 
+  // useMutation is a hook - must be called before early return
   const updateUserMutation = useMutation({
     mutationFn: async (data: Partial<EditableUser>) => {
       const fullName = `${data.firstName} ${data.lastName}`.trim();
@@ -121,7 +121,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         jobRates: payRate.jobRates,
       };
       
-      return await apiRequest('PATCH', `/api/users/${user.id}`, {
+      return await apiRequest('PATCH', `/api/users/${user!.id}`, {
         fullName,
         email: data.email,
         role: data.role,
@@ -130,7 +130,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users', user!.id] });
       toast({
         title: "Success",
         description: "User details updated successfully",
@@ -153,6 +153,12 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
   };
 
   const handleCancel = () => {
+    if (!user) return;
+    
+    const [firstName, ...lastNameParts] = user.fullName.split(' ');
+    const lastName = lastNameParts.join(' ');
+    const customFields = (user.customFields as any) || {};
+    
     setFormData({
       firstName,
       lastName,
@@ -171,6 +177,9 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     });
     setIsEditing(false);
   };
+
+  // Early return AFTER all hooks
+  if (!user) return null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
