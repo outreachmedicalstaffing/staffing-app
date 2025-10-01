@@ -131,8 +131,9 @@ export default function Schedule() {
     address: '',
     note: '',
     timezone: 'America/New_York',
-    attachments: [] as File[],
+    attachments: [] as string[], // Store server filenames, not File objects
   });
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [addressSuggestions, setAddressSuggestions] = useState<Array<{
     formatted: string;
@@ -226,17 +227,53 @@ export default function Schedule() {
   };
 
   // File attachment handlers
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      const newFiles = Array.from(files);
+    if (!files || files.length === 0) return;
+
+    setUploadingFile(true);
+
+    try {
+      const uploadedFilenames: string[] = [];
+
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+
+        const result = await response.json();
+        uploadedFilenames.push(result.file.filename);
+      }
+
       setShiftFormData({
         ...shiftFormData,
-        attachments: [...shiftFormData.attachments, ...newFiles]
+        attachments: [...shiftFormData.attachments, ...uploadedFilenames]
       });
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+
+      toast({
+        title: "Files uploaded successfully",
+        description: `${uploadedFilenames.length} file(s) uploaded`,
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload files",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -301,7 +338,7 @@ export default function Schedule() {
         notes: shiftFormData.note || null,
         status: 'open',
         color: jobLocations.find(j => j.name === shiftFormData.job)?.color || null,
-        attachments: shiftFormData.attachments.map(file => file.name),
+        attachments: shiftFormData.attachments.length > 0 ? shiftFormData.attachments : null,
       };
 
       createShiftMutation.mutate(shiftData);
@@ -1947,10 +1984,11 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                     size="sm"
                     className="absolute bottom-2 left-2 h-8 text-primary hover:text-primary"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
                     data-testid="button-attach"
                   >
                     <Paperclip className="h-4 w-4 mr-1" />
-                    Attach
+                    {uploadingFile ? 'Uploading...' : 'Attach'}
                   </Button>
                   <input
                     ref={fileInputRef}
@@ -1964,7 +2002,7 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 
                 {shiftFormData.attachments.length > 0 && (
                   <div className="mt-2 space-y-2">
-                    {shiftFormData.attachments.map((file, index) => (
+                    {shiftFormData.attachments.map((filename, index) => (
                       <div
                         key={index}
                         className="flex items-center justify-between p-2 rounded-md border bg-muted/50"
@@ -1973,8 +2011,8 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{file.name}</div>
-                            <div className="text-xs text-muted-foreground">{formatFileSize(file.size)}</div>
+                            <div className="text-sm font-medium truncate">{filename}</div>
+                            <div className="text-xs text-muted-foreground">Uploaded</div>
                           </div>
                         </div>
                         <Button
@@ -2353,10 +2391,8 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                         type="button"
                         className="flex items-center gap-2 p-2 border rounded-md w-full text-left hover-elevate active-elevate-2 cursor-pointer"
                         onClick={() => {
-                          toast({
-                            title: "Attachment reference saved",
-                            description: `File: ${filename} - File download functionality coming soon`,
-                          });
+                          // Open file in new tab for viewing/downloading
+                          window.open(`/api/files/${filename}`, '_blank');
                         }}
                         data-testid={`attachment-${index}`}
                       >
