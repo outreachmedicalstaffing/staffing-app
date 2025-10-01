@@ -1059,7 +1059,7 @@ export default function Schedule() {
                       >
                         {/* Availability controls */}
                         <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          {!availability && (
+                          {!availability && userShifts.length === 0 && (
                             <>
                               <Button
                                 variant="ghost"
@@ -1097,7 +1097,7 @@ export default function Schedule() {
                               </Button>
                             </>
                           )}
-                          {availability && (
+                          {availability && userShifts.length === 0 && (
                             <Button
                               variant="ghost"
                               size="icon"
