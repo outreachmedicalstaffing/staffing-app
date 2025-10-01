@@ -19,7 +19,7 @@ export default function Timesheets() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("today");
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   const { data: timesheets = [], isLoading: loadingTimesheets } = useQuery<Timesheet[]>({
     queryKey: ['/api/timesheets'],
@@ -34,7 +34,7 @@ export default function Timesheets() {
   });
 
   // Calculate current week range
-  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const weekRangeDisplay = `${format(currentWeekStart, 'MM/dd')} - ${format(weekEnd, 'MM/dd')}`;
 
   // Navigation functions
@@ -47,7 +47,7 @@ export default function Timesheets() {
   };
 
   const goToCurrentWeek = () => {
-    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }));
+    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
   };
 
   // Filter today's entries
