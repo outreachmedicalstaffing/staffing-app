@@ -31,12 +31,14 @@ import {
   X,
   Lightbulb,
   MoreHorizontal,
+  MoreVertical,
   MapPin,
   Paperclip,
   Info,
   Pencil,
   Trash2,
-  Moon
+  Moon,
+  Copy
 } from "lucide-react";
 import {
   Select,
@@ -408,6 +410,67 @@ export default function Schedule() {
     },
     onError: () => {
       toast({ title: "Failed to update template", variant: "destructive" });
+    },
+  });
+
+  const deleteShiftMutation = useMutation({
+    mutationFn: async (shiftId: string) => {
+      return apiRequest('DELETE', `/api/shifts/${shiftId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shift-assignments'] });
+      toast({ title: "Shift deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete shift", variant: "destructive" });
+    },
+  });
+
+  const duplicateShiftMutation = useMutation({
+    mutationFn: async (shift: Shift) => {
+      // Get all users assigned to this shift
+      const assignedUsers = shiftAssignments
+        .filter(a => a.shiftId === shift.id)
+        .map(a => a.userId);
+      
+      // Create new shift with same data
+      const shiftData = {
+        title: shift.title,
+        jobName: shift.jobName,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        color: shift.color,
+        location: shift.location,
+        notes: shift.notes,
+        status: shift.status,
+        maxAssignees: shift.maxAssignees,
+      };
+      
+      const response = await apiRequest('POST', '/api/shifts', shiftData);
+      const newShift = await response.json();
+      
+      // Assign the same users to the new shift
+      for (const userId of assignedUsers) {
+        try {
+          await apiRequest('POST', `/api/shifts/${newShift.id}/assign`, {
+            userId,
+            shiftId: newShift.id,
+          });
+        } catch (error) {
+          console.error('Error assigning user to duplicated shift:', error);
+        }
+      }
+      
+      return newShift;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shifts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shift-assignments'] });
+      toast({ title: "Shift duplicated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to duplicate shift", variant: "destructive" });
     },
   });
 
@@ -862,16 +925,53 @@ export default function Schedule() {
                             <div
                               key={shift.id}
                               onClick={() => setEditingShift(shift)}
-                              className="rounded p-2 text-xs cursor-pointer hover-elevate"
+                              className="rounded p-2 text-xs cursor-pointer hover-elevate relative group"
                               style={{
                                 backgroundColor: shift.color || '#3b82f6',
                                 color: 'white'
                               }}
                               data-testid={`shift-${shift.id}`}
                             >
-                              <div className="font-medium text-white flex items-center gap-1">
-                                {startTime} - {endTime}
-                                {isNight && <Moon className="h-3 w-3 flex-shrink-0" />}
+                              <div className="flex items-center justify-between gap-1">
+                                <div className="font-medium text-white flex items-center gap-1 flex-1 min-w-0">
+                                  <span className="truncate">{startTime} - {endTime}</span>
+                                  {isNight && <Moon className="h-3 w-3 flex-shrink-0" />}
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-5 w-5 text-white hover:bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      data-testid={`button-shift-menu-${shift.id}`}
+                                    >
+                                      <MoreVertical className="h-3 w-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        duplicateShiftMutation.mutate(shift);
+                                      }}
+                                      data-testid={`menu-item-duplicate-${shift.id}`}
+                                    >
+                                      <Copy className="h-4 w-4 mr-2" />
+                                      Duplicate
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteShiftMutation.mutate(shift.id);
+                                      }}
+                                      className="text-destructive"
+                                      data-testid={`menu-item-delete-${shift.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                               <div className="mt-0.5 text-white/90 text-[10px] truncate">
                                 {shift.jobName && `${shift.jobName} • `}{shift.title}
