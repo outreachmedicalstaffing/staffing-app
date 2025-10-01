@@ -4,6 +4,22 @@
 
 OutreachOps is a healthcare workforce management platform designed specifically for hospice staffing companies. It replaces Connecteam with a HIPAA-compliant solution that handles employee scheduling, time tracking, document management, and knowledge base features. The platform is built with security and compliance as core requirements, featuring role-based access control, PHI (Protected Health Information) tagging, and comprehensive audit logging.
 
+## Recent Updates (January 2025)
+
+### File Attachment System
+- Implemented complete file upload system using Multer for shift attachments
+- Users can upload files (images, PDFs, documents) up to 10MB
+- Files stored securely in `./uploads/` directory with unique timestamped names
+- File download/viewing via authenticated endpoints
+- Security: file type validation, size limits, authentication required
+
+### User Availability Display
+- Visual indicators for user availability in schedule calendar view
+- Unavailable days: red background with "Unavailable" and "All day" text in red
+- Preferred work days: green background with "Prefer to work" and time range in green
+- Support for all-day or specific time ranges
+- Quick access controls for marking days as unavailable or preferred
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

@@ -1113,6 +1113,26 @@ export default function Schedule() {
                             </Button>
                           )}
                         </div>
+                        
+                        {/* Availability Display */}
+                        {availability && (
+                          <div className="text-center mb-2 space-y-0.5" data-testid={`availability-display-${user.id}-${dayIdx}`}>
+                            <div className={`text-xs font-semibold ${
+                              isUnavailable ? 'text-red-600 dark:text-red-500' : 'text-green-600 dark:text-green-500'
+                            }`}>
+                              {isUnavailable ? 'Unavailable' : 'Prefer to work'}
+                            </div>
+                            <div className={`text-xs font-medium ${
+                              isUnavailable ? 'text-red-600 dark:text-red-500' : 'text-green-600 dark:text-green-500'
+                            }`}>
+                              {availability.allDay 
+                                ? 'All day' 
+                                : `${availability.startTime} - ${availability.endTime}`
+                              }
+                            </div>
+                          </div>
+                        )}
+                        
                         {userShifts.map((shift) => {
                           const startTime = format(new Date(shift.startTime), 'h:mma');
                           const endTime = format(new Date(shift.endTime), 'h:mma');
