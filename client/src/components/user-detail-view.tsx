@@ -181,6 +181,8 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
   // Early return AFTER all hooks
   if (!user) return null;
 
+  console.log('UserDetailView render - isEditing:', isEditing);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl h-[90vh] p-0">
@@ -228,7 +230,10 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setIsEditing(true)}
+                    onClick={() => {
+                      console.log('Edit button clicked, setting isEditing to true');
+                      setIsEditing(true);
+                    }}
                     data-testid="button-edit-user"
                   >
                     <Pencil className="h-4 w-4 mr-2" />
