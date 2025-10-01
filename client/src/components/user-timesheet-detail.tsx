@@ -118,7 +118,12 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
       const result = await apiRequest('PATCH', '/api/time/entries/' + entryId, { locked });
       return result.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Close any open job popovers for this entry (security: prevent editing locked entries)
+      if (variables.locked) {
+        setJobPopoverOpen(prev => ({ ...prev, [variables.entryId]: false }));
+      }
+      
       // Invalidate all time entries queries (including those with userId params)
       queryClient.invalidateQueries({ 
         predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/time/entries') ?? false
@@ -167,6 +172,16 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
   };
 
   const handleJobChange = (entryId: string, location: string) => {
+    // Check if entry is locked before allowing changes
+    const entry = timeEntries.find(e => e.id === entryId);
+    if (entry?.locked) {
+      toast({
+        title: "Entry is locked",
+        description: "This entry cannot be modified while locked",
+        variant: "destructive",
+      });
+      return;
+    }
     updateEntryMutation.mutate({ entryId, data: { location } });
   };
 
@@ -174,6 +189,16 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
     // Get the existing entry
     const entry = timeEntries.find(e => e.id === entryId);
     if (!entry) return;
+
+    // Check if entry is locked
+    if (entry.locked) {
+      toast({
+        title: "Entry is locked",
+        description: "This entry cannot be modified while locked",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Parse the time value (HH:mm format)
     const [hours, minutes] = value.split(':').map(Number);
@@ -326,10 +351,10 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                         </TableCell>
                         <TableCell>
                           {entry ? (
-                            canEdit && !isLocked ? (
+                            canEdit ? (
                               <Popover 
                                 open={jobPopoverOpen[entry.id] || false} 
-                                onOpenChange={(open) => setJobPopoverOpen(prev => ({ ...prev, [entry.id]: open }))}
+                                onOpenChange={(open) => !isLocked && setJobPopoverOpen(prev => ({ ...prev, [entry.id]: open }))}
                               >
                                 <PopoverTrigger asChild>
                                   <Button
@@ -337,6 +362,7 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                                     role="combobox"
                                     className="w-[200px] justify-between h-8 font-normal"
                                     data-testid={`select-job-${format(date, 'yyyy-MM-dd')}`}
+                                    disabled={isLocked}
                                   >
                                     {entry.location || "Select"}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

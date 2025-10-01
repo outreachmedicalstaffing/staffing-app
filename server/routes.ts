@@ -292,14 +292,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Time entry not found" });
       }
       
-      // Check if entry is locked
-      if (existing.locked && !req.body.locked) {
-        // Allow unlocking, but check other fields
-        if (Object.keys(req.body).length > 1) {
-          return res.status(403).json({ error: "Cannot edit locked time entry" });
+      // Check if entry is locked - prevent ANY edits to locked entries
+      if (existing.locked) {
+        // Only allow unlocking if that's the ONLY change
+        if (req.body.locked === false && Object.keys(req.body).length === 1) {
+          // Allow unlock-only request
+        } else {
+          return res.status(403).json({ error: "Cannot edit locked time entry. Unlock it first." });
         }
-      } else if (existing.locked) {
-        return res.status(403).json({ error: "Cannot edit locked time entry" });
       }
       
       const entry = await storage.updateTimeEntry(entryId, data);
