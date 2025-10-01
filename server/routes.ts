@@ -199,6 +199,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'completed',
         breakMinutes: req.body.breakMinutes || 0,
         notes: req.body.notes || activeEntry.notes,
+        shiftNoteAttachments: req.body.shiftNoteAttachments || null,
+        relievingNurseSignature: req.body.relievingNurseSignature || null,
       });
       
       await logAudit(userId, "clock_out", "time_entry", activeEntry.id, false, [], {}, req.ip);

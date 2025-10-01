@@ -27,7 +27,7 @@ OutreachOps is a healthcare workforce management platform designed specifically 
 - Timezone-safe filtering: extracts date directly from ISO strings without timezone conversion
 - Week starts on Monday (payroll week), properly filters timesheets by selected week period
 
-### Timesheet Detail View Redesign (✅ Complete)
+### Timesheet Detail View with Clock-Out Integration (✅ Complete)
 - Complete weekly breakdown showing all 7 days with Monday at bottom (reversed order: Sun to Mon)
 - Week navigation controls for browsing different pay periods
 - Editable job selection (dropdown) and start/end times (time inputs) for Owner/Admin roles
@@ -36,12 +36,33 @@ OutreachOps is a healthcare workforce management platform designed specifically 
   - Confirmation dialog explaining locking rules and permissions
   - Backend enforcement prevents editing locked entries
   - Audit logging for all lock/unlock and edit actions
+- **Four New Columns for Clock-Out Data:**
+  - **Relieving Nurse Signature**: Displays signature image captured during clock-out
+  - **Attach ALL shift notes**: Shows count and link to photos uploaded during shift
+  - **Employee notes**: Text notes field (future implementation)
+  - **Manager notes**: Text notes field for admin/manager use
 - Role-based access: only Owner and Admin can edit timesheets and lock/unlock days
 - Timezone-safe date handling throughout
 - **Critical Fixes Applied:**
   - Fixed time entries query to use correct query parameter format (`?userId=` instead of path segment)
   - Fixed current user endpoint from `/api/user` to `/api/auth/me` for proper role detection
   - All editable fields and lock buttons now render correctly for Owner/Admin roles
+  - Approve timesheet button creates/updates timesheet records and marks as approved
+
+### Clock-Out with Photo and Signature Capture (✅ Complete)
+- **Photo Upload**: Employees can upload multiple photos during their shift
+  - Files uploaded to `/api/upload` endpoint using Multer
+  - Stored in `./uploads/` directory with unique filenames
+  - Photo count displayed on button (e.g., "2 Photos")
+  - All photos saved to `shiftNoteAttachments` array in time entry
+- **Signature Capture**: Canvas-based signature pad for relieving nurse
+  - Opens modal dialog for signature drawing
+  - Touch and mouse support for drawing
+  - Clear and save functionality
+  - Signature saved as base64 data URL in `relievingNurseSignature` field
+  - Button shows "✓ Signed" when signature captured
+- Both photos and signature automatically sent to backend on clock-out
+- Data appears in timesheet detail view for review
 
 ## User Preferences
 

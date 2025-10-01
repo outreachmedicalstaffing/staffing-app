@@ -414,6 +414,10 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                     <TableHead>Regular</TableHead>
                     <TableHead>Holiday</TableHead>
                     <TableHead>Actions</TableHead>
+                    <TableHead>Relieving Nurse Si...</TableHead>
+                    <TableHead>Attach ALL shift n...</TableHead>
+                    <TableHead>Employee notes</TableHead>
+                    <TableHead>Manager notes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -557,6 +561,38 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                               )}
                             </Button>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          {entry?.relievingNurseSignature ? (
+                            <img 
+                              src={entry.relievingNurseSignature} 
+                              alt="Signature" 
+                              className="h-8 max-w-[100px] object-contain cursor-pointer"
+                              onClick={() => window.open(entry.relievingNurseSignature!, '_blank')}
+                            />
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          {entry?.shiftNoteAttachments && entry.shiftNoteAttachments.length > 0 ? (
+                            <button 
+                              className="text-blue-600 hover:underline text-sm"
+                              onClick={() => {
+                                // TODO: Open image viewer modal
+                                toast({
+                                  title: "Attachments",
+                                  description: `${entry.shiftNoteAttachments?.length} file(s) attached`,
+                                });
+                              }}
+                            >
+                              {entry.shiftNoteAttachments.length} image{entry.shiftNoteAttachments.length !== 1 ? 's' : ''}
+                            </button>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{entry?.employeeNotes || '—'}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{entry?.managerNotes || '—'}</span>
                         </TableCell>
                       </TableRow>
                     );

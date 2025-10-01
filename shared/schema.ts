@@ -40,6 +40,10 @@ export const timeEntries = pgTable("time_entries", {
   notes: text("notes"),
   status: text("status").notNull().default('active'), // active, completed, auto-clocked-out
   locked: boolean("locked").default(false), // locked days prevent editing
+  relievingNurseSignature: text("relieving_nurse_signature"), // Signature obtained at clock out
+  shiftNoteAttachments: text("shift_note_attachments").array(), // Photos/files uploaded at clock out
+  employeeNotes: text("employee_notes"), // Notes from employee
+  managerNotes: text("manager_notes"), // Notes from manager/admin
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

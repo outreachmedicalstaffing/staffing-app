@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, MapPin, Camera, PenTool } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +24,13 @@ export function ClockInterface({
 }: ClockInterfaceProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  const [signature, setSignature] = useState<string | null>(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   const isClockedIn = !!activeEntry;
 
@@ -68,12 +74,17 @@ export function ClockInterface({
 
   const clockOutMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/time/clock-out", {});
+      const res = await apiRequest("POST", "/api/time/clock-out", {
+        shiftNoteAttachments: uploadedPhotos,
+        relievingNurseSignature: signature,
+      });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/time/entries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/time/active'] });
+      setUploadedPhotos([]);
+      setSignature(null);
       toast({
         title: "Clocked Out",
         description: "You have successfully clocked out",
@@ -107,15 +118,38 @@ export function ClockInterface({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.type.startsWith('image/')) {
-        toast({
-          title: "Photo Selected",
-          description: `Selected: ${file.name}`,
-        });
-        // TODO: Implement photo upload to server/storage
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const fileUrl = `/api/files/${data.file.filename}`;
+            setUploadedPhotos(prev => [...prev, fileUrl]);
+            toast({
+              title: "Photo Uploaded",
+              description: `${file.name} has been added`,
+            });
+          } else {
+            throw new Error('Upload failed');
+          }
+        } catch (error) {
+          toast({
+            title: "Upload Failed",
+            description: "Failed to upload photo",
+            variant: "destructive",
+          });
+        }
       } else {
         toast({
           title: "Invalid File",
@@ -127,11 +161,67 @@ export function ClockInterface({
   };
 
   const handleAddSignature = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Signature feature will be implemented soon",
-    });
-    // TODO: Implement signature pad modal
+    setShowSignaturePad(true);
+  };
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
+    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
+    
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      setIsDrawing(true);
+    }
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
+    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
+    
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  };
+
+  const saveSignature = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const dataUrl = canvas.toDataURL('image/png');
+      setSignature(dataUrl);
+      setShowSignaturePad(false);
+      toast({
+        title: "Signature Saved",
+        description: "Relieving nurse signature captured",
+      });
+    }
   };
 
   return (
@@ -186,7 +276,7 @@ export function ClockInterface({
                 data-testid="button-add-photo"
               >
                 <Camera className="h-4 w-4" />
-                Add Photo
+                {uploadedPhotos.length > 0 ? `${uploadedPhotos.length} Photo${uploadedPhotos.length !== 1 ? 's' : ''}` : 'Add Photo'}
               </Button>
               <Button 
                 variant="outline" 
@@ -195,7 +285,7 @@ export function ClockInterface({
                 data-testid="button-add-signature"
               >
                 <PenTool className="h-4 w-4" />
-                Signature
+                {signature ? '✓ Signed' : 'Signature'}
               </Button>
             </div>
           )}
@@ -220,6 +310,44 @@ export function ClockInterface({
           </div>
         </div>
       </CardContent>
+
+      {/* Signature Pad Dialog */}
+      <Dialog open={showSignaturePad} onOpenChange={setShowSignaturePad}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Relieving Nurse Signature</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border rounded-md bg-white">
+              <canvas
+                ref={canvasRef}
+                width={400}
+                height={200}
+                className="w-full touch-none"
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+                style={{ cursor: 'crosshair' }}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Sign above to capture the relieving nurse's signature
+            </p>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={clearSignature}>
+              Clear
+            </Button>
+            <Button onClick={saveSignature}>
+              Save Signature
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
