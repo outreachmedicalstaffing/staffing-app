@@ -414,20 +414,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create shift
   app.post("/api/shifts", requireRole('Owner', 'Admin', 'Scheduler'), async (req, res) => {
     try {
-      console.log('[DEBUG] Received shift data:', JSON.stringify(req.body, null, 2));
       const data = insertShiftSchema.parse(req.body);
-      console.log('[DEBUG] Parsed shift data:', JSON.stringify(data, null, 2));
       const shift = await storage.createShift(data);
-      console.log('[DEBUG] Created shift:', JSON.stringify(shift, null, 2));
       
       await logAudit(req.session.userId, "create", "shift", shift.id, false, [], {}, req.ip);
       res.json(shift);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.log('[DEBUG] Validation error:', JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ error: error.errors });
       }
-      console.error('[DEBUG] Error creating shift:', error);
       res.status(500).json({ error: "Failed to create shift" });
     }
   });

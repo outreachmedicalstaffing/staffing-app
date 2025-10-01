@@ -2348,14 +2348,21 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                   <Label>Attachments</Label>
                   <div className="space-y-2">
                     {editingShift.attachments.map((filename, index) => (
-                      <div
+                      <button
                         key={index}
-                        className="flex items-center gap-2 p-2 border rounded-md"
+                        type="button"
+                        className="flex items-center gap-2 p-2 border rounded-md w-full text-left hover-elevate active-elevate-2 cursor-pointer"
+                        onClick={() => {
+                          toast({
+                            title: "Attachment reference saved",
+                            description: `File: ${filename} - File download functionality coming soon`,
+                          });
+                        }}
                         data-testid={`attachment-${index}`}
                       >
                         <Paperclip className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm flex-1">{filename}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
