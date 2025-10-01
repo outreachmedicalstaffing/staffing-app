@@ -20,6 +20,13 @@ OutreachOps is a healthcare workforce management platform designed specifically 
 - Support for all-day or specific time ranges
 - Quick access controls for marking days as unavailable or preferred
 
+### Timesheet Week Navigation
+- Added previous/next week navigation controls in Timesheets view
+- Week range display shows current week in MM/DD - MM/DD format
+- Click date range button to return to current week
+- Timezone-safe filtering: extracts date directly from ISO strings without timezone conversion
+- Week starts on Sunday, properly filters timesheets by selected week period
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
