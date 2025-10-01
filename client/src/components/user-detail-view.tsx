@@ -80,7 +80,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     allergies: customFields.allergies || 'select',
     address: customFields.address || '',
     employmentStartDate: customFields.employmentStartDate || '05/06/2022',
-    programs: customFields.programs || ['Vitas VHVP', 'Vitas Central Florida'],
+    programs: customFields.programs || ['Vitas Central Florida'],
     directManager: customFields.directManager || 'amanda',
   });
 
@@ -95,8 +95,8 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     effectiveDate: customFields.payRateEffectiveDate || '05/29/2025',
     defaultRate: customFields.payRateDefault || '$35/hour',
     jobRates: customFields.jobRates || [
-      { name: 'Advent/Health IPU', rate: '$38/hour', color: 'bg-blue-500' },
-      { name: 'Vitas VHVP', rate: '$34/hour', color: 'bg-purple-500' },
+      { name: 'AdventHealth IPU', rate: '$38/hour', color: 'bg-blue-500' },
+      { name: 'Vitas Central Florida', rate: '$34/hour', color: 'bg-purple-500' },
     ],
   });
 
@@ -175,7 +175,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
       allergies: customFields.allergies || 'select',
       address: customFields.address || '',
       employmentStartDate: customFields.employmentStartDate || '05/06/2022',
-      programs: customFields.programs || ['Vitas VHVP', 'Vitas Central Florida'],
+      programs: customFields.programs || ['Vitas Central Florida'],
       directManager: customFields.directManager || 'amanda',
     });
     setIsEditing(false);
@@ -512,9 +512,21 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                           disabled={!isEditing}
                           onValueChange={(value) => {
                             const programMap: Record<string, string> = {
-                              'vitas-vhvp': 'Vitas VHVP',
+                              'vitas-nature-coast': 'Vitas Nature Coast',
+                              'vitas-citrus': 'Vitas Citrus',
+                              'vitas-jacksonville': 'Vitas Jacksonville',
+                              'vitas-vfp': 'Vitas V/F/P',
+                              'vitas-midstate': 'Vitas Midstate',
+                              'vitas-brevard': 'Vitas Brevard',
+                              'vitas-dade-monroe': 'Vitas Dade/Monroe',
+                              'vitas-palm-beach': 'Vitas Palm Beach',
+                              'adventhealth-ipu': 'AdventHealth IPU',
+                              'adventhealth-central': 'AdventHealth Central Florida',
+                              'vitas-treasure-coast': 'Vitas Treasure Coast',
+                              'haven': 'Haven',
+                              'vitas-jacksonville-stjohns': 'Vitas Jacksonville (St. Johns)',
+                              'vitas-broward': 'Vitas Broward',
                               'vitas-central': 'Vitas Central Florida',
-                              'advent-health': 'Advent/Health IPU',
                             };
                             const programName = programMap[value];
                             if (programName && !formData.programs.includes(programName)) {
@@ -526,9 +538,21 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                             <SelectValue placeholder="Add program" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="vitas-vhvp">Vitas VHVP</SelectItem>
+                            <SelectItem value="vitas-nature-coast">Vitas Nature Coast</SelectItem>
+                            <SelectItem value="vitas-citrus">Vitas Citrus</SelectItem>
+                            <SelectItem value="vitas-jacksonville">Vitas Jacksonville</SelectItem>
+                            <SelectItem value="vitas-vfp">Vitas V/F/P</SelectItem>
+                            <SelectItem value="vitas-midstate">Vitas Midstate</SelectItem>
+                            <SelectItem value="vitas-brevard">Vitas Brevard</SelectItem>
+                            <SelectItem value="vitas-dade-monroe">Vitas Dade/Monroe</SelectItem>
+                            <SelectItem value="vitas-palm-beach">Vitas Palm Beach</SelectItem>
+                            <SelectItem value="adventhealth-ipu">AdventHealth IPU</SelectItem>
+                            <SelectItem value="adventhealth-central">AdventHealth Central Florida</SelectItem>
+                            <SelectItem value="vitas-treasure-coast">Vitas Treasure Coast</SelectItem>
+                            <SelectItem value="haven">Haven</SelectItem>
+                            <SelectItem value="vitas-jacksonville-stjohns">Vitas Jacksonville (St. Johns)</SelectItem>
+                            <SelectItem value="vitas-broward">Vitas Broward</SelectItem>
                             <SelectItem value="vitas-central">Vitas Central Florida</SelectItem>
-                            <SelectItem value="advent-health">Advent/Health IPU</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
