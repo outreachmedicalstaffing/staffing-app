@@ -427,6 +427,20 @@ export default function Schedule() {
     },
   });
 
+  const updateShiftMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Shift> }) => {
+      return apiRequest('PATCH', `/api/shifts/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shifts'] });
+      setEditingShift(null);
+      toast({ title: "Shift updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update shift", variant: "destructive" });
+    },
+  });
+
   const duplicateShiftMutation = useMutation({
     mutationFn: async (shift: Shift) => {
       // Get all users assigned to this shift
@@ -1937,7 +1951,8 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 <Label htmlFor="edit-shift-title">Shift title</Label>
                 <Input
                   id="edit-shift-title"
-                  defaultValue={editingShift.title}
+                  value={editingShift.title}
+                  onChange={(e) => setEditingShift({ ...editingShift, title: e.target.value })}
                   data-testid="input-edit-shift-title"
                 />
               </div>
@@ -1945,7 +1960,10 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
               {/* Job Selection */}
               <div>
                 <Label htmlFor="edit-job-select">Job</Label>
-                <Select defaultValue={editingShift.jobName || undefined}>
+                <Select 
+                  value={editingShift.jobName || undefined}
+                  onValueChange={(value) => setEditingShift({ ...editingShift, jobName: value })}
+                >
                   <SelectTrigger id="edit-job-select" data-testid="select-edit-job">
                     <SelectValue placeholder="Select a job" />
                   </SelectTrigger>
@@ -1965,13 +1983,72 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 </Select>
               </div>
 
-              {/* Date and Time */}
+              {/* Date */}
+              <div>
+                <Label>Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-edit-shift-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {editingShift.startTime ? format(new Date(editingShift.startTime), 'PPP') : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={new Date(editingShift.startTime)}
+                      onSelect={(date) => {
+                        if (date) {
+                          // Update the editingShift startTime to the new date while preserving the time
+                          const currentStart = new Date(editingShift.startTime);
+                          const currentEnd = new Date(editingShift.endTime);
+                          
+                          const newStart = new Date(date);
+                          newStart.setHours(currentStart.getHours(), currentStart.getMinutes());
+                          
+                          const newEnd = new Date(date);
+                          newEnd.setHours(currentEnd.getHours(), currentEnd.getMinutes());
+                          
+                          setEditingShift({
+                            ...editingShift,
+                            startTime: newStart,
+                            endTime: newEnd,
+                          });
+                        }
+                      }}
+                      data-testid="calendar-edit-shift-date"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Start Time</Label>
                   <Input
                     type="text"
-                    defaultValue={format(new Date(editingShift.startTime), 'h:mma')}
+                    value={format(new Date(editingShift.startTime), 'h:mma')}
+                    onChange={(e) => {
+                      // Update start time when user types
+                      const timeStr = e.target.value;
+                      try {
+                        const currentDate = new Date(editingShift.startTime);
+                        const parsedTime = parse(timeStr.toLowerCase(), 'h:mma', currentDate);
+                        if (!isNaN(parsedTime.getTime())) {
+                          setEditingShift({
+                            ...editingShift,
+                            startTime: parsedTime,
+                          });
+                        }
+                      } catch (error) {
+                        // Invalid time format, ignore
+                      }
+                    }}
                     data-testid="input-edit-start-time"
                   />
                 </div>
@@ -1979,7 +2056,23 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                   <Label>End Time</Label>
                   <Input
                     type="text"
-                    defaultValue={format(new Date(editingShift.endTime), 'h:mma')}
+                    value={format(new Date(editingShift.endTime), 'h:mma')}
+                    onChange={(e) => {
+                      // Update end time when user types
+                      const timeStr = e.target.value;
+                      try {
+                        const currentDate = new Date(editingShift.endTime);
+                        const parsedTime = parse(timeStr.toLowerCase(), 'h:mma', currentDate);
+                        if (!isNaN(parsedTime.getTime())) {
+                          setEditingShift({
+                            ...editingShift,
+                            endTime: parsedTime,
+                          });
+                        }
+                      } catch (error) {
+                        // Invalid time format, ignore
+                      }
+                    }}
                     data-testid="input-edit-end-time"
                   />
                 </div>
@@ -1990,7 +2083,8 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 <Label htmlFor="edit-address">Address</Label>
                 <Input
                   id="edit-address"
-                  defaultValue={editingShift.location || ''}
+                  value={editingShift.location || ''}
+                  onChange={(e) => setEditingShift({ ...editingShift, location: e.target.value })}
                   data-testid="input-edit-address"
                 />
               </div>
@@ -2001,7 +2095,8 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 <Textarea
                   id="edit-notes"
                   rows={3}
-                  defaultValue={editingShift.notes || ''}
+                  value={editingShift.notes || ''}
+                  onChange={(e) => setEditingShift({ ...editingShift, notes: e.target.value })}
                   data-testid="textarea-edit-notes"
                 />
               </div>
@@ -2018,12 +2113,29 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 <div className="flex gap-2">
                   <Button 
                     variant="destructive"
+                    onClick={() => {
+                      deleteShiftMutation.mutate(editingShift.id);
+                      setEditingShift(null);
+                    }}
                     data-testid="button-delete-shift"
                   >
                     Delete
                   </Button>
                   <Button 
                     variant="default"
+                    onClick={() => {
+                      updateShiftMutation.mutate({
+                        id: editingShift.id,
+                        data: {
+                          title: editingShift.title,
+                          jobName: editingShift.jobName,
+                          startTime: editingShift.startTime,
+                          endTime: editingShift.endTime,
+                          location: editingShift.location,
+                          notes: editingShift.notes,
+                        }
+                      });
+                    }}
                     data-testid="button-save-shift"
                   >
                     Save Changes
