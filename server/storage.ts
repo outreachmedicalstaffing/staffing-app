@@ -248,6 +248,10 @@ export class DbStorage implements IStorage {
   }
 
   async deleteShift(id: string): Promise<boolean> {
+    // First delete all shift assignments for this shift
+    await db.delete(shiftAssignments).where(eq(shiftAssignments.shiftId, id));
+    
+    // Then delete the shift itself
     const result = await db.delete(shifts).where(eq(shifts.id, id)).returning();
     return result.length > 0;
   }
