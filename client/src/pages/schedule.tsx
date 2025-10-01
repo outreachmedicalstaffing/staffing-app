@@ -339,6 +339,36 @@ export default function Schedule() {
     queryKey: ['/api/shift-assignments'],
   });
 
+  const { data: userAvailability = [] } = useQuery<any[]>({
+    queryKey: ['/api/user-availability'],
+  });
+
+  const createAvailabilityMutation = useMutation({
+    mutationFn: async (data: { userId: string; date: Date; type: 'unavailable' | 'preferred' }) => {
+      return apiRequest('POST', '/api/user-availability', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user-availability'] });
+      toast({ title: "Availability updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update availability", variant: "destructive" });
+    },
+  });
+
+  const deleteAvailabilityMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/user-availability/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user-availability'] });
+      toast({ title: "Availability removed" });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove availability", variant: "destructive" });
+    },
+  });
+
   const createShiftMutation = useMutation({
     mutationFn: async (shiftData: any): Promise<Shift> => {
       const response = await apiRequest('POST', '/api/shifts', shiftData);
@@ -549,6 +579,14 @@ export default function Schedule() {
       const shiftDate = new Date(s.startTime);
       const assignment = shiftAssignments.find(a => a.shiftId === s.id && a.userId === userId);
       return assignment && shiftDate.toDateString() === day.toDateString();
+    });
+  };
+
+  // Get availability for a user on a specific day
+  const getAvailabilityForUserAndDay = (userId: string, day: Date) => {
+    return userAvailability.find((a: any) => {
+      const availDate = new Date(a.date);
+      return a.userId === userId && availDate.toDateString() === day.toDateString();
     });
   };
 
@@ -947,11 +985,18 @@ export default function Schedule() {
                   {/* Day Columns */}
                   {weekDays.map((day, dayIdx) => {
                     const userShifts = getShiftsForUserAndDay(user.id, day);
+                    const availability = getAvailabilityForUserAndDay(user.id, day);
+                    const isUnavailable = availability?.type === 'unavailable';
+                    const isPreferred = availability?.type === 'preferred';
                     
                     return (
                       <div
                         key={dayIdx}
-                        className="border-r last:border-r-0 p-2 min-h-[80px] space-y-1 cursor-pointer hover:bg-muted/30 transition-colors"
+                        className={`border-r last:border-r-0 p-2 min-h-[80px] space-y-1 cursor-pointer transition-colors relative group ${
+                          isUnavailable ? 'bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30' :
+                          isPreferred ? 'bg-green-50 dark:bg-green-950/20 hover:bg-green-100 dark:hover:bg-green-950/30' :
+                          'hover:bg-muted/30'
+                        }`}
                         onClick={(e) => {
                           // Only open Add Shift if clicking on empty space (not on a shift block)
                           if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.shift-block') === null) {
@@ -974,6 +1019,62 @@ export default function Schedule() {
                         }}
                         data-testid={`user-${user.id}-day-${dayIdx}`}
                       >
+                        {/* Availability controls */}
+                        <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          {!availability && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 bg-background/80 hover:bg-red-100 dark:hover:bg-red-950/50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  createAvailabilityMutation.mutate({
+                                    userId: user.id,
+                                    date: day,
+                                    type: 'unavailable'
+                                  });
+                                }}
+                                title="Mark unavailable"
+                                data-testid={`button-mark-unavailable-${user.id}-${dayIdx}`}
+                              >
+                                <XCircle className="h-3 w-3 text-red-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 bg-background/80 hover:bg-green-100 dark:hover:bg-green-950/50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  createAvailabilityMutation.mutate({
+                                    userId: user.id,
+                                    date: day,
+                                    type: 'preferred'
+                                  });
+                                }}
+                                title="Mark preferred"
+                                data-testid={`button-mark-preferred-${user.id}-${dayIdx}`}
+                              >
+                                <Heart className="h-3 w-3 text-green-600" />
+                              </Button>
+                            </>
+                          )}
+                          {availability && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 bg-background/80 hover:bg-muted"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteAvailabilityMutation.mutate(availability.id);
+                              }}
+                              title="Clear preference"
+                              data-testid={`button-clear-availability-${user.id}-${dayIdx}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                         {userShifts.map((shift) => {
                           const startTime = format(new Date(shift.startTime), 'h:mma');
                           const endTime = format(new Date(shift.endTime), 'h:mma');
