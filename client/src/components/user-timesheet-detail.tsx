@@ -291,6 +291,20 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
     }
   };
 
+  const handleManagerNotesChange = (entryId: string, notes: string) => {
+    // Check if entry is locked before allowing changes
+    const entry = timeEntries.find(e => e.id === entryId);
+    if (entry?.locked) {
+      toast({
+        title: "Entry is locked",
+        description: "This entry cannot be modified while locked",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateEntryMutation.mutate({ entryId, data: { managerNotes: notes } });
+  };
+
   // Get entry for a specific day
   const getEntryForDay = (date: Date): TimeEntry | null => {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -592,7 +606,21 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                           <span className="text-sm">{entry?.employeeNotes || '—'}</span>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">{entry?.managerNotes || '—'}</span>
+                          {entry ? (
+                            canEdit ? (
+                              <Input
+                                type="text"
+                                value={entry.managerNotes || ''}
+                                onChange={(e) => handleManagerNotesChange(entry.id, e.target.value)}
+                                placeholder="Add notes..."
+                                className="w-full min-w-[150px] h-8"
+                                data-testid={`input-manager-notes-${format(date, 'yyyy-MM-dd')}`}
+                                disabled={isLocked}
+                              />
+                            ) : (
+                              <span className="text-sm">{entry.managerNotes || '—'}</span>
+                            )
+                          ) : '—'}
                         </TableCell>
                       </TableRow>
                     );
