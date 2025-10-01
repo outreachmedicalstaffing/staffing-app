@@ -39,6 +39,7 @@ export const timeEntries = pgTable("time_entries", {
   location: text("location"), // GPS or manual location
   notes: text("notes"),
   status: text("status").notNull().default('active'), // active, completed, auto-clocked-out
+  locked: boolean("locked").default(false), // locked days prevent editing
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

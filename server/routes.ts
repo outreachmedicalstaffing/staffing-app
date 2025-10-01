@@ -278,6 +278,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to list time entries" });
     }
   });
+
+  // Update time entry (for Owner/Admin to edit timesheets)
+  app.patch("/api/time/entries/:id", requireRole('Owner', 'Admin'), async (req, res) => {
+    try {
+      const entryId = req.params.id;
+      const updateSchema = insertTimeEntrySchema.partial();
+      const data = updateSchema.parse(req.body);
+      
+      // Get existing entry
+      const existing = await storage.getTimeEntry(entryId);
+      if (!existing) {
+        return res.status(404).json({ error: "Time entry not found" });
+      }
+      
+      // Check if entry is locked
+      if (existing.locked && !req.body.locked) {
+        // Allow unlocking, but check other fields
+        if (Object.keys(req.body).length > 1) {
+          return res.status(403).json({ error: "Cannot edit locked time entry" });
+        }
+      } else if (existing.locked) {
+        return res.status(403).json({ error: "Cannot edit locked time entry" });
+      }
+      
+      const entry = await storage.updateTimeEntry(entryId, data);
+      if (!entry) {
+        return res.status(404).json({ error: "Time entry not found" });
+      }
+      
+      await logAudit(req.session.userId, "update", "time_entry", entry.id, false, [], { changes: data }, req.ip);
+      res.json(entry);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update time entry" });
+    }
+  });
   
   // ===== Schedule Routes =====
   
