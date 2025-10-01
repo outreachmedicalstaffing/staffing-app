@@ -200,15 +200,38 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
       return;
     }
 
-    // Parse the time value (HH:mm format)
-    const [hours, minutes] = value.split(':').map(Number);
-    const date = new Date(entry[field] || entry.clockIn);
-    date.setHours(hours, minutes, 0, 0);
+    try {
+      // Parse the time value (HH:mm format)
+      const [hours, minutes] = value.split(':').map(Number);
+      
+      // Create a new date from the existing timestamp
+      const existingTime = entry[field] || entry.clockIn;
+      const date = new Date(existingTime);
+      
+      // Validate the date
+      if (isNaN(date.getTime())) {
+        throw new Error('Invalid date');
+      }
+      
+      // Set new hours and minutes
+      date.setHours(hours, minutes, 0, 0);
+      
+      // Validate again after setting time
+      if (isNaN(date.getTime())) {
+        throw new Error('Invalid time value');
+      }
 
-    updateEntryMutation.mutate({
-      entryId,
-      data: { [field]: date.toISOString() },
-    });
+      updateEntryMutation.mutate({
+        entryId,
+        data: { [field]: date.toISOString() },
+      });
+    } catch (error) {
+      toast({
+        title: "Invalid time",
+        description: "Please enter a valid time",
+        variant: "destructive",
+      });
+    }
   };
 
   // Get entry for a specific day
@@ -424,13 +447,14 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                         </TableCell>
                         <TableCell>
                           {entry ? (
-                            canEdit && !isLocked ? (
+                            canEdit ? (
                               <Input
                                 type="time"
                                 value={format(new Date(entry.clockIn), 'HH:mm')}
                                 onChange={(e) => handleTimeChange(entry.id, 'clockIn', e.target.value)}
                                 className="w-[120px] h-8"
                                 data-testid={`input-start-${format(date, 'yyyy-MM-dd')}`}
+                                disabled={isLocked}
                               />
                             ) : (
                               <span className="text-sm">{format(new Date(entry.clockIn), 'h:mm a')}</span>
@@ -439,13 +463,14 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                         </TableCell>
                         <TableCell>
                           {entry?.clockOut ? (
-                            canEdit && !isLocked ? (
+                            canEdit ? (
                               <Input
                                 type="time"
                                 value={format(new Date(entry.clockOut), 'HH:mm')}
                                 onChange={(e) => handleTimeChange(entry.id, 'clockOut', e.target.value)}
                                 className="w-[120px] h-8"
                                 data-testid={`input-end-${format(date, 'yyyy-MM-dd')}`}
+                                disabled={isLocked}
                               />
                             ) : (
                               <span className="text-sm">{format(new Date(entry.clockOut), 'h:mm a')}</span>
