@@ -87,6 +87,12 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
     enabled: !!user,
   });
 
+  // Query timesheet for this user and week period
+  const { data: timesheets = [] } = useQuery<any[]>({
+    queryKey: user?.id ? [`/api/timesheets?userId=${user.id}`] : [],
+    enabled: !!user,
+  });
+
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const weekRangeDisplay = `${format(currentWeekStart, 'MM/dd')} - ${format(weekEnd, 'MM/dd')}`;
 
@@ -111,6 +117,57 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
 
   // Check if user can edit (Owner or Admin)
   const canEdit = currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+
+  // Approve timesheet mutation
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      // Find existing timesheet for this period
+      const existingTimesheet = timesheets.find((ts: any) => {
+        const tsStart = new Date(ts.periodStart);
+        const tsEnd = new Date(ts.periodEnd);
+        return tsStart.getTime() === currentWeekStart.getTime() && tsEnd.getTime() === weekEnd.getTime();
+      });
+
+      let timesheetId = existingTimesheet?.id;
+
+      // If no timesheet exists, create one
+      if (!timesheetId) {
+        const createResult = await apiRequest('POST', '/api/timesheets', {
+          userId: user?.id,
+          periodStart: currentWeekStart,
+          periodEnd: weekEnd,
+          totalHours: weeklyTotals.totalHours.toFixed(2),
+          regularHours: weeklyTotals.regularHours.toFixed(2),
+          overtimeHours: "0.00",
+        });
+        const newTimesheet = await createResult.json();
+        timesheetId = newTimesheet.id;
+      }
+
+      // Approve the timesheet
+      const result = await apiRequest('POST', `/api/timesheets/${timesheetId}/approve`, {});
+      return result.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return key?.includes('/api/timesheets');
+        }
+      });
+      toast({
+        title: "Timesheet approved",
+        description: "The timesheet has been successfully approved",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to approve timesheet",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Lock/unlock mutation
   const lockMutation = useMutation({
@@ -518,8 +575,12 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                   Export
                 </Button>
               </div>
-              <Button data-testid="button-approve-timesheet">
-                Approve
+              <Button 
+                data-testid="button-approve-timesheet"
+                onClick={() => approveMutation.mutate()}
+                disabled={!canEdit || approveMutation.isPending}
+              >
+                {approveMutation.isPending ? "Approving..." : "Approve"}
               </Button>
             </div>
 

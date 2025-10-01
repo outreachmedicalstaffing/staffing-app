@@ -192,6 +192,17 @@ export const timesheets = pgTable("timesheets", {
 export const insertTimesheetSchema = createInsertSchema(timesheets).omit({
   id: true,
   createdAt: true,
+}).extend({
+  periodStart: z.preprocess((val) => {
+    if (typeof val === 'string') return new Date(val);
+    if (val instanceof Date) return val;
+    return val;
+  }, z.date()),
+  periodEnd: z.preprocess((val) => {
+    if (typeof val === 'string') return new Date(val);
+    if (val instanceof Date) return val;
+    return val;
+  }, z.date()),
 });
 
 export type InsertTimesheet = z.infer<typeof insertTimesheetSchema>;
