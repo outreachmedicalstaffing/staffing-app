@@ -1069,9 +1069,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update user
-  app.patch("/api/users/:id", requireRole('Owner', 'Admin', 'HR'), async (req, res) => {
+  app.patch("/api/users/:id", requireAuth, async (req, res) => {
     try {
+      const requestingUser = await storage.getUser(req.session.userId!);
+      if (!requestingUser) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const isOwnProfile = req.params.id === req.session.userId;
+      const canEditAnyUser = ['Owner', 'Admin', 'HR'].includes(requestingUser.role);
+      
+      // Users can edit their own profile, or Owner/Admin/HR can edit any profile
+      if (!isOwnProfile && !canEditAnyUser) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
       const { password, ...updateData } = req.body;
+      
+      // Only Owner/Admin/HR can change roles
+      if (updateData.role && !canEditAnyUser) {
+        return res.status(403).json({ error: "You cannot change user roles" });
+      }
       
       if (password) {
         const passwordHash = await bcrypt.hash(password, 10);
