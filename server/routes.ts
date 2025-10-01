@@ -249,19 +249,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List time entries
   app.get("/api/time/entries", requireAuth, async (req, res) => {
     try {
-      const userId = req.query.userId as string | undefined;
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const requestedUserId = req.query.userId as string | undefined;
       const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
       const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
       
-      // Check permissions
-      if (userId && userId !== req.session.userId) {
-        const user = await storage.getUser(req.session.userId!);
-        if (!user || !['Owner', 'Admin', 'Payroll', 'Manager'].includes(user.role)) {
-          return res.status(403).json({ error: "Forbidden" });
-        }
+      // Only Owner and Admin can see all users' time entries
+      const canSeeAllUsers = ['Owner', 'Admin'].includes(currentUser.role);
+      
+      let userId: string | undefined;
+      if (canSeeAllUsers) {
+        userId = requestedUserId; // Can query any user or all users (undefined)
+      } else {
+        userId = req.session.userId!; // Can only see own time entries
       }
       
-      const entries = await storage.listTimeEntries(userId || req.session.userId!, startDate, endDate);
+      const entries = await storage.listTimeEntries(userId, startDate, endDate);
       await logAudit(req.session.userId, "view", "time_entries", undefined, false, [], { userId }, req.ip);
       res.json(entries);
     } catch (error) {
@@ -372,13 +379,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List shifts
   app.get("/api/shifts", requireAuth, async (req, res) => {
     try {
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
       const scheduleId = req.query.scheduleId as string | undefined;
       const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
       const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
       
-      const shifts = await storage.listShifts(scheduleId, startDate, endDate);
-      await logAudit(req.session.userId, "view", "shifts", undefined, false, [], {}, req.ip);
-      res.json(shifts);
+      // Only Owner and Admin can see all shifts
+      const canSeeAllShifts = ['Owner', 'Admin'].includes(currentUser.role);
+      
+      if (canSeeAllShifts) {
+        // Return all shifts
+        const shifts = await storage.listShifts(scheduleId, startDate, endDate);
+        await logAudit(req.session.userId, "view", "shifts", undefined, false, [], {}, req.ip);
+        res.json(shifts);
+      } else {
+        // Return only shifts assigned to this user
+        const allShifts = await storage.listShifts(scheduleId, startDate, endDate);
+        const userAssignments = await storage.listShiftAssignments(undefined, req.session.userId);
+        const assignedShiftIds = new Set(userAssignments.map(a => a.shiftId));
+        const userShifts = allShifts.filter(shift => assignedShiftIds.has(shift.id));
+        
+        await logAudit(req.session.userId, "view", "shifts", undefined, false, [], {}, req.ip);
+        res.json(userShifts);
+      }
     } catch (error) {
       res.status(500).json({ error: "Failed to list shifts" });
     }
@@ -459,8 +486,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List shift assignments
   app.get("/api/shift-assignments", requireAuth, async (req, res) => {
     try {
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
       const shiftId = req.query.shiftId as string | undefined;
-      const userId = req.query.userId as string | undefined;
+      const requestedUserId = req.query.userId as string | undefined;
+      
+      // Only Owner and Admin can see all assignments
+      const canSeeAll = ['Owner', 'Admin'].includes(currentUser.role);
+      
+      let userId: string | undefined;
+      if (canSeeAll) {
+        userId = requestedUserId; // Can query any user
+      } else {
+        userId = req.session.userId; // Can only see own assignments
+      }
       
       const assignments = await storage.listShiftAssignments(shiftId, userId);
       res.json(assignments);
@@ -489,9 +531,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List user availability
   app.get("/api/user-availability", requireAuth, async (req, res) => {
     try {
-      const userId = req.query.userId as string | undefined;
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const requestedUserId = req.query.userId as string | undefined;
       const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
       const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      // Only Owner and Admin can see all users' availability
+      const canSeeAll = ['Owner', 'Admin'].includes(currentUser.role);
+      
+      let userId: string | undefined;
+      if (canSeeAll) {
+        userId = requestedUserId; // Can query any user
+      } else {
+        userId = req.session.userId; // Can only see own availability
+      }
       
       const availability = await storage.listUserAvailability(userId, startDate, endDate);
       res.json(availability);
@@ -541,15 +598,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List timesheets
   app.get("/api/timesheets", requireAuth, async (req, res) => {
     try {
-      const userId = req.query.userId as string | undefined;
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const requestedUserId = req.query.userId as string | undefined;
       const status = req.query.status as string | undefined;
       
-      // Check permissions
-      if (userId && userId !== req.session.userId) {
-        const user = await storage.getUser(req.session.userId!);
-        if (!user || !['Owner', 'Admin', 'Payroll', 'Manager'].includes(user.role)) {
-          return res.status(403).json({ error: "Forbidden" });
-        }
+      // Only Owner and Admin can see all users' timesheets
+      const canSeeAllUsers = ['Owner', 'Admin'].includes(currentUser.role);
+      
+      let userId: string | undefined;
+      if (canSeeAllUsers) {
+        userId = requestedUserId; // Can query any user
+      } else {
+        userId = req.session.userId; // Can only see own timesheets
       }
       
       const timesheets = await storage.listTimesheets(userId, status);
@@ -725,18 +789,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List documents
   app.get("/api/documents", requireAuth, async (req, res) => {
     try {
-      const userId = req.query.userId as string | undefined;
-      const status = req.query.status as string | undefined;
-      
-      // Check permissions
-      if (userId && userId !== req.session.userId) {
-        const user = await storage.getUser(req.session.userId!);
-        if (!user || !['Owner', 'Admin', 'HR', 'Manager'].includes(user.role)) {
-          return res.status(403).json({ error: "Forbidden" });
-        }
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
       }
       
-      const documents = await storage.listDocuments(userId || req.session.userId!, status);
+      const requestedUserId = req.query.userId as string | undefined;
+      const status = req.query.status as string | undefined;
+      
+      // Only Owner and Admin can see all users' documents
+      const canSeeAllUsers = ['Owner', 'Admin'].includes(currentUser.role);
+      
+      let userId: string | undefined;
+      if (canSeeAllUsers) {
+        userId = requestedUserId; // Can query any user or all users (undefined)
+      } else {
+        userId = req.session.userId!; // Can only see own documents
+      }
+      
+      const documents = await storage.listDocuments(userId, status);
       
       await logAudit(req.session.userId, "view", "documents", undefined, true, ['encryptedMetadata'], {}, req.ip);
       res.json(documents);
@@ -944,18 +1015,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List users
   app.get("/api/users", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user || !['Owner', 'Admin', 'HR', 'Manager', 'Scheduler'].includes(user.role)) {
-        return res.status(403).json({ error: "Forbidden" });
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
       }
       
-      const status = req.query.status as string | undefined;
-      const users = await storage.listUsers(status);
+      // Only Owner and Admin can see all users
+      const canSeeAllUsers = ['Owner', 'Admin'].includes(currentUser.role);
+      
+      let users;
+      if (canSeeAllUsers) {
+        const status = req.query.status as string | undefined;
+        users = await storage.listUsers(status);
+      } else {
+        // Regular users can only see themselves
+        users = [currentUser];
+      }
       
       // Remove password hashes from response
       const sanitizedUsers = users.map(({ passwordHash, ...user }) => user);
       
-      await logAudit(req.session.userId, "view", "users", undefined, true, ['customFields'], {}, req.ip);
+      await logAudit(req.session.userId, "view", "users", undefined, canSeeAllUsers, canSeeAllUsers ? ['customFields'] : [], {}, req.ip);
       res.json(sanitizedUsers);
     } catch (error) {
       res.status(500).json({ error: "Failed to list users" });
