@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import { z } from "zod";
-import { insertUserSchema, insertTimeEntrySchema, insertShiftSchema, insertShiftAssignmentSchema, insertTimesheetSchema, insertDocumentSchema, insertKnowledgeArticleSchema, insertAuditLogSchema, insertSettingSchema, insertScheduleSchema, insertShiftTemplateSchema } from "@shared/schema";
+import { insertUserSchema, insertTimeEntrySchema, insertShiftSchema, insertShiftAssignmentSchema, insertUserAvailabilitySchema, insertTimesheetSchema, insertDocumentSchema, insertKnowledgeArticleSchema, insertAuditLogSchema, insertSettingSchema, insertScheduleSchema, insertShiftTemplateSchema } from "@shared/schema";
 import "./types"; // Import session and request type augmentations
 
 // Middleware to check authentication
@@ -466,6 +466,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(assignments);
     } catch (error) {
       res.status(500).json({ error: "Failed to list shift assignments" });
+    }
+  });
+  
+  // ===== User Availability Routes =====
+  
+  // Create user availability
+  app.post("/api/user-availability", requireAuth, async (req, res) => {
+    try {
+      const data = insertUserAvailabilitySchema.parse(req.body);
+      const availability = await storage.createUserAvailability(data);
+      await logAudit(req.session.userId, "create", "user_availability", availability.id, false, [], {}, req.ip);
+      res.json(availability);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create availability" });
+    }
+  });
+  
+  // List user availability
+  app.get("/api/user-availability", requireAuth, async (req, res) => {
+    try {
+      const userId = req.query.userId as string | undefined;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const availability = await storage.listUserAvailability(userId, startDate, endDate);
+      res.json(availability);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to list availability" });
+    }
+  });
+  
+  // Update user availability
+  app.patch("/api/user-availability/:id", requireAuth, async (req, res) => {
+    try {
+      const data = insertUserAvailabilitySchema.partial().parse(req.body);
+      const availability = await storage.updateUserAvailability(req.params.id, data);
+      
+      if (!availability) {
+        return res.status(404).json({ error: "Availability not found" });
+      }
+      
+      await logAudit(req.session.userId, "update", "user_availability", availability.id, false, [], {}, req.ip);
+      res.json(availability);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update availability" });
+    }
+  });
+  
+  // Delete user availability
+  app.delete("/api/user-availability/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteUserAvailability(req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Availability not found" });
+      }
+      
+      await logAudit(req.session.userId, "delete", "user_availability", req.params.id, false, [], {}, req.ip);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete availability" });
     }
   });
   

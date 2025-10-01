@@ -7,6 +7,7 @@ import {
   shiftTemplates,
   shifts,
   shiftAssignments,
+  userAvailability,
   timesheets,
   documents,
   knowledgeArticles,
@@ -24,6 +25,8 @@ import {
   type InsertShift,
   type ShiftAssignment,
   type InsertShiftAssignment,
+  type UserAvailability,
+  type InsertUserAvailability,
   type Timesheet,
   type InsertTimesheet,
   type Document,
@@ -78,6 +81,13 @@ export interface IStorage {
   updateShiftAssignment(id: string, assignment: Partial<InsertShiftAssignment>): Promise<ShiftAssignment | undefined>;
   deleteShiftAssignment(id: string): Promise<boolean>;
   listShiftAssignments(shiftId?: string, userId?: string): Promise<ShiftAssignment[]>;
+  
+  // User Availability
+  getUserAvailability(id: string): Promise<UserAvailability | undefined>;
+  createUserAvailability(availability: InsertUserAvailability): Promise<UserAvailability>;
+  updateUserAvailability(id: string, availability: Partial<InsertUserAvailability>): Promise<UserAvailability | undefined>;
+  deleteUserAvailability(id: string): Promise<boolean>;
+  listUserAvailability(userId?: string, startDate?: Date, endDate?: Date): Promise<UserAvailability[]>;
   
   // Timesheets
   getTimesheet(id: string): Promise<Timesheet | undefined>;
@@ -304,6 +314,42 @@ export class DbStorage implements IStorage {
     }
     
     return await query.orderBy(desc(shiftAssignments.assignedAt));
+  }
+
+  // User Availability
+  async getUserAvailability(id: string): Promise<UserAvailability | undefined> {
+    const result = await db.select().from(userAvailability).where(eq(userAvailability.id, id));
+    return result[0];
+  }
+
+  async createUserAvailability(availability: InsertUserAvailability): Promise<UserAvailability> {
+    const result = await db.insert(userAvailability).values(availability).returning();
+    return result[0];
+  }
+
+  async updateUserAvailability(id: string, availability: Partial<InsertUserAvailability>): Promise<UserAvailability | undefined> {
+    const result = await db.update(userAvailability).set(availability).where(eq(userAvailability.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteUserAvailability(id: string): Promise<boolean> {
+    const result = await db.delete(userAvailability).where(eq(userAvailability.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async listUserAvailability(userId?: string, startDate?: Date, endDate?: Date): Promise<UserAvailability[]> {
+    let query = db.select().from(userAvailability);
+    const conditions = [];
+    
+    if (userId) conditions.push(eq(userAvailability.userId, userId));
+    if (startDate) conditions.push(gte(userAvailability.date, startDate));
+    if (endDate) conditions.push(lte(userAvailability.date, endDate));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(userAvailability.date);
   }
 
   // Timesheets

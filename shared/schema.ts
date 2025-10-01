@@ -144,6 +144,33 @@ export const insertShiftAssignmentSchema = createInsertSchema(shiftAssignments).
 export type InsertShiftAssignment = z.infer<typeof insertShiftAssignmentSchema>;
 export type ShiftAssignment = typeof shiftAssignments.$inferSelect;
 
+// User availability - for tracking unavailability and work preferences
+export const userAvailability = pgTable("user_availability", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  date: timestamp("date").notNull(), // The date this availability applies to
+  type: text("type").notNull(), // 'unavailable' or 'preferred'
+  allDay: boolean("all_day").notNull().default(true),
+  startTime: text("start_time"), // Optional specific time like "8:00am"
+  endTime: text("end_time"), // Optional specific time like "5:00pm"
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertUserAvailabilitySchema = createInsertSchema(userAvailability).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  date: z.preprocess((val) => {
+    if (typeof val === 'string') return new Date(val);
+    if (val instanceof Date) return val;
+    return val;
+  }, z.date()),
+});
+
+export type InsertUserAvailability = z.infer<typeof insertUserAvailabilitySchema>;
+export type UserAvailability = typeof userAvailability.$inferSelect;
+
 // Timesheets for payroll - using decimal for precise hour tracking
 export const timesheets = pgTable("timesheets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
