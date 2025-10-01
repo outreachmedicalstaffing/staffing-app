@@ -30,6 +30,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const jobLocations = [
+  { id: 1, name: "Vitas Citrus", color: "#B91C1C" },
+  { id: 2, name: "Vitas Nature Coast", color: "#BE185D" },
+  { id: 3, name: "Vitas Jacksonville", color: "#0F766E" },
+  { id: 4, name: "Vitas V/F/P", color: "#0F766E", subItems: 3 },
+  { id: 5, name: "Vitas Central Florida", color: "#1D4ED8" },
+  { id: 6, name: "Vitas Midstate", color: "#A16207" },
+  { id: 7, name: "Vitas Brevard", color: "#9333EA" },
+  { id: 8, name: "Vitas Treasure Coast", color: "#EA580C" },
+  { id: 9, name: "Vitas Palm Beach", color: "#1D4ED8" },
+  { id: 10, name: "Vitas Dade/Monroe", color: "#B91C1C" },
+  { id: 11, name: "Vitas Jacksonville ( St. Johns)", color: "#7C3AED" },
+  { id: 12, name: "Vitas Broward", color: "#7C3AED" },
+  { id: 13, name: "AdventHealth IPU", color: "#1D4ED8", subItems: 3 },
+  { id: 14, name: "AdventHealth Central Florida", color: "#7C3AED" },
+  { id: 15, name: "Haven", color: "#EAB308" },
+];
+
 interface UserTimesheetDetailProps {
   user: User | null;
   open: boolean;
@@ -291,13 +309,15 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
                                 onValueChange={(value) => handleJobChange(entry.id, value)}
                                 disabled={isLocked}
                               >
-                                <SelectTrigger className="w-[140px] h-8" data-testid={`select-job-${format(date, 'yyyy-MM-dd')}`}>
+                                <SelectTrigger className="w-[200px] h-8" data-testid={`select-job-${format(date, 'yyyy-MM-dd')}`}>
                                   <SelectValue placeholder="Select job" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Central Florida">Central Florida</SelectItem>
-                                  <SelectItem value="Advent/Hospice">Advent/Hospice</SelectItem>
-                                  <SelectItem value="Community Care">Community Care</SelectItem>
+                                  {jobLocations.map((job) => (
+                                    <SelectItem key={job.id} value={job.name}>
+                                      {job.name}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             ) : (
