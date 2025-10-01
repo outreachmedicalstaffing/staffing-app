@@ -103,6 +103,7 @@ export const shifts = pgTable("shifts", {
   status: text("status").notNull().default('open'), // open, assigned, in-progress, completed, cancelled
   color: text("color"),
   maxAssignees: integer("max_assignees").default(1), // Support multiple workers per shift
+  attachments: text("attachments").array(), // Array of attachment filenames/URLs
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

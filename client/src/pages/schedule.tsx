@@ -301,6 +301,7 @@ export default function Schedule() {
         notes: shiftFormData.note || null,
         status: 'open',
         color: jobLocations.find(j => j.name === shiftFormData.job)?.color || null,
+        attachments: shiftFormData.attachments.map(file => file.name),
       };
 
       createShiftMutation.mutate(shiftData);
@@ -1656,7 +1657,25 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
       </Dialog>
 
       {/* Add Shift Dialog */}
-      <Dialog open={showAddShift} onOpenChange={setShowAddShift}>
+      <Dialog open={showAddShift} onOpenChange={(open) => {
+        setShowAddShift(open);
+        if (!open) {
+          // Reset form when dialog closes
+          setShiftFormData({
+            date: new Date(),
+            allDay: false,
+            startTime: '8:00am',
+            endTime: '8:00pm',
+            shiftTitle: '',
+            job: '',
+            selectedUsers: [],
+            address: '',
+            note: '',
+            timezone: 'America/New_York',
+            attachments: [],
+          });
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Shift</DialogTitle>
@@ -2322,6 +2341,25 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                   data-testid="textarea-edit-notes"
                 />
               </div>
+
+              {/* Attachments */}
+              {editingShift.attachments && editingShift.attachments.length > 0 && (
+                <div>
+                  <Label>Attachments</Label>
+                  <div className="space-y-2">
+                    {editingShift.attachments.map((filename, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 p-2 border rounded-md"
+                        data-testid={`attachment-${index}`}
+                      >
+                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1">{filename}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex justify-between pt-4">
