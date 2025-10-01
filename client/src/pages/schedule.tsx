@@ -927,7 +927,27 @@ export default function Schedule() {
                     return (
                       <div
                         key={dayIdx}
-                        className="border-r last:border-r-0 p-2 min-h-[80px] space-y-1"
+                        className="border-r last:border-r-0 p-2 min-h-[80px] space-y-1 cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={(e) => {
+                          // Only open Add Shift if clicking on empty space (not on a shift block)
+                          if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.shift-block') === null) {
+                            // Pre-fill the form with this user and date
+                            setShiftFormData({
+                              date: day,
+                              allDay: false,
+                              startTime: '8:00am',
+                              endTime: '8:00pm',
+                              shiftTitle: '',
+                              job: '',
+                              selectedUsers: [user.id],
+                              address: '',
+                              note: '',
+                              timezone: 'America/New_York',
+                              attachments: [],
+                            });
+                            setShowAddShift(true);
+                          }
+                        }}
                         data-testid={`user-${user.id}-day-${dayIdx}`}
                       >
                         {userShifts.map((shift) => {
@@ -939,7 +959,7 @@ export default function Schedule() {
                             <div
                               key={shift.id}
                               onClick={() => setEditingShift(shift)}
-                              className="rounded p-2 text-xs cursor-pointer hover-elevate relative group"
+                              className="shift-block rounded p-2 text-xs cursor-pointer hover-elevate relative group"
                               style={{
                                 backgroundColor: shift.color || '#3b82f6',
                                 color: 'white'
