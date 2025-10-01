@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download, Calendar, Filter } from "lucide-react";
+import { Search, Download, Calendar, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
@@ -12,13 +12,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserTimesheetDetail } from "@/components/user-timesheet-detail";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 
 export default function Timesheets() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("today");
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
 
   const { data: timesheets = [], isLoading: loadingTimesheets } = useQuery<Timesheet[]>({
     queryKey: ['/api/timesheets'],
@@ -31,6 +32,23 @@ export default function Timesheets() {
   const { data: timeEntries = [], isLoading: loadingEntries } = useQuery<TimeEntry[]>({
     queryKey: ['/api/time/entries'],
   });
+
+  // Calculate current week range
+  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
+  const weekRangeDisplay = `${format(currentWeekStart, 'MM/dd')} - ${format(weekEnd, 'MM/dd')}`;
+
+  // Navigation functions
+  const goToPreviousWeek = () => {
+    setCurrentWeekStart(subWeeks(currentWeekStart, 1));
+  };
+
+  const goToNextWeek = () => {
+    setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+  };
+
+  const goToCurrentWeek = () => {
+    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }));
+  };
 
   // Filter today's entries
   const today = new Date();
@@ -73,9 +91,16 @@ export default function Timesheets() {
     item.clockIn !== '—' && item.clockOut === '—'
   ).length;
 
-  // Group timesheets by user
+  // Group timesheets by user (filtered by selected week)
   const timesheetsByUser = users.map(user => {
-    const userTimesheets = timesheets.filter(ts => ts.userId === user.id);
+    const userTimesheets = timesheets.filter(ts => {
+      if (ts.userId !== user.id) return false;
+      // Extract YYYY-MM-DD directly from ISO string to avoid timezone conversion
+      const tsDateStr = ts.periodStart.toString().split('T')[0];
+      const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd');
+      const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
+      return tsDateStr >= weekStartStr && tsDateStr <= weekEndStr;
+    });
     const totalHours = userTimesheets.reduce((sum, ts) => sum + parseFloat(ts.totalHours), 0);
     const regularHours = userTimesheets.reduce((sum, ts) => sum + parseFloat(ts.regularHours || '0'), 0);
     const overtimeHours = userTimesheets.reduce((sum, ts) => sum + parseFloat(ts.overtimeHours || '0'), 0);
@@ -214,10 +239,36 @@ export default function Timesheets() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" data-testid="button-date-range">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    09/22 - 10/05
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={goToPreviousWeek}
+                      data-testid="button-previous-week"
+                      title="Previous week"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={goToCurrentWeek}
+                      data-testid="button-date-range"
+                      className="min-w-[140px]"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      {weekRangeDisplay}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={goToNextWeek}
+                      data-testid="button-next-week"
+                      title="Next week"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
                       <Filter className="h-4 w-4 mr-2" />
