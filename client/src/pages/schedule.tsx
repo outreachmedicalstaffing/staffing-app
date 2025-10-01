@@ -457,6 +457,14 @@ export default function Schedule() {
     return users.find(u => u.id === assignment.userId) || null;
   };
 
+  // Get all users assigned to a shift (for multi-assignee shifts)
+  const getUsersForShift = (shift: Shift) => {
+    const assignments = shiftAssignments.filter(a => a.shiftId === shift.id);
+    return assignments
+      .map(a => users.find(u => u.id === a.userId))
+      .filter((u): u is User => u !== undefined);
+  };
+
   const getShiftsForUserAndDay = (userId: string, day: Date) => {
     return shifts.filter(s => {
       const shiftDate = new Date(s.startTime);
@@ -472,9 +480,24 @@ export default function Schedule() {
     return (end.getTime() - start.getTime()) / (1000 * 60 * 60);
   };
 
-  // Calculate labor cost for a shift based on user's hourly rate
+  // Calculate labor cost for a shift based on ALL assigned users' hourly rates
+  // For multi-assignee shifts, this sums the labor cost for each assigned user
   const calculateShiftLabor = (shift: Shift) => {
-    const user = getUserForShift(shift);
+    const assignedUsers = getUsersForShift(shift);
+    if (assignedUsers.length === 0) return 0;
+    
+    const hours = calculateShiftHours(shift);
+    
+    // Sum labor cost for all assigned users
+    return assignedUsers.reduce((totalLabor, user) => {
+      const hourlyRate = parseFloat(user.hourlyRate || '25.00');
+      return totalLabor + (hours * hourlyRate);
+    }, 0);
+  };
+
+  // Calculate labor cost for a specific user on a specific shift
+  const calculateUserShiftLabor = (userId: string, shift: Shift) => {
+    const user = users.find(u => u.id === userId);
     if (!user) return 0;
     const hours = calculateShiftHours(shift);
     const hourlyRate = parseFloat(user.hourlyRate || '25.00');
@@ -490,7 +513,7 @@ export default function Schedule() {
     });
     
     const hours = userShifts.reduce((sum, s) => sum + calculateShiftHours(s), 0);
-    const labor = userShifts.reduce((sum, s) => sum + calculateShiftLabor(s), 0);
+    const labor = userShifts.reduce((sum, s) => sum + calculateUserShiftLabor(userId, s), 0);
     
     return { hours, labor };
   };
