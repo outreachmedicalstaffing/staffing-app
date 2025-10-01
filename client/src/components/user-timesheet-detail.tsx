@@ -48,7 +48,7 @@ export function UserTimesheetDetail({ user, open, onClose }: UserTimesheetDetail
   });
 
   const { data: timeEntries = [] } = useQuery<TimeEntry[]>({
-    queryKey: ['/api/time/entries', user?.id],
+    queryKey: user?.id ? [`/api/time/entries?userId=${user.id}`] : ['/api/time/entries'],
     enabled: !!user,
   });
 
