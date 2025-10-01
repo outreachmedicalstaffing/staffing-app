@@ -847,9 +847,9 @@ export default function Schedule() {
 
         {/* Calendar Grid */}
         <Card className="flex-1 overflow-x-auto">
-          <div className="min-w-[800px]">
+          <div style={{ minWidth: '1600px' }}>
             {/* Calendar Header */}
-            <div className="grid grid-cols-8 border-b">
+            <div className="grid border-b" style={{ gridTemplateColumns: '200px repeat(7, 1fr)' }}>
               {/* Empty cell for user column */}
               <div className="border-r p-3 bg-muted/30"></div>
               
@@ -899,7 +899,7 @@ export default function Schedule() {
             {/* Calendar Body - User Rows */}
             <div>
               {users.map((user) => (
-                <div key={user.id} className="grid grid-cols-8 border-b last:border-b-0">
+                <div key={user.id} className="grid border-b last:border-b-0" style={{ gridTemplateColumns: '200px repeat(7, 1fr)' }}>
                   {/* User Column */}
                   <div className="border-r p-2 flex items-center gap-2 bg-muted/30">
                     <Avatar className="h-7 w-7 flex-shrink-0">
