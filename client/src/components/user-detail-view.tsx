@@ -142,6 +142,53 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     ),
   });
 
+  // Update all form data when user changes or dialog opens
+  useEffect(() => {
+    if (user && open) {
+      const customFields = (user.customFields as any) || {};
+      const [firstName, ...lastNameParts] = user.fullName.split(' ');
+      const lastName = lastNameParts.join(' ');
+      
+      setFormData({
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email: user.email || '',
+        role: user.role || 'Staff',
+        mobilePhone: customFields.mobilePhone || '',
+        birthday: customFields.birthday || '',
+        emergencyContact: customFields.emergencyContact || '',
+        shiftPreference: customFields.shiftPreference || 'select',
+        facility: customFields.facility || 'select',
+        allergies: customFields.allergies || 'select',
+        address: customFields.address || '',
+        employmentStartDate: customFields.employmentStartDate || '05/06/2022',
+        programs: customFields.programs || ['Vitas Central Florida'],
+        directManager: customFields.directManager || 'amanda',
+      });
+
+      setOvertimeRules({
+        effectiveDate: customFields.overtimeEffectiveDate || '01/01/1970',
+        policyName: customFields.overtimePolicyName || 'Overtime & Pay rules policy',
+        regularRate: customFields.overtimeRegularRate || 'x1/hour',
+        holidayRate: customFields.overtimeHolidayRate || '+0.5$/hour',
+      });
+
+      const defaultRate = customFields.payRateDefault || '$35/hour';
+      const programs = customFields.programs || ['Vitas Central Florida'];
+      
+      setPayRate({
+        effectiveDate: customFields.payRateEffectiveDate || '05/29/2025',
+        defaultRate: defaultRate,
+        useDefaultRateEnabled: true,
+        jobRates: syncJobRatesWithPrograms(
+          programs,
+          customFields.jobRates || [],
+          defaultRate
+        ),
+      });
+    }
+  }, [user, open]);
+
   // Auto-sync job rates when programs change
   useEffect(() => {
     setPayRate(prev => ({
