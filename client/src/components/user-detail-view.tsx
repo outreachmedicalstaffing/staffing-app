@@ -8,12 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, ChevronDown, FileText, Search, Gift, Clock, FileCheck, MoreVertical, Pencil, Trash2, Save, X } from "lucide-react";
 import type { User } from "@shared/schema";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 interface UserDetailViewProps {
   user: User | null;
@@ -451,16 +454,32 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
 
                     <div>
                       <Label className="text-xs text-muted-foreground">Employment Start Date</Label>
-                      <div className="relative mt-1">
-                        <Input 
-                          value={formData.employmentStartDate} 
-                          onChange={(e) => setFormData({ ...formData, employmentStartDate: e.target.value })}
-                          disabled={!isEditing}
-                          className="h-9" 
-                          data-testid="input-employment-start-date" 
-                        />
-                        <CalendarIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            disabled={!isEditing}
+                            className="w-full justify-start text-left font-normal h-9 mt-1"
+                            data-testid="button-employment-start-date"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.employmentStartDate || "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.employmentStartDate ? new Date(formData.employmentStartDate) : undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                setFormData({ ...formData, employmentStartDate: format(date, "MM/dd/yyyy") });
+                              }
+                            }}
+                            disabled={!isEditing}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
 
                     <div>
