@@ -5,6 +5,9 @@ import bcrypt from "bcrypt";
 import { z } from "zod";
 import { insertUserSchema, insertTimeEntrySchema, insertShiftSchema, insertShiftAssignmentSchema, insertUserAvailabilitySchema, insertTimesheetSchema, insertDocumentSchema, insertKnowledgeArticleSchema, insertAuditLogSchema, insertSettingSchema, insertScheduleSchema, insertShiftTemplateSchema } from "@shared/schema";
 import "./types"; // Import session and request type augmentations
+import { upload } from "./upload";
+import path from "path";
+import fs from "fs";
 
 // Middleware to check authentication
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -1150,6 +1153,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: error.errors });
       }
       res.status(500).json({ error: "Failed to set setting" });
+    }
+  });
+  
+  // ===== File Upload/Download Routes =====
+  
+  // Upload file
+  app.post("/api/upload", requireAuth, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      await logAudit(req.session.userId, "upload", "file", req.file.filename, false, [], { 
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      }, req.ip);
+      
+      res.json({
+        success: true,
+        file: {
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+        }
+      });
+    } catch (error) {
+      console.error("File upload error:", error);
+      res.status(500).json({ error: "Failed to upload file" });
+    }
+  });
+  
+  // Download/view file
+  app.get("/api/files/:filename", requireAuth, async (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const filePath = path.join(process.cwd(), 'uploads', filename);
+      
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      await logAudit(req.session.userId, "download", "file", filename, false, [], {}, req.ip);
+      
+      // Send file with appropriate headers for viewing in browser
+      res.sendFile(filePath);
+    } catch (error) {
+      console.error("File download error:", error);
+      res.status(500).json({ error: "Failed to download file" });
+    }
+  });
+  
+  // Delete file
+  app.delete("/api/files/:filename", requireRole('Owner', 'Admin', 'Scheduler'), async (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const filePath = path.join(process.cwd(), 'uploads', filename);
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      fs.unlinkSync(filePath);
+      
+      await logAudit(req.session.userId, "delete", "file", filename, false, [], {}, req.ip);
+      
+      res.json({ success: true, message: "File deleted successfully" });
+    } catch (error) {
+      console.error("File deletion error:", error);
+      res.status(500).json({ error: "Failed to delete file" });
     }
   });
   
