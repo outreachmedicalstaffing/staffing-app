@@ -27,6 +27,18 @@ OutreachOps is a healthcare workforce management platform designed specifically 
 - Timezone-safe filtering: extracts date directly from ISO strings without timezone conversion
 - Week starts on Monday (payroll week), properly filters timesheets by selected week period
 
+### Timesheet Detail View Redesign
+- Complete weekly breakdown showing all 7 days with Monday at bottom (reversed order: Sun to Mon)
+- Week navigation controls for browsing different pay periods
+- Editable job selection (dropdown) and start/end times (time inputs) for Owner/Admin roles
+- Day locking functionality to prevent editing after approval
+  - Lock/unlock buttons with visual indicators (red locked, grey unlocked)
+  - Confirmation dialog explaining locking rules and permissions
+  - Backend enforcement prevents editing locked entries
+  - Audit logging for all lock/unlock and edit actions
+- Role-based access: only Owner and Admin can edit timesheets and lock/unlock days
+- Timezone-safe date handling throughout
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
