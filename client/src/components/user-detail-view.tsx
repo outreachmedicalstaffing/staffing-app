@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Switch } from "@/components/ui/switch";
 import { CalendarIcon, ChevronDown, FileText, Search, Gift, Clock, FileCheck, MoreVertical, Pencil, Trash2, Save, X } from "lucide-react";
 import type { User } from "@shared/schema";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -51,8 +52,44 @@ interface OvertimeRules {
 interface PayRate {
   effectiveDate: string;
   defaultRate: string;
-  jobRates: { name: string; rate: string; color: string }[];
+  useDefaultRateEnabled: boolean;
+  jobRates: { name: string; rate: string; color: string; useDefaultRate: boolean }[];
 }
+
+// Helper function to get color for program
+const getProgramColor = (programName: string): string => {
+  const colors: Record<string, string> = {
+    'Vitas Nature Coast': 'bg-blue-500',
+    'Vitas Citrus': 'bg-green-500',
+    'Vitas Jacksonville': 'bg-purple-500',
+    'Vitas V/F/P': 'bg-orange-500',
+    'Vitas Midstate': 'bg-pink-500',
+    'Vitas Brevard': 'bg-cyan-500',
+    'Vitas Dade/Monroe': 'bg-yellow-500',
+    'Vitas Palm Beach': 'bg-indigo-500',
+    'AdventHealth IPU': 'bg-red-500',
+    'AdventHealth Central Florida': 'bg-teal-500',
+    'Vitas Treasure Coast': 'bg-emerald-500',
+    'Haven': 'bg-amber-500',
+    'Vitas Jacksonville (St. Johns)': 'bg-violet-500',
+    'Vitas Broward': 'bg-rose-500',
+    'Vitas Central Florida': 'bg-sky-500',
+  };
+  return colors[programName] || 'bg-gray-500';
+};
+
+// Helper function to sync job rates with programs
+const syncJobRatesWithPrograms = (programs: string[], existingJobRates: any[], defaultRate: string): any[] => {
+  return programs.map(program => {
+    const existingJob = existingJobRates.find(j => j.name === program);
+    return {
+      name: program,
+      rate: existingJob?.rate || defaultRate,
+      color: getProgramColor(program),
+      useDefaultRate: existingJob?.useDefaultRate !== undefined ? existingJob.useDefaultRate : true,
+    };
+  });
+};
 
 export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
   const [activeTab, setActiveTab] = useState("work-rules");
@@ -91,14 +128,27 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     holidayRate: customFields.overtimeHolidayRate || '+0.5$/hour',
   });
 
+  const initialPrograms = customFields.programs || ['Vitas Central Florida'];
+  const initialDefaultRate = customFields.payRateDefault || '$35/hour';
+  
   const [payRate, setPayRate] = useState<PayRate>({
     effectiveDate: customFields.payRateEffectiveDate || '05/29/2025',
-    defaultRate: customFields.payRateDefault || '$35/hour',
-    jobRates: customFields.jobRates || [
-      { name: 'AdventHealth IPU', rate: '$38/hour', color: 'bg-blue-500' },
-      { name: 'Vitas Central Florida', rate: '$34/hour', color: 'bg-purple-500' },
-    ],
+    defaultRate: initialDefaultRate,
+    useDefaultRateEnabled: true,
+    jobRates: syncJobRatesWithPrograms(
+      initialPrograms,
+      customFields.jobRates || [],
+      initialDefaultRate
+    ),
   });
+
+  // Auto-sync job rates when programs change
+  useEffect(() => {
+    setPayRate(prev => ({
+      ...prev,
+      jobRates: syncJobRatesWithPrograms(formData.programs, prev.jobRates, prev.defaultRate)
+    }));
+  }, [formData.programs]);
 
   // useMutation is a hook - must be called before early return
   const updateUserMutation = useMutation({
@@ -121,6 +171,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         overtimeHolidayRate: overtimeRules.holidayRate,
         payRateEffectiveDate: payRate.effectiveDate,
         payRateDefault: payRate.defaultRate,
+        payRateUseDefaultRateEnabled: payRate.useDefaultRateEnabled,
         jobRates: payRate.jobRates,
       };
       
@@ -719,7 +770,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                           <div className="space-y-2">
                             <div className="text-sm font-medium">Job rate</div>
                             <div className="space-y-2">
-                              {payRate.jobRates.map((job, idx) => (
+                              {payRate.jobRates.filter(job => !job.useDefaultRate).map((job, idx) => (
                                 <div key={idx} className="flex items-center justify-between p-2 rounded-md border">
                                   <div className="flex items-center gap-2">
                                     <div className={`h-2 w-2 rounded-full ${job.color}`} />
@@ -728,6 +779,9 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                                   <span className="text-sm font-medium">{job.rate}</span>
                                 </div>
                               ))}
+                              {payRate.jobRates.filter(job => !job.useDefaultRate).length === 0 && (
+                                <div className="text-sm text-muted-foreground">All programs use default rate</div>
+                              )}
                             </div>
                           </div>
 
@@ -855,77 +909,126 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
 
         {/* Pay Rate Edit Dialog */}
         <Dialog open={editingPayRate} onOpenChange={setEditingPayRate}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <h2 className="text-lg font-semibold">Edit Pay Rate</h2>
+              <h2 className="text-lg font-semibold">Update {user?.fullName}'s pay rate</h2>
               <DialogDescription>
-                Update the default and job-specific pay rates for this employee
+                Set default and program-specific pay rates
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label className="text-sm">Effective Date</Label>
-                <div className="relative mt-1">
-                  <Input 
-                    value={payRate.effectiveDate}
-                    onChange={(e) => setPayRate({ ...payRate, effectiveDate: e.target.value })}
-                    className="h-9"
-                    data-testid="input-payrate-effective-date"
+            
+            <div className="space-y-6 py-4">
+              {/* Default Rate Section */}
+              <div className="space-y-3 pb-4 border-b">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Default rate</Label>
+                  <Switch 
+                    checked={payRate.useDefaultRateEnabled}
+                    onCheckedChange={(checked) => setPayRate({ ...payRate, useDefaultRateEnabled: checked })}
+                    data-testid="switch-default-rate-enabled"
                   />
-                  <CalendarIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 </div>
+                {payRate.useDefaultRateEnabled && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-lg">$</span>
+                      <Input 
+                        type="number"
+                        value={payRate.defaultRate.replace(/[^0-9.]/g, '')}
+                        onChange={(e) => setPayRate({ ...payRate, defaultRate: `$${e.target.value}/hour` })}
+                        className="h-10 text-base"
+                        placeholder="35"
+                        data-testid="input-payrate-default"
+                      />
+                      <span className="text-sm text-muted-foreground">/hour</span>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <Label className="text-sm">Default Rate</Label>
-                <Input 
-                  value={payRate.defaultRate}
-                  onChange={(e) => setPayRate({ ...payRate, defaultRate: e.target.value })}
-                  className="mt-1 h-9"
-                  placeholder="$35/hour"
-                  data-testid="input-payrate-default"
-                />
-              </div>
-              <div>
-                <Label className="text-sm">Job Rates</Label>
-                <div className="mt-2 space-y-2">
+
+              {/* Job Rate Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Job rate</Label>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="h-8 text-xs">
+                      All items
+                    </Button>
+                    <Input 
+                      placeholder="Search"
+                      className="h-8 w-32 text-xs"
+                    />
+                    <Switch 
+                      checked={true}
+                      data-testid="switch-job-rate-enabled"
+                    />
+                  </div>
+                </div>
+
+                {/* Programs List */}
+                <div className="space-y-2 max-h-96 overflow-y-auto">
                   {payRate.jobRates.map((job, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <div className={`h-3 w-3 rounded-full ${job.color} flex-shrink-0`} />
-                      <Input 
-                        value={job.name}
-                        onChange={(e) => {
-                          const newJobRates = [...payRate.jobRates];
-                          newJobRates[idx].name = e.target.value;
-                          setPayRate({ ...payRate, jobRates: newJobRates });
-                        }}
-                        className="h-9 flex-1"
-                        placeholder="Job name"
-                        data-testid={`input-job-name-${idx}`}
-                      />
-                      <Input 
-                        value={job.rate}
-                        onChange={(e) => {
-                          const newJobRates = [...payRate.jobRates];
-                          newJobRates[idx].rate = e.target.value;
-                          setPayRate({ ...payRate, jobRates: newJobRates });
-                        }}
-                        className="h-9 w-28"
-                        placeholder="$00/hour"
-                        data-testid={`input-job-rate-${idx}`}
-                      />
+                    <div key={idx} className="space-y-2 p-3 rounded-lg border bg-card">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className={`h-3 w-3 rounded-full ${job.color} flex-shrink-0`} />
+                          <span className="text-sm font-medium">{job.name}</span>
+                        </div>
+                        <Switch 
+                          checked={!job.useDefaultRate}
+                          onCheckedChange={(checked) => {
+                            const newJobRates = [...payRate.jobRates];
+                            newJobRates[idx].useDefaultRate = !checked;
+                            setPayRate({ ...payRate, jobRates: newJobRates });
+                          }}
+                          data-testid={`switch-job-custom-rate-${idx}`}
+                        />
+                      </div>
+                      
+                      {!job.useDefaultRate && (
+                        <div className="flex items-center gap-2 pl-5">
+                          <span className="text-sm text-muted-foreground">Custom rate:</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm">$</span>
+                            <Input 
+                              type="number"
+                              value={job.rate.replace(/[^0-9.]/g, '')}
+                              onChange={(e) => {
+                                const newJobRates = [...payRate.jobRates];
+                                newJobRates[idx].rate = `$${e.target.value}/hour`;
+                                setPayRate({ ...payRate, jobRates: newJobRates });
+                              }}
+                              className="h-8 w-20 text-sm"
+                              placeholder="35"
+                              data-testid={`input-job-rate-${idx}`}
+                            />
+                            <span className="text-xs text-muted-foreground">/hour</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setEditingPayRate(false)}
-                data-testid="button-cancel-payrate-edit"
-              >
-                Cancel
-              </Button>
+
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="flex gap-2">
+                <Button 
+                  variant="default"
+                  size="sm"
+                  data-testid="button-payrate-tab-payrate"
+                >
+                  Pay rate
+                </Button>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  data-testid="button-payrate-tab-effectivedate"
+                >
+                  Effective date
+                </Button>
+              </div>
               <Button 
                 onClick={() => {
                   setEditingPayRate(false);
@@ -933,7 +1036,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                 }}
                 data-testid="button-save-payrate"
               >
-                Save
+                Continue
               </Button>
             </div>
           </DialogContent>
