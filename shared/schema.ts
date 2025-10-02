@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, jimport { pgTable, text, varchar, timestamp, integer, boolean, jsonb, decimal, index } from "drizzle-orm/pg-core";sonb, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -17,7 +17,12 @@ export const users = pgTable("users", {
   status: text("status").notNull().default('active'), // active, archived
   requireMfa: boolean("require_mfa").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  emailIdx: index("users_email_idx").on(table.email),
+  usernameIdx: index("users_username_idx").on(table.username),
+  roleIdx: index("users_role_idx").on(table.role),
+  statusIdx: index("users_status_idx").on(table.status),
+}));
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -45,7 +50,11 @@ export const timeEntries = pgTable("time_entries", {
   employeeNotes: text("employee_notes"), // Notes from employee
   managerNotes: text("manager_notes"), // Notes from manager/admin
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index("time_entries_user_id_idx").on(table.userId),
+  clockInIdx: index("time_entries_clock_in_idx").on(table.clockIn),
+  statusIdx: index("time_entries_status_idx").on(table.status),
+}));
 
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
   id: true,
@@ -110,7 +119,11 @@ export const shifts = pgTable("shifts", {
   maxAssignees: integer("max_assignees").default(1), // Support multiple workers per shift
   attachments: text("attachments").array(), // Array of attachment filenames/URLs
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  scheduleIdIdx: index("shifts_schedule_id_idx").on(table.scheduleId),
+  startTimeIdx: index("shifts_start_time_idx").on(table.startTime),
+  statusIdx: index("shifts_status_idx").on(table.status),
+}));
 
 export const insertShiftSchema = createInsertSchema(shifts).omit({
   id: true,
@@ -191,7 +204,11 @@ export const timesheets = pgTable("timesheets", {
   approvedAt: timestamp("approved_at"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index("timesheets_user_id_idx").on(table.userId),
+  statusIdx: index("timesheets_status_idx").on(table.status),
+  periodStartIdx: index("timesheets_period_start_idx").on(table.periodStart),
+}));
 
 export const insertTimesheetSchema = createInsertSchema(timesheets).omit({
   id: true,
