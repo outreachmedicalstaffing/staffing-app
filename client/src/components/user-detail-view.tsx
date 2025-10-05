@@ -1,4 +1,9 @@
-import { Dialog, DialogContent, DialogHeader, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,12 +11,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
-import { CalendarIcon, ChevronDown, FileText, Search, Gift, Clock, FileCheck, MoreVertical, Pencil, Trash2, Save, X } from "lucide-react";
+import {
+  CalendarIcon,
+  ChevronDown,
+  FileText,
+  Search,
+  Gift,
+  Clock,
+  FileCheck,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Save,
+  X,
+} from "lucide-react";
 import type { User } from "@shared/schema";
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -53,40 +86,52 @@ interface PayRate {
   effectiveDate: string;
   defaultRate: string;
   useDefaultRateEnabled: boolean;
-  jobRates: { name: string; rate: string; color: string; useDefaultRate: boolean }[];
+  jobRates: {
+    name: string;
+    rate: string;
+    color: string;
+    useDefaultRate: boolean;
+  }[];
 }
 
 // Helper function to get color for program
 const getProgramColor = (programName: string): string => {
   const colors: Record<string, string> = {
-    'Vitas Nature Coast': 'bg-blue-500',
-    'Vitas Citrus': 'bg-green-500',
-    'Vitas Jacksonville': 'bg-purple-500',
-    'Vitas V/F/P': 'bg-orange-500',
-    'Vitas Midstate': 'bg-pink-500',
-    'Vitas Brevard': 'bg-cyan-500',
-    'Vitas Dade/Monroe': 'bg-yellow-500',
-    'Vitas Palm Beach': 'bg-indigo-500',
-    'AdventHealth IPU': 'bg-red-500',
-    'AdventHealth Central Florida': 'bg-teal-500',
-    'Vitas Treasure Coast': 'bg-emerald-500',
-    'Haven': 'bg-amber-500',
-    'Vitas Jacksonville (St. Johns)': 'bg-violet-500',
-    'Vitas Broward': 'bg-rose-500',
-    'Vitas Central Florida': 'bg-sky-500',
+    "Vitas Nature Coast": "bg-blue-500",
+    "Vitas Citrus": "bg-green-500",
+    "Vitas Jacksonville": "bg-purple-500",
+    "Vitas V/F/P": "bg-orange-500",
+    "Vitas Midstate": "bg-pink-500",
+    "Vitas Brevard": "bg-cyan-500",
+    "Vitas Dade/Monroe": "bg-yellow-500",
+    "Vitas Palm Beach": "bg-indigo-500",
+    "AdventHealth IPU": "bg-red-500",
+    "AdventHealth Central Florida": "bg-teal-500",
+    "Vitas Treasure Coast": "bg-emerald-500",
+    Haven: "bg-amber-500",
+    "Vitas Jacksonville (St. Johns)": "bg-violet-500",
+    "Vitas Broward": "bg-rose-500",
+    "Vitas Central Florida": "bg-sky-500",
   };
-  return colors[programName] || 'bg-gray-500';
+  return colors[programName] || "bg-gray-500";
 };
 
 // Helper function to sync job rates with programs
-const syncJobRatesWithPrograms = (programs: string[], existingJobRates: any[], defaultRate: string): any[] => {
-  return programs.map(program => {
-    const existingJob = existingJobRates.find(j => j.name === program);
+const syncJobRatesWithPrograms = (
+  programs: string[],
+  existingJobRates: any[],
+  defaultRate: string,
+): any[] => {
+  return programs.map((program) => {
+    const existingJob = existingJobRates.find((j) => j.name === program);
     return {
       name: program,
       rate: existingJob?.rate || defaultRate,
       color: getProgramColor(program),
-      useDefaultRate: existingJob?.useDefaultRate !== undefined ? existingJob.useDefaultRate : true,
+      useDefaultRate:
+        existingJob?.useDefaultRate !== undefined
+          ? existingJob.useDefaultRate
+          : true,
     };
   });
 };
@@ -101,44 +146,45 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
 
   // Initialize with safe defaults, then use actual user data below
   const customFields = (user?.customFields as any) || {};
-  const [firstName, ...lastNameParts] = user?.fullName.split(' ') || ['', ''];
-  const lastName = lastNameParts.join(' ');
+  const [firstName, ...lastNameParts] = user?.fullName.split(" ") || ["", ""];
+  const lastName = lastNameParts.join(" ");
 
   const [formData, setFormData] = useState<EditableUser>({
-    firstName: firstName || '',
-    lastName: lastName || '',
-    email: user?.email || '',
-    role: user?.role || 'Staff',
-    mobilePhone: customFields.mobilePhone || '',
-    birthday: customFields.birthday || '',
-    emergencyContact: customFields.emergencyContact || '',
-    shiftPreference: customFields.shiftPreference || 'select',
-    facility: customFields.facility || 'select',
-    allergies: customFields.allergies || 'select',
-    address: customFields.address || '',
-    employmentStartDate: customFields.employmentStartDate || '05/06/2022',
-    programs: customFields.programs || ['Vitas Central Florida'],
-    directManager: customFields.directManager || 'amanda',
+    firstName: firstName || "",
+    lastName: lastName || "",
+    email: user?.email || "",
+    role: user?.role || "Staff",
+    mobilePhone: customFields.mobilePhone || "",
+    birthday: customFields.birthday || "",
+    emergencyContact: customFields.emergencyContact || "",
+    shiftPreference: customFields.shiftPreference || "select",
+    facility: customFields.facility || "select",
+    allergies: customFields.allergies || "select",
+    address: customFields.address || "",
+    employmentStartDate: customFields.employmentStartDate || "05/06/2022",
+    programs: customFields.programs || ["Vitas Central Florida"],
+    directManager: customFields.directManager || "amanda",
   });
 
   const [overtimeRules, setOvertimeRules] = useState<OvertimeRules>({
-    effectiveDate: customFields.overtimeEffectiveDate || '01/01/1970',
-    policyName: customFields.overtimePolicyName || 'Overtime & Pay rules policy',
-    regularRate: customFields.overtimeRegularRate || 'x1/hour',
-    holidayRate: customFields.overtimeHolidayRate || '+0.5$/hour',
+    effectiveDate: customFields.overtimeEffectiveDate || "01/01/1970",
+    policyName:
+      customFields.overtimePolicyName || "Overtime & Pay rules policy",
+    regularRate: customFields.overtimeRegularRate || "x1/hour",
+    holidayRate: customFields.overtimeHolidayRate || "+0.5$/hour",
   });
 
-  const initialPrograms = customFields.programs || ['Vitas Central Florida'];
-  const initialDefaultRate = customFields.payRateDefault || '$35/hour';
-  
+  const initialPrograms = customFields.programs || ["Vitas Central Florida"];
+  const initialDefaultRate = customFields.payRateDefault || "$35/hour";
+
   const [payRate, setPayRate] = useState<PayRate>({
-    effectiveDate: customFields.payRateEffectiveDate || '05/29/2025',
+    effectiveDate: customFields.payRateEffectiveDate || "05/29/2025",
     defaultRate: initialDefaultRate,
     useDefaultRateEnabled: true,
     jobRates: syncJobRatesWithPrograms(
       initialPrograms,
       customFields.jobRates || [],
-      initialDefaultRate
+      initialDefaultRate,
     ),
   });
 
@@ -146,44 +192,45 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
   useEffect(() => {
     if (user && open) {
       const customFields = (user.customFields as any) || {};
-      const [firstName, ...lastNameParts] = user.fullName.split(' ');
-      const lastName = lastNameParts.join(' ');
-      
+      const [firstName, ...lastNameParts] = user.fullName.split(" ");
+      const lastName = lastNameParts.join(" ");
+
       setFormData({
-        firstName: firstName || '',
-        lastName: lastName || '',
-        email: user.email || '',
-        role: user.role || 'Staff',
-        mobilePhone: customFields.mobilePhone || '',
-        birthday: customFields.birthday || '',
-        emergencyContact: customFields.emergencyContact || '',
-        shiftPreference: customFields.shiftPreference || 'select',
-        facility: customFields.facility || 'select',
-        allergies: customFields.allergies || 'select',
-        address: customFields.address || '',
-        employmentStartDate: customFields.employmentStartDate || '05/06/2022',
-        programs: customFields.programs || ['Vitas Central Florida'],
-        directManager: customFields.directManager || 'amanda',
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: user.email || "",
+        role: user.role || "Staff",
+        mobilePhone: customFields.mobilePhone || "",
+        birthday: customFields.birthday || "",
+        emergencyContact: customFields.emergencyContact || "",
+        shiftPreference: customFields.shiftPreference || "select",
+        facility: customFields.facility || "select",
+        allergies: customFields.allergies || "select",
+        address: customFields.address || "",
+        employmentStartDate: customFields.employmentStartDate || "05/06/2022",
+        programs: customFields.programs || ["Vitas Central Florida"],
+        directManager: customFields.directManager || "amanda",
       });
 
       setOvertimeRules({
-        effectiveDate: customFields.overtimeEffectiveDate || '01/01/1970',
-        policyName: customFields.overtimePolicyName || 'Overtime & Pay rules policy',
-        regularRate: customFields.overtimeRegularRate || 'x1/hour',
-        holidayRate: customFields.overtimeHolidayRate || '+0.5$/hour',
+        effectiveDate: customFields.overtimeEffectiveDate || "01/01/1970",
+        policyName:
+          customFields.overtimePolicyName || "Overtime & Pay rules policy",
+        regularRate: customFields.overtimeRegularRate || "x1/hour",
+        holidayRate: customFields.overtimeHolidayRate || "+0.5$/hour",
       });
 
-      const defaultRate = customFields.payRateDefault || '$35/hour';
-      const programs = customFields.programs || ['Vitas Central Florida'];
-      
+      const defaultRate = customFields.payRateDefault || "$35/hour";
+      const programs = customFields.programs || ["Vitas Central Florida"];
+
       setPayRate({
-        effectiveDate: customFields.payRateEffectiveDate || '05/29/2025',
+        effectiveDate: customFields.payRateEffectiveDate || "05/29/2025",
         defaultRate: defaultRate,
         useDefaultRateEnabled: true,
         jobRates: syncJobRatesWithPrograms(
           programs,
           customFields.jobRates || [],
-          defaultRate
+          defaultRate,
         ),
       });
     }
@@ -191,9 +238,13 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
 
   // Auto-sync job rates when programs change
   useEffect(() => {
-    setPayRate(prev => ({
+    setPayRate((prev) => ({
       ...prev,
-      jobRates: syncJobRatesWithPrograms(formData.programs, prev.jobRates, prev.defaultRate)
+      jobRates: syncJobRatesWithPrograms(
+        formData.programs,
+        prev.jobRates,
+        prev.defaultRate,
+      ),
     }));
   }, [formData.programs]);
 
@@ -217,21 +268,28 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         overtimeRegularRate: overtimeRules.regularRate,
         overtimeHolidayRate: overtimeRules.holidayRate,
         payRateEffectiveDate: payRate.effectiveDate,
-        payRateDefault: payRate.defaultRate,
-        payRateUseDefaultRateEnabled: payRate.useDefaultRateEnabled,
-        jobRates: payRate.jobRates,
       };
-      
-      return await apiRequest('PATCH', `/api/users/${user!.id}`, {
+
+      // Convert job rates to the format expected by the database
+      const jobRatesObject: Record<string, string> = {};
+      payRate.jobRates.forEach((job) => {
+        if (!job.useDefaultRate) {
+          jobRatesObject[job.name] = job.rate.replace(/[^0-9.]/g, "");
+        }
+      });
+
+      return await apiRequest("PATCH", `/api/users/${user!.id}`, {
         fullName,
         email: data.email,
         role: data.role,
+        defaultHourlyRate: payRate.defaultRate.replace(/[^0-9.]/g, ""),
+        jobRates: jobRatesObject,
         customFields,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users', user!.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", user!.id] });
       toast({
         title: "Success",
         description: "User details updated successfully",
@@ -255,26 +313,26 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
 
   const handleCancel = () => {
     if (!user) return;
-    
-    const [firstName, ...lastNameParts] = user.fullName.split(' ');
-    const lastName = lastNameParts.join(' ');
+
+    const [firstName, ...lastNameParts] = user.fullName.split(" ");
+    const lastName = lastNameParts.join(" ");
     const customFields = (user.customFields as any) || {};
-    
+
     setFormData({
       firstName,
       lastName,
       email: user.email,
       role: user.role,
-      mobilePhone: customFields.mobilePhone || '',
-      birthday: customFields.birthday || '',
-      emergencyContact: customFields.emergencyContact || '',
-      shiftPreference: customFields.shiftPreference || 'select',
-      facility: customFields.facility || 'select',
-      allergies: customFields.allergies || 'select',
-      address: customFields.address || '',
-      employmentStartDate: customFields.employmentStartDate || '05/06/2022',
-      programs: customFields.programs || ['Vitas Central Florida'],
-      directManager: customFields.directManager || 'amanda',
+      mobilePhone: customFields.mobilePhone || "",
+      birthday: customFields.birthday || "",
+      emergencyContact: customFields.emergencyContact || "",
+      shiftPreference: customFields.shiftPreference || "select",
+      facility: customFields.facility || "select",
+      allergies: customFields.allergies || "select",
+      address: customFields.address || "",
+      employmentStartDate: customFields.employmentStartDate || "05/06/2022",
+      programs: customFields.programs || ["Vitas Central Florida"],
+      directManager: customFields.directManager || "amanda",
     });
     setIsEditing(false);
   };
@@ -290,22 +348,29 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.fullName}`} />
+                <AvatarImage
+                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.fullName}`}
+                />
                 <AvatarFallback>
-                  {user.fullName.split(' ').map(n => n[0]).join('')}
+                  {user.fullName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h2 className="text-xl font-semibold">{user.fullName}</h2>
-                <Badge variant="outline" className="mt-1">{user.role}</Badge>
+                <Badge variant="outline" className="mt-1">
+                  {user.role}
+                </Badge>
               </div>
             </div>
             <div className="flex gap-2">
               {isEditing ? (
                 <>
-                  <Button 
-                    variant="default" 
-                    size="sm" 
+                  <Button
+                    variant="default"
+                    size="sm"
                     onClick={handleSave}
                     disabled={updateUserMutation.isPending}
                     data-testid="button-save-user"
@@ -313,9 +378,9 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     <Save className="h-4 w-4 mr-2" />
                     Save changes
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={handleCancel}
                     disabled={updateUserMutation.isPending}
                     data-testid="button-cancel-edit"
@@ -326,8 +391,8 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                 </>
               ) : (
                 <>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setIsEditing(true)}
                     data-testid="button-edit-user"
@@ -335,15 +400,27 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     <Pencil className="h-4 w-4 mr-2" />
                     Edit details
                   </Button>
-                  <Button variant="outline" size="sm" data-testid="button-send-reward">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-send-reward"
+                  >
                     <Gift className="h-4 w-4 mr-2" />
                     Send reward
                   </Button>
-                  <Button variant="outline" size="sm" data-testid="button-options">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-options"
+                  >
                     Options
                     <ChevronDown className="h-4 w-4 ml-2" />
                   </Button>
-                  <Button variant="outline" size="sm" data-testid="button-text-message">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-text-message"
+                  >
                     <FileText className="h-4 w-4 mr-2" />
                     Text Message
                   </Button>
@@ -372,32 +449,45 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     Personal Details
                     <ChevronDown className="h-4 w-4" />
                   </h3>
-                  
+
                   <div className="space-y-3">
                     <div>
-                      <Label className="text-xs text-muted-foreground">First name *</Label>
-                      <Input 
-                        value={formData.firstName} 
-                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      <Label className="text-xs text-muted-foreground">
+                        First name *
+                      </Label>
+                      <Input
+                        value={formData.firstName}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            firstName: e.target.value,
+                          })
+                        }
                         disabled={!isEditing}
-                        className="mt-1 h-9" 
-                        data-testid="input-first-name" 
+                        className="mt-1 h-9"
+                        data-testid="input-first-name"
                       />
                     </div>
-                    
+
                     <div>
-                      <Label className="text-xs text-muted-foreground">Last name *</Label>
-                      <Input 
-                        value={formData.lastName} 
-                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      <Label className="text-xs text-muted-foreground">
+                        Last name *
+                      </Label>
+                      <Input
+                        value={formData.lastName}
+                        onChange={(e) =>
+                          setFormData({ ...formData, lastName: e.target.value })
+                        }
                         disabled={!isEditing}
-                        className="mt-1 h-9" 
-                        data-testid="input-last-name" 
+                        className="mt-1 h-9"
+                        data-testid="input-last-name"
                       />
                     </div>
-                    
+
                     <div>
-                      <Label className="text-xs text-muted-foreground">Mobile phone *</Label>
+                      <Label className="text-xs text-muted-foreground">
+                        Mobile phone *
+                      </Label>
                       <div className="flex gap-2 mt-1">
                         <Select defaultValue="us" disabled={!isEditing}>
                           <SelectTrigger className="w-20 h-9">
@@ -407,117 +497,173 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                             <SelectItem value="us">+1</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Input 
-                          value={formData.mobilePhone} 
-                          onChange={(e) => setFormData({ ...formData, mobilePhone: e.target.value })}
+                        <Input
+                          value={formData.mobilePhone}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              mobilePhone: e.target.value,
+                            })
+                          }
                           disabled={!isEditing}
-                          className="h-9" 
-                          data-testid="input-mobile-phone" 
+                          className="h-9"
+                          data-testid="input-mobile-phone"
                         />
                       </div>
                     </div>
-                    
+
                     <div>
-                      <Label className="text-xs text-muted-foreground">Email *</Label>
-                      <Input 
-                        value={formData.email} 
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      <Label className="text-xs text-muted-foreground">
+                        Email *
+                      </Label>
+                      <Input
+                        value={formData.email}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
                         disabled={!isEditing}
-                        className="mt-1 h-9" 
-                        data-testid="input-email" 
+                        className="mt-1 h-9"
+                        data-testid="input-email"
                       />
                     </div>
-                    
+
                     <div>
-                      <Label className="text-xs text-muted-foreground">Birthday</Label>
+                      <Label className="text-xs text-muted-foreground">
+                        Birthday
+                      </Label>
                       <div className="relative mt-1">
-                        <Input 
-                          value={formData.birthday} 
-                          onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                        <Input
+                          value={formData.birthday}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              birthday: e.target.value,
+                            })
+                          }
                           disabled={!isEditing}
-                          className="h-9" 
-                          data-testid="input-birthday" 
+                          className="h-9"
+                          data-testid="input-birthday"
                         />
                         <CalendarIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       </div>
                     </div>
-                    
+
                     <div>
-                      <Label className="text-xs text-muted-foreground">Emergency Contact Name/Number</Label>
-                      <Input 
-                        value={formData.emergencyContact} 
-                        onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                      <Label className="text-xs text-muted-foreground">
+                        Emergency Contact Name/Number
+                      </Label>
+                      <Input
+                        value={formData.emergencyContact}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            emergencyContact: e.target.value,
+                          })
+                        }
                         disabled={!isEditing}
-                        className="mt-1 h-9" 
-                        data-testid="input-emergency-contact" 
+                        className="mt-1 h-9"
+                        data-testid="input-emergency-contact"
                       />
                     </div>
-                    
+
                     <div>
-                      <Label className="text-xs text-muted-foreground">Shift Preference</Label>
-                      <Select 
+                      <Label className="text-xs text-muted-foreground">
+                        Shift Preference
+                      </Label>
+                      <Select
                         value={formData.shiftPreference}
-                        onValueChange={(value) => setFormData({ ...formData, shiftPreference: value })}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, shiftPreference: value })
+                        }
                         disabled={!isEditing}
                       >
-                        <SelectTrigger className="mt-1 h-9" data-testid="select-shift-preference">
+                        <SelectTrigger
+                          className="mt-1 h-9"
+                          data-testid="select-shift-preference"
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="select">Select</SelectItem>
                           <SelectItem value="day">Day shift only</SelectItem>
-                          <SelectItem value="night">Night shift only</SelectItem>
-                          <SelectItem value="both">Both but prefers nights</SelectItem>
+                          <SelectItem value="night">
+                            Night shift only
+                          </SelectItem>
+                          <SelectItem value="both">
+                            Both but prefers nights
+                          </SelectItem>
                           <SelectItem value="any">Day or Night</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Facility/home</Label>
-                      <Select 
-                        value={formData.facility}
-                        onValueChange={(value) => setFormData({ ...formData, facility: value })}
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger className="mt-1 h-9" data-testid="select-facility">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="select">Select</SelectItem>
-                          <SelectItem value="home">Home or Facility</SelectItem>
-                          <SelectItem value="prefers-facilities">Prefers facilities</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label className="text-xs text-muted-foreground">Allergies</Label>
-                      <Select 
-                        value={formData.allergies}
-                        onValueChange={(value) => setFormData({ ...formData, allergies: value })}
+                      <Label className="text-xs text-muted-foreground">
+                        Facility/home
+                      </Label>
+                      <Select
+                        value={formData.facility}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, facility: value })
+                        }
                         disabled={!isEditing}
                       >
-                        <SelectTrigger className="mt-1 h-9" data-testid="select-allergies">
+                        <SelectTrigger
+                          className="mt-1 h-9"
+                          data-testid="select-facility"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="select">Select</SelectItem>
+                          <SelectItem value="home">Home or Facility</SelectItem>
+                          <SelectItem value="prefers-facilities">
+                            Prefers facilities
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Allergies
+                      </Label>
+                      <Select
+                        value={formData.allergies}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, allergies: value })
+                        }
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger
+                          className="mt-1 h-9"
+                          data-testid="select-allergies"
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="select">Select</SelectItem>
                           <SelectItem value="none">None</SelectItem>
                           <SelectItem value="smoke">Smoke</SelectItem>
-                          <SelectItem value="cats-dogs">Cats, Dogs, Smoke</SelectItem>
+                          <SelectItem value="cats-dogs">
+                            Cats, Dogs, Smoke
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label className="text-xs text-muted-foreground">Address</Label>
-                      <Input 
-                        value={formData.address} 
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      <Label className="text-xs text-muted-foreground">
+                        Address
+                      </Label>
+                      <Input
+                        value={formData.address}
+                        onChange={(e) =>
+                          setFormData({ ...formData, address: e.target.value })
+                        }
                         disabled={!isEditing}
-                        className="mt-1 h-9" 
-                        data-testid="input-address" 
+                        className="mt-1 h-9"
+                        data-testid="input-address"
                       />
                     </div>
                   </div>
@@ -529,16 +675,23 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     Company Related Info
                     <ChevronDown className="h-4 w-4" />
                   </h3>
-                  
+
                   <div className="space-y-3">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Title *</Label>
-                      <Select 
+                      <Label className="text-xs text-muted-foreground">
+                        Title *
+                      </Label>
+                      <Select
                         value={formData.role}
-                        onValueChange={(value) => setFormData({ ...formData, role: value })}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, role: value })
+                        }
                         disabled={!isEditing}
                       >
-                        <SelectTrigger className="mt-1 h-9" data-testid="select-title">
+                        <SelectTrigger
+                          className="mt-1 h-9"
+                          data-testid="select-title"
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -551,7 +704,9 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     </div>
 
                     <div>
-                      <Label className="text-xs text-muted-foreground">Employment Start Date</Label>
+                      <Label className="text-xs text-muted-foreground">
+                        Employment Start Date
+                      </Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -567,10 +722,20 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={formData.employmentStartDate ? new Date(formData.employmentStartDate) : undefined}
+                            selected={
+                              formData.employmentStartDate
+                                ? new Date(formData.employmentStartDate)
+                                : undefined
+                            }
                             onSelect={(date) => {
                               if (date) {
-                                setFormData({ ...formData, employmentStartDate: format(date, "MM/dd/yyyy") });
+                                setFormData({
+                                  ...formData,
+                                  employmentStartDate: format(
+                                    date,
+                                    "MM/dd/yyyy",
+                                  ),
+                                });
                               }
                             }}
                             disabled={!isEditing}
@@ -581,21 +746,29 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     </div>
 
                     <div>
-                      <Label className="text-xs text-muted-foreground">Program</Label>
+                      <Label className="text-xs text-muted-foreground">
+                        Program
+                      </Label>
                       <div className="mt-1 space-y-2">
                         <div className="flex flex-wrap gap-1">
                           {formData.programs.map((program, idx) => (
-                            <Badge 
-                              key={idx} 
-                              variant="outline" 
+                            <Badge
+                              key={idx}
+                              variant="outline"
                               className="text-xs"
                             >
                               {program}
                               {isEditing && (
                                 <button
                                   onClick={() => {
-                                    const newPrograms = formData.programs.filter((_, i) => i !== idx);
-                                    setFormData({ ...formData, programs: newPrograms });
+                                    const newPrograms =
+                                      formData.programs.filter(
+                                        (_, i) => i !== idx,
+                                      );
+                                    setFormData({
+                                      ...formData,
+                                      programs: newPrograms,
+                                    });
                                   }}
                                   className="ml-1 hover:text-destructive"
                                   data-testid={`button-remove-program-${idx}`}
@@ -606,64 +779,110 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                             </Badge>
                           ))}
                         </div>
-                        <Select 
+                        <Select
                           disabled={!isEditing}
                           onValueChange={(value) => {
                             const programMap: Record<string, string> = {
-                              'vitas-nature-coast': 'Vitas Nature Coast',
-                              'vitas-citrus': 'Vitas Citrus',
-                              'vitas-jacksonville': 'Vitas Jacksonville',
-                              'vitas-vfp': 'Vitas V/F/P',
-                              'vitas-midstate': 'Vitas Midstate',
-                              'vitas-brevard': 'Vitas Brevard',
-                              'vitas-dade-monroe': 'Vitas Dade/Monroe',
-                              'vitas-palm-beach': 'Vitas Palm Beach',
-                              'adventhealth-ipu': 'AdventHealth IPU',
-                              'adventhealth-central': 'AdventHealth Central Florida',
-                              'vitas-treasure-coast': 'Vitas Treasure Coast',
-                              'haven': 'Haven',
-                              'vitas-jacksonville-stjohns': 'Vitas Jacksonville (St. Johns)',
-                              'vitas-broward': 'Vitas Broward',
-                              'vitas-central': 'Vitas Central Florida',
+                              "vitas-nature-coast": "Vitas Nature Coast",
+                              "vitas-citrus": "Vitas Citrus",
+                              "vitas-jacksonville": "Vitas Jacksonville",
+                              "vitas-vfp": "Vitas V/F/P",
+                              "vitas-midstate": "Vitas Midstate",
+                              "vitas-brevard": "Vitas Brevard",
+                              "vitas-dade-monroe": "Vitas Dade/Monroe",
+                              "vitas-palm-beach": "Vitas Palm Beach",
+                              "adventhealth-ipu": "AdventHealth IPU",
+                              "adventhealth-central":
+                                "AdventHealth Central Florida",
+                              "vitas-treasure-coast": "Vitas Treasure Coast",
+                              haven: "Haven",
+                              "vitas-jacksonville-stjohns":
+                                "Vitas Jacksonville (St. Johns)",
+                              "vitas-broward": "Vitas Broward",
+                              "vitas-central": "Vitas Central Florida",
                             };
                             const programName = programMap[value];
-                            if (programName && !formData.programs.includes(programName)) {
-                              setFormData({ ...formData, programs: [...formData.programs, programName] });
+                            if (
+                              programName &&
+                              !formData.programs.includes(programName)
+                            ) {
+                              setFormData({
+                                ...formData,
+                                programs: [...formData.programs, programName],
+                              });
                             }
                           }}
                         >
-                          <SelectTrigger className="h-9" data-testid="select-program">
+                          <SelectTrigger
+                            className="h-9"
+                            data-testid="select-program"
+                          >
                             <SelectValue placeholder="Add program" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="vitas-nature-coast">Vitas Nature Coast</SelectItem>
-                            <SelectItem value="vitas-citrus">Vitas Citrus</SelectItem>
-                            <SelectItem value="vitas-jacksonville">Vitas Jacksonville</SelectItem>
-                            <SelectItem value="vitas-vfp">Vitas V/F/P</SelectItem>
-                            <SelectItem value="vitas-midstate">Vitas Midstate</SelectItem>
-                            <SelectItem value="vitas-brevard">Vitas Brevard</SelectItem>
-                            <SelectItem value="vitas-dade-monroe">Vitas Dade/Monroe</SelectItem>
-                            <SelectItem value="vitas-palm-beach">Vitas Palm Beach</SelectItem>
-                            <SelectItem value="adventhealth-ipu">AdventHealth IPU</SelectItem>
-                            <SelectItem value="adventhealth-central">AdventHealth Central Florida</SelectItem>
-                            <SelectItem value="vitas-treasure-coast">Vitas Treasure Coast</SelectItem>
+                            <SelectItem value="vitas-nature-coast">
+                              Vitas Nature Coast
+                            </SelectItem>
+                            <SelectItem value="vitas-citrus">
+                              Vitas Citrus
+                            </SelectItem>
+                            <SelectItem value="vitas-jacksonville">
+                              Vitas Jacksonville
+                            </SelectItem>
+                            <SelectItem value="vitas-vfp">
+                              Vitas V/F/P
+                            </SelectItem>
+                            <SelectItem value="vitas-midstate">
+                              Vitas Midstate
+                            </SelectItem>
+                            <SelectItem value="vitas-brevard">
+                              Vitas Brevard
+                            </SelectItem>
+                            <SelectItem value="vitas-dade-monroe">
+                              Vitas Dade/Monroe
+                            </SelectItem>
+                            <SelectItem value="vitas-palm-beach">
+                              Vitas Palm Beach
+                            </SelectItem>
+                            <SelectItem value="adventhealth-ipu">
+                              AdventHealth IPU
+                            </SelectItem>
+                            <SelectItem value="adventhealth-central">
+                              AdventHealth Central Florida
+                            </SelectItem>
+                            <SelectItem value="vitas-treasure-coast">
+                              Vitas Treasure Coast
+                            </SelectItem>
                             <SelectItem value="haven">Haven</SelectItem>
-                            <SelectItem value="vitas-jacksonville-stjohns">Vitas Jacksonville (St. Johns)</SelectItem>
-                            <SelectItem value="vitas-broward">Vitas Broward</SelectItem>
-                            <SelectItem value="vitas-central">Vitas Central Florida</SelectItem>
+                            <SelectItem value="vitas-jacksonville-stjohns">
+                              Vitas Jacksonville (St. Johns)
+                            </SelectItem>
+                            <SelectItem value="vitas-broward">
+                              Vitas Broward
+                            </SelectItem>
+                            <SelectItem value="vitas-central">
+                              Vitas Central Florida
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
                     <div>
-                      <Label className="text-xs text-muted-foreground">Direct manager</Label>
-                      <Select 
+                      <Label className="text-xs text-muted-foreground">
+                        Direct manager
+                      </Label>
+                      <Select
                         value={formData.directManager}
-                        onValueChange={(value) => setFormData({ ...formData, directManager: value })}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, directManager: value })
+                        }
                         disabled={!isEditing}
                       >
-                        <SelectTrigger className="mt-1 h-9" data-testid="select-direct-manager">
+                        <SelectTrigger
+                          className="mt-1 h-9"
+                          data-testid="select-direct-manager"
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -689,7 +908,11 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                       <ChevronDown className="h-4 w-4" />
                       <span>Tags (0)</span>
                     </h3>
-                    <Button variant="ghost" size="sm" className="text-blue-600 p-0 h-auto text-sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-600 p-0 h-auto text-sm"
+                    >
                       + Add tags
                     </Button>
                   </div>
@@ -700,16 +923,34 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
 
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="h-full"
+            >
               <div className="border-b px-6">
                 <TabsList className="h-12">
-                  <TabsTrigger value="work-rules" data-testid="tab-work-rules">Work Rules</TabsTrigger>
-                  <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
-                  <TabsTrigger value="notes" data-testid="tab-notes">Notes</TabsTrigger>
-                  <TabsTrigger value="forms" data-testid="tab-forms">Forms</TabsTrigger>
-                  <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
-                  <TabsTrigger value="timeline" data-testid="tab-timeline">Timeline</TabsTrigger>
-                  <TabsTrigger value="payslips" data-testid="tab-payslips">Payslips</TabsTrigger>
+                  <TabsTrigger value="work-rules" data-testid="tab-work-rules">
+                    Work Rules
+                  </TabsTrigger>
+                  <TabsTrigger value="activity" data-testid="tab-activity">
+                    Activity
+                  </TabsTrigger>
+                  <TabsTrigger value="notes" data-testid="tab-notes">
+                    Notes
+                  </TabsTrigger>
+                  <TabsTrigger value="forms" data-testid="tab-forms">
+                    Forms
+                  </TabsTrigger>
+                  <TabsTrigger value="documents" data-testid="tab-documents">
+                    Documents
+                  </TabsTrigger>
+                  <TabsTrigger value="timeline" data-testid="tab-timeline">
+                    Timeline
+                  </TabsTrigger>
+                  <TabsTrigger value="payslips" data-testid="tab-payslips">
+                    Payslips
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -720,7 +961,9 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     <Card>
                       <CardHeader>
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">Overtime & Pay rules</CardTitle>
+                          <CardTitle className="text-base">
+                            Overtime & Pay rules
+                          </CardTitle>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-3">
@@ -730,19 +973,27 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" data-testid="button-overtime-menu">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                data-testid="button-overtime-menu"
+                              >
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onSelect={() => setEditingOvertimeRules(true)}
                                 data-testid="menu-update-overtime"
                               >
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Update
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" data-testid="menu-delete-overtime">
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                data-testid="menu-delete-overtime"
+                              >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
                               </DropdownMenuItem>
@@ -751,23 +1002,36 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                         </div>
                         <div className="flex items-center gap-2">
                           <FileCheck className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">{overtimeRules.policyName}</span>
+                          <span className="text-sm font-medium">
+                            {overtimeRules.policyName}
+                          </span>
                           <Badge variant="outline">Default</Badge>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Regular</span>
-                            <p className="font-medium">{overtimeRules.regularRate}</p>
+                            <span className="text-muted-foreground">
+                              Regular
+                            </span>
+                            <p className="font-medium">
+                              {overtimeRules.regularRate}
+                            </p>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Holiday</span>
-                            <p className="font-medium">{overtimeRules.holidayRate}</p>
+                            <span className="text-muted-foreground">
+                              Holiday
+                            </span>
+                            <p className="font-medium">
+                              {overtimeRules.holidayRate}
+                            </p>
                           </div>
                         </div>
                         <Button variant="ghost" className="p-0 h-auto text-sm">
                           More details
                         </Button>
-                        <Button variant="ghost" className="p-0 h-auto text-sm flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          className="p-0 h-auto text-sm flex items-center gap-1"
+                        >
                           <Clock className="h-3 w-3" />
                           View history
                         </Button>
@@ -786,53 +1050,83 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" data-testid="button-payrate-menu">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                data-testid="button-payrate-menu"
+                              >
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onSelect={() => setEditingPayRate(true)}
                                 data-testid="menu-update-payrate"
                               >
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Update
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" data-testid="menu-delete-payrate">
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                data-testid="menu-delete-payrate"
+                              >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                        
+
                         <div className="space-y-3">
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium">Default rate</span>
-                              <span className="text-sm font-semibold">{payRate.defaultRate}</span>
+                              <span className="text-sm font-medium">
+                                Default rate
+                              </span>
+                              <span className="text-sm font-semibold">
+                                {payRate.defaultRate}
+                              </span>
                             </div>
                           </div>
 
                           <div className="space-y-2">
                             <div className="text-sm font-medium">Job rate</div>
                             <div className="space-y-2">
-                              {payRate.jobRates.filter(job => !job.useDefaultRate).map((job, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-2 rounded-md border">
-                                  <div className="flex items-center gap-2">
-                                    <div className={`h-2 w-2 rounded-full ${job.color}`} />
-                                    <span className="text-sm">{job.name}</span>
+                              {payRate.jobRates
+                                .filter((job) => !job.useDefaultRate)
+                                .map((job, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex items-center justify-between p-2 rounded-md border"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className={`h-2 w-2 rounded-full ${job.color}`}
+                                      />
+                                      <span className="text-sm">
+                                        {job.name}
+                                      </span>
+                                    </div>
+                                    <span className="text-sm font-medium">
+                                      {job.rate}
+                                    </span>
                                   </div>
-                                  <span className="text-sm font-medium">{job.rate}</span>
+                                ))}
+                              {payRate.jobRates.filter(
+                                (job) => !job.useDefaultRate,
+                              ).length === 0 && (
+                                <div className="text-sm text-muted-foreground">
+                                  All programs use default rate
                                 </div>
-                              ))}
-                              {payRate.jobRates.filter(job => !job.useDefaultRate).length === 0 && (
-                                <div className="text-sm text-muted-foreground">All programs use default rate</div>
                               )}
                             </div>
                           </div>
 
-                          <Button variant="ghost" className="p-0 h-auto text-sm">
+                          <Button
+                            variant="ghost"
+                            className="p-0 h-auto text-sm"
+                          >
                             Show full job list
                           </Button>
                         </div>
@@ -882,10 +1176,15 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         </div>
 
         {/* Overtime Rules Edit Dialog */}
-        <Dialog open={editingOvertimeRules} onOpenChange={setEditingOvertimeRules}>
+        <Dialog
+          open={editingOvertimeRules}
+          onOpenChange={setEditingOvertimeRules}
+        >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <h2 className="text-lg font-semibold">Edit Overtime & Pay Rules</h2>
+              <h2 className="text-lg font-semibold">
+                Edit Overtime & Pay Rules
+              </h2>
               <DialogDescription>
                 Update the overtime and pay rules for this employee
               </DialogDescription>
@@ -894,9 +1193,14 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
               <div>
                 <Label className="text-sm">Effective Date</Label>
                 <div className="relative mt-1">
-                  <Input 
+                  <Input
                     value={overtimeRules.effectiveDate}
-                    onChange={(e) => setOvertimeRules({ ...overtimeRules, effectiveDate: e.target.value })}
+                    onChange={(e) =>
+                      setOvertimeRules({
+                        ...overtimeRules,
+                        effectiveDate: e.target.value,
+                      })
+                    }
                     className="h-9"
                     data-testid="input-overtime-effective-date"
                   />
@@ -905,18 +1209,28 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
               </div>
               <div>
                 <Label className="text-sm">Policy Name</Label>
-                <Input 
+                <Input
                   value={overtimeRules.policyName}
-                  onChange={(e) => setOvertimeRules({ ...overtimeRules, policyName: e.target.value })}
+                  onChange={(e) =>
+                    setOvertimeRules({
+                      ...overtimeRules,
+                      policyName: e.target.value,
+                    })
+                  }
                   className="mt-1 h-9"
                   data-testid="input-overtime-policy-name"
                 />
               </div>
               <div>
                 <Label className="text-sm">Regular Rate</Label>
-                <Input 
+                <Input
                   value={overtimeRules.regularRate}
-                  onChange={(e) => setOvertimeRules({ ...overtimeRules, regularRate: e.target.value })}
+                  onChange={(e) =>
+                    setOvertimeRules({
+                      ...overtimeRules,
+                      regularRate: e.target.value,
+                    })
+                  }
                   className="mt-1 h-9"
                   placeholder="x1/hour"
                   data-testid="input-overtime-regular-rate"
@@ -924,9 +1238,14 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
               </div>
               <div>
                 <Label className="text-sm">Holiday Rate</Label>
-                <Input 
+                <Input
                   value={overtimeRules.holidayRate}
-                  onChange={(e) => setOvertimeRules({ ...overtimeRules, holidayRate: e.target.value })}
+                  onChange={(e) =>
+                    setOvertimeRules({
+                      ...overtimeRules,
+                      holidayRate: e.target.value,
+                    })
+                  }
                   className="mt-1 h-9"
                   placeholder="+0.5$/hour"
                   data-testid="input-overtime-holiday-rate"
@@ -934,14 +1253,14 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setEditingOvertimeRules(false)}
                 data-testid="button-cancel-overtime-edit"
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={() => {
                   setEditingOvertimeRules(false);
                   handleSave();
@@ -958,20 +1277,26 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         <Dialog open={editingPayRate} onOpenChange={setEditingPayRate}>
           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <h2 className="text-lg font-semibold">Update {user?.fullName}'s pay rate</h2>
+              <h2 className="text-lg font-semibold">
+                Update {user?.fullName}'s pay rate
+              </h2>
               <DialogDescription>
                 Set default and program-specific pay rates
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-6 py-4">
               {/* Default Rate Section */}
               <div className="space-y-3 pb-4 border-b">
                 <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">Default rate</Label>
-                  <Switch 
+                  <Label className="text-base font-semibold">
+                    Default rate
+                  </Label>
+                  <Switch
                     checked={payRate.useDefaultRateEnabled}
-                    onCheckedChange={(checked) => setPayRate({ ...payRate, useDefaultRateEnabled: checked })}
+                    onCheckedChange={(checked) =>
+                      setPayRate({ ...payRate, useDefaultRateEnabled: checked })
+                    }
                     data-testid="switch-default-rate-enabled"
                   />
                 </div>
@@ -979,15 +1304,22 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2 flex-1">
                       <span className="text-lg">$</span>
-                      <Input 
+                      <Input
                         type="number"
-                        value={payRate.defaultRate.replace(/[^0-9.]/g, '')}
-                        onChange={(e) => setPayRate({ ...payRate, defaultRate: `$${e.target.value}/hour` })}
+                        value={payRate.defaultRate.replace(/[^0-9.]/g, "")}
+                        onChange={(e) =>
+                          setPayRate({
+                            ...payRate,
+                            defaultRate: `$${e.target.value}/hour`,
+                          })
+                        }
                         className="h-10 text-base"
                         placeholder="35"
                         data-testid="input-payrate-default"
                       />
-                      <span className="text-sm text-muted-foreground">/hour</span>
+                      <span className="text-sm text-muted-foreground">
+                        /hour
+                      </span>
                     </div>
                   </div>
                 )}
@@ -1001,11 +1333,8 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     <Button variant="ghost" size="sm" className="h-8 text-xs">
                       All items
                     </Button>
-                    <Input 
-                      placeholder="Search"
-                      className="h-8 w-32 text-xs"
-                    />
-                    <Switch 
+                    <Input placeholder="Search" className="h-8 w-32 text-xs" />
+                    <Switch
                       checked={true}
                       data-testid="switch-job-rate-enabled"
                     />
@@ -1015,13 +1344,20 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                 {/* Programs List */}
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {payRate.jobRates.map((job, idx) => (
-                    <div key={idx} className="space-y-2 p-3 rounded-lg border bg-card">
+                    <div
+                      key={idx}
+                      className="space-y-2 p-3 rounded-lg border bg-card"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 flex-1">
-                          <div className={`h-3 w-3 rounded-full ${job.color} flex-shrink-0`} />
-                          <span className="text-sm font-medium">{job.name}</span>
+                          <div
+                            className={`h-3 w-3 rounded-full ${job.color} flex-shrink-0`}
+                          />
+                          <span className="text-sm font-medium">
+                            {job.name}
+                          </span>
                         </div>
-                        <Switch 
+                        <Switch
                           checked={!job.useDefaultRate}
                           onCheckedChange={(checked) => {
                             const newJobRates = [...payRate.jobRates];
@@ -1031,25 +1367,33 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                           data-testid={`switch-job-custom-rate-${idx}`}
                         />
                       </div>
-                      
+
                       {!job.useDefaultRate && (
                         <div className="flex items-center gap-2 pl-5">
-                          <span className="text-sm text-muted-foreground">Custom rate:</span>
+                          <span className="text-sm text-muted-foreground">
+                            Custom rate:
+                          </span>
                           <div className="flex items-center gap-1">
                             <span className="text-sm">$</span>
-                            <Input 
+                            <Input
                               type="number"
-                              value={job.rate.replace(/[^0-9.]/g, '')}
+                              value={job.rate.replace(/[^0-9.]/g, "")}
                               onChange={(e) => {
                                 const newJobRates = [...payRate.jobRates];
-                                newJobRates[idx].rate = `$${e.target.value}/hour`;
-                                setPayRate({ ...payRate, jobRates: newJobRates });
+                                newJobRates[idx].rate =
+                                  `$${e.target.value}/hour`;
+                                setPayRate({
+                                  ...payRate,
+                                  jobRates: newJobRates,
+                                });
                               }}
                               className="h-8 w-20 text-sm"
                               placeholder="35"
                               data-testid={`input-job-rate-${idx}`}
                             />
-                            <span className="text-xs text-muted-foreground">/hour</span>
+                            <span className="text-xs text-muted-foreground">
+                              /hour
+                            </span>
                           </div>
                         </div>
                       )}
@@ -1061,14 +1405,14 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
 
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="flex gap-2">
-                <Button 
+                <Button
                   variant="default"
                   size="sm"
                   data-testid="button-payrate-tab-payrate"
                 >
                   Pay rate
                 </Button>
-                <Button 
+                <Button
                   variant="ghost"
                   size="sm"
                   data-testid="button-payrate-tab-effectivedate"
@@ -1076,7 +1420,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                   Effective date
                 </Button>
               </div>
-              <Button 
+              <Button
                 onClick={() => {
                   setEditingPayRate(false);
                   handleSave();

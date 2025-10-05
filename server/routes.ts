@@ -209,10 +209,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Already clocked in" });
       }
 
+      // Get user to determine pay rate
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Auto-detect which shift the user is clocking in for
+      let jobName = req.body.jobName || null;
+      let hourlyRate = user.defaultHourlyRate;
+
+      // If no job provided, try to find user's assigned shift for today
+      if (!jobName) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Get user's shifts for today
+        const todayShifts = await storage.listShifts(
+          undefined,
+          today,
+          tomorrow,
+        );
+        const userAssignments = await storage.listShiftAssignments(
+          undefined,
+          userId,
+        );
+        const assignedShiftIds = new Set(userAssignments.map((a) => a.shiftId));
+
+        // Find assigned shift for today
+        const assignedShift = todayShifts.find(
+          (shift) => assignedShiftIds.has(shift.id) && shift.jobName,
+        );
+
+        if (assignedShift) {
+          jobName = assignedShift.jobName;
+        }
+      }
+
+      // Determine hourly rate based on job
+      if (jobName && user.jobRates) {
+        const jobRates = user.jobRates as Record<string, string>;
+        if (jobRates[jobName]) {
+          hourlyRate = jobRates[jobName];
+        }
+      }
+
       const entry = await storage.createTimeEntry({
         userId,
         clockIn: new Date(),
         clockOut: null,
+        jobName,
+        hourlyRate,
         location: req.body.location || null,
         notes: req.body.notes || null,
         status: "active",
@@ -1635,34 +1684,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!requestingUser) {
         return res.status(403).json({ error: "Forbidden" });
       }
-
       const isOwnProfile = req.params.id === req.session.userId;
       const canEditAnyUser = ["Owner", "Admin", "HR"].includes(
         requestingUser.role,
       );
-
       // Users can edit their own profile, or Owner/Admin/HR can edit any profile
       if (!isOwnProfile && !canEditAnyUser) {
         return res.status(403).json({ error: "Forbidden" });
       }
-
       const { password, ...updateData } = req.body;
-
-      // Only Owner/Admin/HR can change roles
+      // Only Owner/Admin/HR can change roles and pay rates
       if (updateData.role && !canEditAnyUser) {
         return res.status(403).json({ error: "You cannot change user roles" });
       }
-
+      if (
+        (updateData.defaultHourlyRate || updateData.jobRates) &&
+        !canEditAnyUser
+      ) {
+        return res.status(403).json({ error: "You cannot change pay rates" });
+      }
       if (password) {
         const passwordHash = await bcrypt.hash(password, 10);
         updateData.passwordHash = passwordHash;
       }
-
       const user = await storage.updateUser(req.params.id, updateData);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-
       const { passwordHash: _, ...userResponse } = user;
       await logAudit(
         req.session.userId,

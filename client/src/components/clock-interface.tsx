@@ -1,9 +1,29 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Clock, MapPin, Camera, PenTool } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,12 +35,28 @@ interface ClockInterfaceProps {
   currentSubJob?: string;
   activeEntry?: TimeEntry;
 }
-
-export function ClockInterface({ 
+const jobLocations = [
+  "Vitas Central Florida",
+  "Vitas Citrus",
+  "Vitas Nature Coast",
+  "Vitas Jacksonville",
+  "Vitas V/F/P",
+  "Vitas Midstate",
+  "Vitas Brevard",
+  "Vitas Treasure Coast",
+  "Vitas Palm Beach",
+  "Vitas Dade/Monroe",
+  "Vitas Jacksonville (St. Johns)",
+  "Vitas Broward",
+  "AdventHealth IPU",
+  "AdventHealth Central Florida",
+  "Haven",
+];
+export function ClockInterface({
   userName = "John Doe",
   currentJob = "Central Florida",
   currentSubJob = "7P-7A",
-  activeEntry
+  activeEntry,
 }: ClockInterfaceProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -29,6 +65,7 @@ export function ClockInterface({
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -56,8 +93,8 @@ export function ClockInterface({
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/time/entries'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/time/active'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time/active"] });
       toast({
         title: "Clocked In",
         description: "You have successfully clocked in",
@@ -81,8 +118,8 @@ export function ClockInterface({
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/time/entries'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/time/active'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time/active"] });
       setUploadedPhotos([]);
       setSignature(null);
       toast({
@@ -111,37 +148,39 @@ export function ClockInterface({
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleAddPhoto = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type.startsWith('image/')) {
+      if (file.type.startsWith("image/")) {
         try {
           const formData = new FormData();
-          formData.append('file', file);
-          
-          const response = await fetch('/api/upload', {
-            method: 'POST',
+          formData.append("file", file);
+
+          const response = await fetch("/api/upload", {
+            method: "POST",
             body: formData,
-            credentials: 'include',
+            credentials: "include",
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             const fileUrl = `/api/files/${data.file.filename}`;
-            setUploadedPhotos(prev => [...prev, fileUrl]);
+            setUploadedPhotos((prev) => [...prev, fileUrl]);
             toast({
               title: "Photo Uploaded",
               description: `${file.name} has been added`,
             });
           } else {
-            throw new Error('Upload failed');
+            throw new Error("Upload failed");
           }
         } catch (error) {
           toast({
@@ -164,15 +203,21 @@ export function ClockInterface({
     setShowSignaturePad(true);
   };
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+  const startDrawing = (
+    e:
+      | React.MouseEvent<HTMLCanvasElement>
+      | React.TouchEvent<HTMLCanvasElement>,
+  ) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const rect = canvas.getBoundingClientRect();
-    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    
-    const ctx = canvas.getContext('2d');
+    const x =
+      "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
+    const y =
+      "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
+
+    const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -180,17 +225,23 @@ export function ClockInterface({
     }
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+  const draw = (
+    e:
+      | React.MouseEvent<HTMLCanvasElement>
+      | React.TouchEvent<HTMLCanvasElement>,
+  ) => {
     if (!isDrawing) return;
-    
+
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const rect = canvas.getBoundingClientRect();
-    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    
-    const ctx = canvas.getContext('2d');
+    const x =
+      "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
+    const y =
+      "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
+
+    const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.lineTo(x, y);
       ctx.stroke();
@@ -204,7 +255,7 @@ export function ClockInterface({
   const clearSignature = () => {
     const canvas = canvasRef.current;
     if (canvas) {
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
@@ -214,7 +265,7 @@ export function ClockInterface({
   const saveSignature = () => {
     const canvas = canvasRef.current;
     if (canvas) {
-      const dataUrl = canvas.toDataURL('image/png');
+      const dataUrl = canvas.toDataURL("image/png");
       setSignature(dataUrl);
       setShowSignaturePad(false);
       toast({
@@ -229,14 +280,18 @@ export function ClockInterface({
       <CardHeader>
         <CardTitle>Time Clock</CardTitle>
         <CardDescription>
-          {currentTime.toLocaleTimeString()} · {currentTime.toLocaleDateString()}
+          {currentTime.toLocaleTimeString()} ·{" "}
+          {currentTime.toLocaleDateString()}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="text-center space-y-4">
           {isClockedIn && (
             <div className="space-y-2">
-              <div className="text-4xl font-mono font-bold text-primary" data-testid="text-elapsed-time">
+              <div
+                className="text-4xl font-mono font-bold text-primary"
+                data-testid="text-elapsed-time"
+              >
                 {formatTime(elapsedTime)}
               </div>
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -245,13 +300,13 @@ export function ClockInterface({
               </div>
             </div>
           )}
-          
+
           <Button
             size="lg"
             variant={isClockedIn ? "default" : "default"}
             className={`min-h-16 w-full text-lg font-semibold ${
-              isClockedIn 
-                ? "bg-chart-2 hover:bg-chart-2/90 text-white" 
+              isClockedIn
+                ? "bg-chart-2 hover:bg-chart-2/90 text-white"
                 : "bg-primary hover:bg-primary/90"
             }`}
             onClick={handleClockToggle}
@@ -269,23 +324,25 @@ export function ClockInterface({
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <Button 
-                variant="outline" 
-                className="gap-2" 
+              <Button
+                variant="outline"
+                className="gap-2"
                 onClick={handleAddPhoto}
                 data-testid="button-add-photo"
               >
                 <Camera className="h-4 w-4" />
-                {uploadedPhotos.length > 0 ? `${uploadedPhotos.length} Photo${uploadedPhotos.length !== 1 ? 's' : ''}` : 'Add Photo'}
+                {uploadedPhotos.length > 0
+                  ? `${uploadedPhotos.length} Photo${uploadedPhotos.length !== 1 ? "s" : ""}`
+                  : "Add Photo"}
               </Button>
-              <Button 
-                variant="outline" 
-                className="gap-2" 
+              <Button
+                variant="outline"
+                className="gap-2"
                 onClick={handleAddSignature}
                 data-testid="button-add-signature"
               >
                 <PenTool className="h-4 w-4" />
-                {signature ? '✓ Signed' : 'Signature'}
+                {signature ? "✓ Signed" : "Signature"}
               </Button>
             </div>
           )}
@@ -293,7 +350,9 @@ export function ClockInterface({
 
         <div className="space-y-3 pt-4 border-t">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Current Assignment</span>
+            <span className="text-sm text-muted-foreground">
+              Current Assignment
+            </span>
             <Badge variant="secondary" data-testid="badge-job">
               {currentJob}
             </Badge>
@@ -331,7 +390,7 @@ export function ClockInterface({
                 onTouchStart={startDrawing}
                 onTouchMove={draw}
                 onTouchEnd={stopDrawing}
-                style={{ cursor: 'crosshair' }}
+                style={{ cursor: "crosshair" }}
               />
             </div>
             <p className="text-sm text-muted-foreground">
@@ -342,9 +401,7 @@ export function ClockInterface({
             <Button variant="outline" onClick={clearSignature}>
               Clear
             </Button>
-            <Button onClick={saveSignature}>
-              Save Signature
-            </Button>
+            <Button onClick={saveSignature}>Save Signature</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
