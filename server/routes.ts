@@ -431,6 +431,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const entryId = req.params.id;
+        
+        // Convert ISO string dates to Date objects
+        if (req.body.clockIn && typeof req.body.clockIn === 'string') {
+          req.body.clockIn = new Date(req.body.clockIn);
+        }
+        if (req.body.clockOut && typeof req.body.clockOut === 'string') {
+          req.body.clockOut = new Date(req.body.clockOut);
+        }
+        
         const updateSchema = insertTimeEntrySchema.partial();
         const data = updateSchema.parse(req.body);
 

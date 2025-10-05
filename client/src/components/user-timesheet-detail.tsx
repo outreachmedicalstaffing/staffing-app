@@ -365,13 +365,17 @@ export function UserTimesheetDetail({
 
       const baseDate = new Date(entry[field] || entry.clockIn);
       baseDate.setHours(hours, minutes, 0, 0);
-      const isoString = baseDate.toISOString();
-      
-      console.log("Updating entry:", entryId, "setting", field, "to:", isoString);
-
+      console.log(
+        "Updating entry:",
+        entryId,
+        "setting",
+        field,
+        "to:",
+        baseDate,
+      );
       updateEntryMutation.mutate({
         entryId,
-        data: { [field]: isoString as any },
+        data: { [field]: baseDate },
       });
     } catch (error) {
       console.error("Time change error:", error);
@@ -760,10 +764,9 @@ export function UserTimesheetDetail({
                                 )}
                                 onBlur={(e) => {
                                   const newValue = e.target.value;
-                                  const oldValue = entry.clockOut ? format(
-                                    new Date(entry.clockOut),
-                                    "HH:mm",
-                                  ) : "";
+                                  const oldValue = entry.clockOut
+                                    ? format(new Date(entry.clockOut), "HH:mm")
+                                    : "";
                                   if (newValue !== oldValue) {
                                     handleTimeChange(
                                       entry.id,
