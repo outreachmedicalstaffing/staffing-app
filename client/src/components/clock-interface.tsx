@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import CurrentShift from "@/components/clock-current-shift";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -64,7 +63,6 @@ export function ClockInterface({
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   const [signature, setSignature] = useState<string | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
-  const [showNotesDialog, setShowNotesDialog] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,8 +122,6 @@ export function ClockInterface({
       queryClient.invalidateQueries({ queryKey: ["/api/time/active"] });
       setUploadedPhotos([]);
       setSignature(null);
-      // ADD THIS:
-      setShowNotesDialog(false);
       toast({
         title: "Clocked Out",
         description: "You have successfully clocked out",
@@ -142,8 +138,7 @@ export function ClockInterface({
 
   const handleClockToggle = () => {
     if (isClockedIn) {
-      // Open the notes dialog; user must attach at least one photo
-      setShowNotesDialog(true);
+      clockOutMutation.mutate();
     } else {
       clockInMutation.mutate();
     }
@@ -326,7 +321,6 @@ export function ClockInterface({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -353,77 +347,29 @@ export function ClockInterface({
             </div>
           )}
         </div>
-        <div className="pt-4 border-t">
-          <CurrentShift />
+
+        <div className="space-y-3 pt-4 border-t">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              Current Assignment
+            </span>
+            <Badge variant="secondary" data-testid="badge-job">
+              {currentJob}
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Shift</span>
+            <Badge variant="secondary" data-testid="badge-subjob">
+              {currentSubJob}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            <span>Location tracking enabled</span>
+          </div>
         </div>
       </CardContent>
-      {/* Notes (photos) – required before clock out */}
-      <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Attach shift notes (required)</DialogTitle>
-          </DialogHeader>
 
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Take photos of your paper notes. At least one image is required to
-              clock out.
-            </p>
-
-            {uploadedPhotos.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {uploadedPhotos.map((src, i) => (
-                  <div key={src + i} className="relative">
-                    <img
-                      src={src}
-                      alt={`note-${i}`}
-                      className="h-24 w-full object-cover rounded"
-                    />
-                    <button
-                      type="button"
-                      className="absolute top-1 right-1 bg-black/60 text-white text-xs px-1.5 rounded"
-                      onClick={() =>
-                        setUploadedPhotos((prev) =>
-                          prev.filter((_, idx) => idx !== i),
-                        )
-                      }
-                      aria-label="Remove photo"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={handleAddPhoto}>
-                Use camera / upload
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                {uploadedPhotos.length} photo
-                {uploadedPhotos.length === 1 ? "" : "s"} attached
-              </span>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNotesDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => clockOutMutation.mutate()}
-              disabled={
-                uploadedPhotos.length === 0 || clockOutMutation.isPending
-              }
-            >
-              {clockOutMutation.isPending
-                ? "Clocking out…"
-                : "Complete Clock Out"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       {/* Signature Pad Dialog */}
       <Dialog open={showSignaturePad} onOpenChange={setShowSignaturePad}>
         <DialogContent className="sm:max-w-md">
