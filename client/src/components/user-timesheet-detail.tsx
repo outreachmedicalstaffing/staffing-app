@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,10 +23,13 @@ import {
   ChevronRight,
   Lock,
   Unlock,
-  AlertCircle,
-  Search,
   Check,
   ChevronsUpDown,
+  Download,
+  ExternalLink,
+  Moon,
+  CornerLeftDown,
+  CornerRightUp,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimeEntry, User } from "@shared/schema";
@@ -37,7 +40,6 @@ import {
   addWeeks,
   subWeeks,
   eachDayOfInterval,
-  parseISO,
 } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -95,6 +97,8 @@ export function UserTimesheetDetail({
   open,
   onClose,
 }: UserTimesheetDetailProps) {
+  const [notesDraft, setNotesDraft] = useState<Record<string, string>>({});
+  const notesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const { toast } = useToast();
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 }),
@@ -107,7 +111,44 @@ export function UserTimesheetDetail({
   const [jobPopoverOpen, setJobPopoverOpen] = useState<Record<string, boolean>>(
     {},
   );
+  const [manualEntryDialogOpen, setManualEntryDialogOpen] = useState(false);
+  const [manualEntryDate, setManualEntryDate] = useState<Date | null>(null);
+  const [manualEntryData, setManualEntryData] = useState({
+    clockIn: "",
+    clockOut: "",
+    location: "",
+  });
+  // Image preview state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const downloadCurrent = () => {
+    const url = previewImages[previewIndex];
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = url.split("/").pop() || `attachment-${previewIndex + 1}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
 
+  const downloadAll = () => {
+    previewImages.forEach((u, i) => {
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = u.split("/").pop() || `attachment-${i + 1}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  };
+  const openPreview = (images: string[], start = 0) => {
+    if (!images || images.length === 0) return;
+    setPreviewImages(images);
+    setPreviewIndex(Math.max(0, Math.min(start, images.length - 1)));
+    setPreviewOpen(true);
+  };
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/auth/me"],
@@ -119,7 +160,12 @@ export function UserTimesheetDetail({
       : ["/api/time/entries"],
     enabled: !!user,
   });
-
+  // Seed notesDraft with server values whenever timeEntries load/refresh
+  useEffect(() => {
+    const map: Record<string, string> = {};
+    for (const e of timeEntries) map[e.id] = e.managerNotes || "";
+    setNotesDraft(map);
+  }, [timeEntries]);
   // Query timesheet for this user and week period
   const { data: timesheets = [] } = useQuery<any[]>({
     queryKey: user?.id ? [`/api/timesheets?userId=${user.id}`] : [],
@@ -136,17 +182,11 @@ export function UserTimesheetDetail({
   const daysReversed = [...weekDays].reverse();
 
   // Navigation functions
-  const goToPreviousWeek = () => {
+  const goToPreviousWeek = () =>
     setCurrentWeekStart(subWeeks(currentWeekStart, 1));
-  };
-
-  const goToNextWeek = () => {
-    setCurrentWeekStart(addWeeks(currentWeekStart, 1));
-  };
-
-  const goToCurrentWeek = () => {
+  const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+  const goToCurrentWeek = () =>
     setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  };
 
   // Check if user can edit (Owner or Admin)
   const canEdit =
@@ -155,7 +195,6 @@ export function UserTimesheetDetail({
   // Approve timesheet mutation
   const approveMutation = useMutation({
     mutationFn: async () => {
-      // Find existing timesheet for this period
       const existingTimesheet = timesheets.find((ts: any) => {
         const tsStart = new Date(ts.periodStart);
         const tsEnd = new Date(ts.periodEnd);
@@ -167,7 +206,6 @@ export function UserTimesheetDetail({
 
       let timesheetId = existingTimesheet?.id;
 
-      // If no timesheet exists, create one
       if (!timesheetId) {
         const createResult = await apiRequest("POST", "/api/timesheets", {
           userId: user?.id,
@@ -181,7 +219,6 @@ export function UserTimesheetDetail({
         timesheetId = newTimesheet.id;
       }
 
-      // Approve the timesheet
       const result = await apiRequest(
         "POST",
         `/api/timesheets/${timesheetId}/approve`,
@@ -201,10 +238,11 @@ export function UserTimesheetDetail({
         description: "The timesheet has been successfully approved",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Create entry error:", error);
       toast({
         title: "Error",
-        description: "Failed to approve timesheet",
+        description: error.message || "Failed to create time entry",
         variant: "destructive",
       });
     },
@@ -225,12 +263,9 @@ export function UserTimesheetDetail({
       return result.json();
     },
     onSuccess: (data, variables) => {
-      // Close any open job popovers for this entry (security: prevent editing locked entries)
       if (variables.locked) {
         setJobPopoverOpen((prev) => ({ ...prev, [variables.entryId]: false }));
       }
-
-      // Invalidate all time entries queries (including those with userId params)
       queryClient.invalidateQueries({
         predicate: (query) =>
           query.queryKey[0]?.toString().startsWith("/api/time/entries") ??
@@ -263,34 +298,191 @@ export function UserTimesheetDetail({
       );
       return result.json();
     },
-    onSuccess: () => {
-      // Invalidate and refetch all time entries queries
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         predicate: (query) =>
           query.queryKey[0]?.toString().startsWith("/api/time/entries") ??
           false,
       });
+      // 👇 suppress the toast if we passed _silentToast for debounced manager notes
+      const silent = (variables?.data as any)?._silentToast;
+      if (!silent) {
+        toast({
+          title: "Entry updated",
+          description: "Time entry has been updated successfully",
+        });
+      }
+    },
+  });
+  const queueSaveNotes = useCallback(
+    (entryId: string, value: string) => {
+      // clear previous timer for this entry
+      if (notesTimers.current[entryId]) {
+        clearTimeout(notesTimers.current[entryId]);
+      }
+      // schedule save after 800ms idle
+      notesTimers.current[entryId] = setTimeout(() => {
+        updateEntryMutation.mutate({
+          entryId,
+          data: { managerNotes: value, _silentToast: true }, // optional flag to suppress toast
+        });
+      }, 800);
+    },
+    [updateEntryMutation],
+  );
+  // Create time entry mutation (defensive parse + optimistic cache w/ fallback on refetch)
+  const createEntryMutation = useMutation({
+    mutationFn: async (data: {
+      userId: string;
+      clockIn: string;
+      clockOut: string;
+      location: string;
+      hourlyRate: string;
+    }) => {
+      const result = await apiRequest("POST", "/api/time/entries", data);
 
-      // Force immediate refetch
-      queryClient.refetchQueries({
-        predicate: (query) =>
-          query.queryKey[0]?.toString().startsWith("/api/time/entries") ??
-          false,
+      if (!result.ok) {
+        let serverMessage = "";
+        try {
+          const errText = await result.text();
+          if (errText) {
+            try {
+              const parsed = JSON.parse(errText);
+              serverMessage = parsed?.message || errText;
+            } catch {
+              serverMessage = errText;
+            }
+          }
+        } catch {}
+        throw new Error(
+          serverMessage ||
+            `Failed to create time entry (HTTP ${result.status})`,
+        );
+      }
+
+      const text = await result.text();
+      if (!text) return null;
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    },
+    onSuccess: async (createdEntry, variables) => {
+      const fallback = {
+        id: `temp-${Date.now()}`,
+        userId: variables.userId,
+        clockIn: variables.clockIn,
+        clockOut: variables.clockOut,
+        location: variables.location || "",
+        hourlyRate: variables.hourlyRate || (user?.defaultHourlyRate ?? "25"),
+        locked: false,
+        managerNotes: "",
+        employeeNotes: "",
+        shiftNoteAttachments: [],
+        relievingNurseSignature: null as any,
+      };
+
+      const key = [`/api/time/entries?userId=${user?.id}`];
+
+      const containsCreated = (arr: any[] | undefined | null) => {
+        if (!Array.isArray(arr)) return false;
+        const ci = new Date(variables.clockIn).getTime();
+        return arr.some(
+          (e: any) =>
+            (e?.userId?.toString?.() ?? e?.userId) ===
+              (variables.userId?.toString?.() ?? variables.userId) &&
+            new Date(e.clockIn as any).getTime() === ci,
+        );
+      };
+
+      // Optimistic insert
+      queryClient.setQueryData(key, (old: any) => {
+        const prev = Array.isArray(old) ? old : [];
+        const candidate =
+          createdEntry && typeof createdEntry === "object"
+            ? createdEntry
+            : fallback;
+        if (containsCreated(prev)) return prev;
+        const byId = prev.findIndex((e: any) => e?.id && e.id === candidate.id);
+        if (byId !== -1) {
+          const next = [...prev];
+          next[byId] = { ...next[byId], ...candidate };
+          return next;
+        }
+        return [...prev, candidate];
       });
+
+      // Refetch from server
+      await queryClient.invalidateQueries({ queryKey: key });
+      await queryClient.refetchQueries({ queryKey: key, type: "active" });
+
+      // Keep fallback if server list doesn't include it (tz/filter issues)
+      const latest = queryClient.getQueryData(key) as any[] | undefined;
+      if (!containsCreated(latest)) {
+        queryClient.setQueryData(key, (old: any) => {
+          const prev = Array.isArray(old) ? old : [];
+          if (containsCreated(prev)) return prev;
+          return [...prev, fallback];
+        });
+      }
 
       toast({
-        title: "Entry updated",
-        description: "Time entry has been updated successfully",
+        title: "Entry created",
+        description: "Time entry has been created successfully",
       });
+      setManualEntryDialogOpen(false);
+      setManualEntryData({ clockIn: "", clockOut: "", location: "" });
+      setManualEntryDate(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Update failed",
-        description: error.message || "Failed to update time entry",
+        title: "Error",
+        description: error?.message || "Failed to create time entry",
         variant: "destructive",
       });
     },
   });
+
+  const handleManualEntry = (date: Date) => {
+    setManualEntryDate(date);
+    setManualEntryDialogOpen(true);
+  };
+
+  const handleManualEntrySave = async () => {
+    if (!manualEntryDate || !user?.id) return;
+
+    const [inHours, inMinutes] = manualEntryData.clockIn.split(":").map(Number);
+    const [outHours, outMinutes] = manualEntryData.clockOut
+      .split(":")
+      .map(Number);
+
+    const clockInDate = new Date(manualEntryDate);
+    clockInDate.setHours(inHours, inMinutes, 0, 0);
+
+    const clockOutDate = new Date(manualEntryDate);
+    clockOutDate.setHours(outHours, outMinutes, 0, 0);
+
+    if (clockOutDate <= clockInDate) {
+      clockOutDate.setDate(clockOutDate.getDate() + 1);
+    }
+
+    let hourlyRate = user.defaultHourlyRate || "25";
+    if (manualEntryData.location && (user as any).jobRates) {
+      const jobRates = (user.jobRates as Record<string, string>) || {};
+      if (jobRates[manualEntryData.location]) {
+        hourlyRate = jobRates[manualEntryData.location];
+      }
+    }
+
+    await createEntryMutation.mutateAsync({
+      userId: user.id,
+      clockIn: clockInDate.toISOString(),
+      clockOut: clockOutDate.toISOString(),
+      location: manualEntryData.location,
+      hourlyRate: hourlyRate,
+    });
+  };
 
   const handleLockToggle = (date: Date, entry: TimeEntry | null) => {
     setSelectedDay({ date, entry });
@@ -307,7 +499,6 @@ export function UserTimesheetDetail({
   };
 
   const handleJobChange = (entryId: string, location: string) => {
-    // Check if entry is locked before allowing changes
     const entry = timeEntries.find((e) => e.id === entryId);
     if (entry?.locked) {
       toast({
@@ -318,23 +509,15 @@ export function UserTimesheetDetail({
       return;
     }
 
-    // Determine the new hourly rate based on the selected job
     let newHourlyRate = user?.defaultHourlyRate || "25";
-
     if (location && user?.jobRates) {
       const jobRates = user.jobRates as Record<string, string>;
-      if (jobRates[location]) {
-        newHourlyRate = jobRates[location];
-      }
+      if (jobRates[location]) newHourlyRate = jobRates[location];
     }
 
-    // Update both location and hourlyRate
     updateEntryMutation.mutate({
       entryId,
-      data: {
-        location,
-        hourlyRate: newHourlyRate,
-      },
+      data: { location, hourlyRate: newHourlyRate },
     });
   };
 
@@ -356,26 +539,20 @@ export function UserTimesheetDetail({
     }
 
     try {
-      console.log("Received time value:", value, "for field:", field);
       const [hours, minutes] = value.split(":").map(Number);
-
-      if (isNaN(hours) || isNaN(minutes)) {
+      if (isNaN(hours) || isNaN(minutes))
         throw new Error("Invalid time format");
-      }
 
-      const baseDate = new Date(entry[field] || entry.clockIn);
-      baseDate.setHours(hours, minutes, 0, 0);
-      console.log(
-        "Updating entry:",
-        entryId,
-        "setting",
-        field,
-        "to:",
-        baseDate,
-      );
+      const existingTime = (entry as any)[field] || entry.clockIn;
+      const date = new Date(existingTime);
+      if (isNaN(date.getTime())) throw new Error("Invalid date");
+
+      date.setHours(hours, minutes, 0, 0);
+      if (isNaN(date.getTime())) throw new Error("Invalid time value");
+
       updateEntryMutation.mutate({
         entryId,
-        data: { [field]: baseDate },
+        data: { [field]: date.toISOString() } as any,
       });
     } catch (error) {
       console.error("Time change error:", error);
@@ -410,30 +587,66 @@ export function UserTimesheetDetail({
     return inDate.getTime() !== outDate.getTime();
   };
 
-  // Get entry for a specific day
+  // Calculate split hours for overnight shifts
+  const getSplitShiftInfo = (entry: TimeEntry, viewDate: Date) => {
+    if (!entry.clockOut) return null;
+
+    const clockIn = new Date(entry.clockIn);
+    const clockOut = new Date(entry.clockOut);
+
+    if (!isOvernightShift(clockIn, clockOut)) return null;
+
+    const midnight = new Date(clockIn);
+    midnight.setDate(midnight.getDate() + 1);
+    midnight.setHours(0, 0, 0, 0);
+
+    const viewDateStr = format(viewDate, "yyyy-MM-dd");
+    const clockInDateStr = format(clockIn, "yyyy-MM-dd");
+
+    if (viewDateStr === clockInDateStr) {
+      const hoursBeforeMidnight =
+        (midnight.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
+      return {
+        isFirstDay: true,
+        displayStart: format(clockIn, "h:mm a"),
+        displayEnd: "12:00 AM 🌙",
+        hours: hoursBeforeMidnight,
+      };
+    }
+
+    const hoursAfterMidnight =
+      (clockOut.getTime() - midnight.getTime()) / (1000 * 60 * 60);
+    return {
+      isFirstDay: false,
+      displayStart: "🌙 12:00 AM",
+      displayEnd: format(clockOut, "h:mm a"),
+      hours: hoursAfterMidnight,
+    };
+  };
+
+  // Get entry for a specific day (range-based: handles timezones & non-ISO strings)
   const getEntryForDay = (date: Date): TimeEntry | null => {
-    const dateStr = format(date, "yyyy-MM-dd");
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
     return (
       timeEntries.find((entry) => {
-        const entryDateStr = entry.clockIn.toString().split("T")[0];
-        // Check if this is the clock-in day
-        if (entryDateStr === dateStr) return true;
-
-        // Check if this is an overnight shift ending on this day
-        if (
-          entry.clockOut &&
-          isOvernightShift(new Date(entry.clockIn), new Date(entry.clockOut))
-        ) {
-          const clockOutDateStr = entry.clockOut.toString().split("T")[0];
-          return clockOutDateStr === dateStr;
+        const clockIn = new Date(entry.clockIn as any);
+        const clockOut = entry.clockOut
+          ? new Date(entry.clockOut as any)
+          : null;
+        if (clockIn >= start && clockIn < end) return true;
+        if (clockOut && isOvernightShift(clockIn, clockOut)) {
+          if (clockOut >= start && clockOut < end) return true;
         }
-
         return false;
       }) || null
     );
   };
 
-  // Calculate hours for an entry
+  // Calculate hours for an entry (raw full-span hours)
   const calculateHours = (entry: TimeEntry | null) => {
     if (!entry || !entry.clockOut) return 0;
     const hours =
@@ -442,18 +655,14 @@ export function UserTimesheetDetail({
     return hours;
   };
 
-  // Calculate totals for the week
+  // Calculate totals for the week (count only first day of split)
   const weeklyTotals = daysReversed.reduce(
     (totals, date) => {
       const entry = getEntryForDay(date);
-      // Recalculate hours from current entry data on every render
-      const hours =
-        entry && entry.clockOut
-          ? (new Date(entry.clockOut).getTime() -
-              new Date(entry.clockIn).getTime()) /
-            (1000 * 60 * 60)
-          : 0;
-      // Use the actual hourly rate from the time entry, or fall back to default
+      const splitInfo = entry ? getSplitShiftInfo(entry, date) : null;
+      const shouldCountHours = !splitInfo || splitInfo.isFirstDay;
+      const hours = shouldCountHours ? calculateHours(entry) : 0;
+
       const hourlyRate = entry?.hourlyRate
         ? parseFloat(entry.hourlyRate)
         : parseFloat(user?.defaultHourlyRate || "25");
@@ -472,7 +681,12 @@ export function UserTimesheetDetail({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) onClose();
+        }}
+      >
         <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
@@ -559,7 +773,14 @@ export function UserTimesheetDetail({
               <div>
                 <p className="text-sm text-muted-foreground">Worked Days</p>
                 <p className="text-lg font-semibold">
-                  {daysReversed.filter((date) => getEntryForDay(date)).length}
+                  {
+                    daysReversed.filter((date) => {
+                      const entry = getEntryForDay(date);
+                      if (!entry) return false;
+                      const splitInfo = getSplitShiftInfo(entry, date);
+                      return !splitInfo || splitInfo.isFirstDay;
+                    }).length
+                  }
                 </p>
               </div>
             </div>
@@ -590,27 +811,46 @@ export function UserTimesheetDetail({
                 <TableBody>
                   {daysReversed.map((date) => {
                     const entry = getEntryForDay(date);
-                    const hours =
-                      entry && entry.clockOut
-                        ? (new Date(entry.clockOut).getTime() -
-                            new Date(entry.clockIn).getTime()) /
-                          (1000 * 60 * 60)
-                        : 0;
-                    // Use the actual hourly rate from the time entry, or fall back to default
+                    const splitInfo = entry
+                      ? getSplitShiftInfo(entry, date)
+                      : null;
+                    const hours = splitInfo
+                      ? splitInfo.hours
+                      : calculateHours(entry);
                     const hourlyRate = entry?.hourlyRate
                       ? parseFloat(entry.hourlyRate)
-                      : parseFloat(user.defaultHourlyRate || "25");
+                      : parseFloat(
+                          ((user as any)?.defaultHourlyRate ?? "25") as string,
+                        );
                     const dailyPay = hours * hourlyRate;
                     const isLocked = entry?.locked || false;
+                    // --- overnight visual linking helpers ---
+                    const rowId = `row-${format(date, "yyyy-MM-dd")}`;
 
+                    const prev = new Date(date);
+                    prev.setDate(prev.getDate() - 1);
+                    const next = new Date(date);
+                    next.setDate(next.getDate() + 1);
+
+                    const prevId = `row-${format(prev, "yyyy-MM-dd")}`;
+                    const nextId = `row-${format(next, "yyyy-MM-dd")}`;
+                    // light band + left border for both sides of an overnight pair
+                    const pairClass = splitInfo
+                      ? "bg-blue-50/60 border-l-4 border-blue-600"
+                      : "";
+                    // ---
                     return (
                       <TableRow
+                        id={rowId}
                         key={date.toISOString()}
                         data-testid={`row-day-${format(date, "yyyy-MM-dd")}`}
+                        className={pairClass}
                       >
                         <TableCell className="font-medium">
                           {format(date, "EEE M/d")}
                         </TableCell>
+
+                        {/* Job cell */}
                         <TableCell>
                           {entry ? (
                             canEdit ? (
@@ -631,6 +871,11 @@ export function UserTimesheetDetail({
                                     className="w-[200px] justify-between h-8 font-normal"
                                     data-testid={`select-job-${format(date, "yyyy-MM-dd")}`}
                                     disabled={isLocked}
+                                    title={
+                                      splitInfo && !splitInfo.isFirstDay
+                                        ? "Overnight continuation — editing job updates the whole shift"
+                                        : undefined
+                                    }
                                   >
                                     {entry.location || "Select"}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -692,11 +937,7 @@ export function UserTimesheetDetail({
                                                 {job.name}
                                               </span>
                                               <Check
-                                                className={`ml-auto h-4 w-4 ${
-                                                  entry.location === job.name
-                                                    ? "opacity-100"
-                                                    : "opacity-0"
-                                                }`}
+                                                className={`ml-auto h-4 w-4 ${entry.location === job.name ? "opacity-100" : "opacity-0"}`}
                                               />
                                             </div>
                                           </CommandItem>
@@ -711,16 +952,39 @@ export function UserTimesheetDetail({
                                 {entry.location || "—"}
                               </span>
                             )
+                          ) : canEdit ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleManualEntry(date)}
+                              className="h-8"
+                            >
+                              Add Entry
+                            </Button>
                           ) : (
                             "—"
                           )}
                         </TableCell>
+
+                        {/* Start cell */}
                         <TableCell>
                           {entry ? (
-                            canEdit ? (
+                            // Second day of an overnight: show a clear link back to the previous day
+                            splitInfo && !splitInfo.isFirstDay ? (
+                              <a
+                                href={`#${prevId}`}
+                                className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"
+                                title={`Linked from ${format(prev, "EEE M/d")}`}
+                              >
+                                <CornerRightUp className="h-3 w-3" />
+                                <span>12:00 AM</span>
+                                <span className="ml-1 text-[11px]">
+                                  from {format(prev, "EEE M/d")}
+                                </span>
+                              </a>
+                            ) : canEdit ? (
                               <Input
                                 type="time"
-                                key={`start-${entry.id}-${entry.clockIn}`}
                                 defaultValue={format(
                                   new Date(entry.clockIn),
                                   "HH:mm",
@@ -752,21 +1016,37 @@ export function UserTimesheetDetail({
                             "—"
                           )}
                         </TableCell>
+
+                        {/* End cell */}
                         <TableCell>
                           {entry?.clockOut ? (
-                            canEdit ? (
+                            // First day of an overnight: clear link forward to the next day
+                            splitInfo && splitInfo.isFirstDay ? (
+                              <a
+                                href={`#${nextId}`}
+                                className="inline-flex items-center gap-1 text-sm text-blue-700 whitespace-nowrap hover:underline"
+                                title={`Continues to ${format(next, "EEE M/d")}`}
+                              >
+                                <span>12:00 AM</span>
+                                <CornerLeftDown className="h-3 w-3" />
+                                <Moon className="h-3 w-3" />
+                                <span className="ml-1 text-[11px]">
+                                  to {format(next, "EEE M/d")}
+                                </span>
+                              </a>
+                            ) : canEdit ? (
                               <Input
                                 type="time"
-                                key={`end-${entry.id}-${entry.clockOut}`}
                                 defaultValue={format(
                                   new Date(entry.clockOut),
                                   "HH:mm",
                                 )}
                                 onBlur={(e) => {
                                   const newValue = e.target.value;
-                                  const oldValue = entry.clockOut
-                                    ? format(new Date(entry.clockOut), "HH:mm")
-                                    : "";
+                                  const oldValue = format(
+                                    new Date(entry.clockOut),
+                                    "HH:mm",
+                                  );
                                   if (newValue !== oldValue) {
                                     handleTimeChange(
                                       entry.id,
@@ -780,7 +1060,7 @@ export function UserTimesheetDetail({
                                 disabled={isLocked}
                               />
                             ) : (
-                              <span className="text-sm">
+                              <span className="text-sm whitespace-nowrap">
                                 {format(new Date(entry.clockOut), "h:mm a")}
                               </span>
                             )
@@ -788,8 +1068,20 @@ export function UserTimesheetDetail({
                             "—"
                           )}
                         </TableCell>
+
+                        {/* Totals for the day */}
                         <TableCell>
-                          {hours > 0 ? hours.toFixed(2) : "—"}
+                          {splitInfo && !splitInfo.isFirstDay ? (
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">
+                              {hours.toFixed(2)} 🌙
+                            </span>
+                          ) : hours > 0 ? (
+                            <span className="whitespace-nowrap">
+                              {hours.toFixed(2)}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
                         </TableCell>
                         <TableCell>
                           {entry ? `$${hourlyRate.toFixed(2)}` : "—"}
@@ -805,6 +1097,8 @@ export function UserTimesheetDetail({
                           {hours > 0 ? hours.toFixed(2) : "—"}
                         </TableCell>
                         <TableCell>—</TableCell>
+
+                        {/* Actions */}
                         <TableCell>
                           {canEdit && entry && (
                             <Button
@@ -822,6 +1116,7 @@ export function UserTimesheetDetail({
                             </Button>
                           )}
                         </TableCell>
+
                         <TableCell>
                           {entry?.relievingNurseSignature ? (
                             <img
@@ -840,17 +1135,13 @@ export function UserTimesheetDetail({
                           )}
                         </TableCell>
                         <TableCell>
-                          {entry?.shiftNoteAttachments &&
-                          entry.shiftNoteAttachments.length > 0 ? (
+                          {entry?.shiftNoteAttachments?.length ? (
                             <button
                               className="text-blue-600 hover:underline text-sm"
-                              onClick={() => {
-                                // TODO: Open image viewer modal
-                                toast({
-                                  title: "Attachments",
-                                  description: `${entry.shiftNoteAttachments?.length} file(s) attached`,
-                                });
-                              }}
+                              onClick={() =>
+                                openPreview(entry.shiftNoteAttachments!, 0)
+                              }
+                              data-testid={`btn-preview-attachments-${format(date, "yyyy-MM-dd")}`}
                             >
                               {entry.shiftNoteAttachments.length} image
                               {entry.shiftNoteAttachments.length !== 1
@@ -871,13 +1162,19 @@ export function UserTimesheetDetail({
                             canEdit ? (
                               <Input
                                 type="text"
-                                value={entry.managerNotes || ""}
-                                onChange={(e) =>
-                                  handleManagerNotesChange(
-                                    entry.id,
-                                    e.target.value,
-                                  )
+                                value={
+                                  notesDraft[entry.id] ??
+                                  entry.managerNotes ??
+                                  ""
                                 }
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setNotesDraft((prev) => ({
+                                    ...prev,
+                                    [entry.id]: val,
+                                  }));
+                                  queueSaveNotes(entry.id, val); // debounced save (~800ms)
+                                }}
                                 placeholder="Add notes..."
                                 className="w-full min-w-[150px] h-8"
                                 data-testid={`input-manager-notes-${format(date, "yyyy-MM-dd")}`}
@@ -983,6 +1280,194 @@ export function UserTimesheetDetail({
               data-testid="button-confirm-lock"
             >
               {selectedDay?.entry?.locked ? "Unlock day" : "Confirm locking"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Image preview dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              Shift note images
+              {previewImages.length
+                ? ` (${previewIndex + 1}/${previewImages.length})`
+                : ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          {previewImages.length > 0 ? (
+            <div className="space-y-3">
+              <div className="relative">
+                <img
+                  src={previewImages[previewIndex]}
+                  alt={`attachment-${previewIndex + 1}`}
+                  className="max-h-[70vh] w-full object-contain rounded border bg-black/5"
+                  onClick={() =>
+                    window.open(previewImages[previewIndex], "_blank")
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setPreviewIndex(
+                      (i) =>
+                        (i - 1 + previewImages.length) % previewImages.length,
+                    )
+                  }
+                >
+                  Prev
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {previewIndex + 1} / {previewImages.length}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setPreviewIndex((i) => (i + 1) % previewImages.length)
+                  }
+                >
+                  Next
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    window.open(previewImages[previewIndex], "_blank")
+                  }
+                  title="Open in a new tab"
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Open
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadCurrent}
+                  title="Download this image"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
+                </Button>
+                {previewImages.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={downloadAll}
+                    title="Download all images"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Download all
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-6 gap-2">
+                {previewImages.map((src, i) => (
+                  <button
+                    key={src + i}
+                    onClick={() => setPreviewIndex(i)}
+                    className={`border rounded overflow-hidden ${
+                      i === previewIndex ? "ring-2 ring-primary" : ""
+                    }`}
+                    title={`Open image ${i + 1}`}
+                  >
+                    <img
+                      src={src}
+                      alt={`thumb-${i + 1}`}
+                      className="h-16 w-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No images to display.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+      {/* Manual Time Entry Dialog */}
+      <AlertDialog
+        open={manualEntryDialogOpen}
+        onOpenChange={setManualEntryDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Add Time Entry for{" "}
+              {manualEntryDate ? format(manualEntryDate, "EEEE, MMMM d") : ""}
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Job Location
+              </label>
+              <select
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                value={manualEntryData.location}
+                onChange={(e) =>
+                  setManualEntryData({
+                    ...manualEntryData,
+                    location: e.target.value,
+                  })
+                }
+              >
+                <option value="">Select job...</option>
+                {jobLocations.map((job) => (
+                  <option key={job.id} value={job.name}>
+                    {job.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Clock In</label>
+              <Input
+                type="time"
+                value={manualEntryData.clockIn}
+                onChange={(e) =>
+                  setManualEntryData({
+                    ...manualEntryData,
+                    clockIn: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Clock Out
+              </label>
+              <Input
+                type="time"
+                value={manualEntryData.clockOut}
+                onChange={(e) =>
+                  setManualEntryData({
+                    ...manualEntryData,
+                    clockOut: e.target.value,
+                  })
+                }
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleManualEntrySave}
+              disabled={
+                !manualEntryData.clockIn ||
+                !manualEntryData.clockOut ||
+                !manualEntryData.location ||
+                createEntryMutation.isPending
+              }
+            >
+              {createEntryMutation.isPending ? "Creating..." : "Create Entry"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
