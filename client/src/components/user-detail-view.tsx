@@ -1276,44 +1276,102 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
             {/* single wrapper for ALL dialog body */}
             <div className="space-y-6 py-4">
 
-              {/* Default Rate Section (safe version) */}
+              {/* Default Rate Section */}
               <div className="space-y-3 pb-4 border-b">
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-semibold">Default rate</Label>
                   <Switch
                     checked={payRate.useDefaultRateEnabled}
-                    onCheckedChange={(checked) =>
-                      setPayRate((prev) => ({ ...prev, useDefaultRateEnabled: checked }))
-                    }
+                    onCheckedChange={(checked) => {
+                      setPayRate((prev) => ({
+                        ...prev,
+                        useDefaultRateEnabled: checked,
+                        jobRates: prev.jobRates.map(job => ({
+                          ...job,
+                          useDefaultRate: checked
+                        }))
+                      }));
+                    }}
                     data-testid="switch-default-rate-enabled"
                   />
                 </div>
 
-                {payRate.useDefaultRateEnabled && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className="text-lg">$</span>
-                      <Input
-                        type="number"
-                        value={payRate.defaultRate.replace(/[^0-9.]/g, "")}
-                        onChange={(e) =>
-                          setPayRate((prev) => ({
-                            ...prev,
-                            defaultRate: `$${e.target.value}/hour`,
-                          }))
-                        }
-                        className="h-10 text-base"
-                        placeholder="35"
-                        data-testid="input-payrate-default"
-                      />
-                      <span className="text-sm text-muted-foreground">/hour</span>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-lg">$</span>
+                    <Input
+                      type="number"
+                      value={payRate.defaultRate.replace(/[^0-9.]/g, "")}
+                      onChange={(e) =>
+                        setPayRate((prev) => ({
+                          ...prev,
+                          defaultRate: `$${e.target.value}/hour`,
+                          jobRates: prev.useDefaultRateEnabled 
+                            ? prev.jobRates.map(job => ({
+                                ...job,
+                                rate: `$${e.target.value}/hour`
+                              }))
+                            : prev.jobRates
+                        }))
+                      }
+                      className="h-10 text-base"
+                      placeholder="35"
+                      data-testid="input-payrate-default"
+                    />
+                    <span className="text-sm text-muted-foreground">/hour</span>
                   </div>
-                )}
+                </div>
               </div>
 
+              {/* Program-Specific Rates Section */}
+              {!payRate.useDefaultRateEnabled && payRate.jobRates.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Program rates</Label>
+                  <div className="space-y-3">
+                    {payRate.jobRates.map((job, index) => (
+                      <div key={job.name} className="flex items-center gap-3">
+                        <div className={`w-1 h-9 rounded ${job.color}`} />
+                        <div className="flex-1">
+                          <Label className="text-sm font-normal">{job.name}</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">$</span>
+                          <Input
+                            type="number"
+                            value={job.rate.replace(/[^0-9.]/g, "")}
+                            onChange={(e) => {
+                              const newJobRates = [...payRate.jobRates];
+                              newJobRates[index] = {
+                                ...newJobRates[index],
+                                rate: `$${e.target.value}/hour`,
+                                useDefaultRate: false
+                              };
+                              setPayRate((prev) => ({
+                                ...prev,
+                                jobRates: newJobRates
+                              }));
+                            }}
+                            className="h-9 w-24 text-base"
+                            placeholder="35"
+                            data-testid={`input-payrate-${job.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          />
+                          <span className="text-sm text-muted-foreground">/hour</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Status message when using default rate */}
+              {payRate.useDefaultRateEnabled && (
+                <div className="text-sm text-muted-foreground">
+                  All programs use default rate
+                </div>
+              )}
+
               {/* Buttons row */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 pt-4">
                 <Button
                   variant="ghost"
                   size="sm"
