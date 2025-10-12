@@ -24,7 +24,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
+
 import type { User } from "@shared/schema";
 
 const menuItems = [
@@ -51,9 +51,9 @@ function getInitials(fullName: string): string {
   return (names[0][0] + names[names.length - 1][0]).toUpperCase();
 }
 
-export function AppSidebar({ hipaaMode = true }: AppSidebarProps) {
+export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
   const [location] = useLocation();
-  
+
   const { data: currentUser, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
@@ -72,16 +72,6 @@ export function AppSidebar({ hipaaMode = true }: AppSidebarProps) {
             </span>
           </div>
         </div>
-        {hipaaMode && (
-          <Badge
-            variant="secondary"
-            className="mt-3 justify-center gap-1.5"
-            data-testid="badge-hipaa-mode"
-          >
-            <Shield className="h-3 w-3" />
-            HIPAA Mode Active
-          </Badge>
-        )}
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -108,15 +98,25 @@ export function AppSidebar({ hipaaMode = true }: AppSidebarProps) {
       <SidebarFooter className="p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-            <span className="text-sm font-medium" data-testid="text-user-initials">
-              {isLoading ? "..." : currentUser ? getInitials(currentUser.fullName) : "?"}
+            <span
+              className="text-sm font-medium"
+              data-testid="text-user-initials"
+            >
+              {isLoading
+                ? "..."
+                : currentUser
+                  ? getInitials(currentUser.fullName)
+                  : "?"}
             </span>
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-medium" data-testid="text-user-name">
               {isLoading ? "Loading..." : currentUser?.fullName || "Guest"}
             </span>
-            <span className="text-xs text-muted-foreground" data-testid="text-user-role">
+            <span
+              className="text-xs text-muted-foreground"
+              data-testid="text-user-role"
+            >
               {isLoading ? "..." : currentUser?.role || "No role"}
             </span>
           </div>

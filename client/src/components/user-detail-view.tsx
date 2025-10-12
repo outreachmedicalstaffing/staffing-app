@@ -2,10 +2,12 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogTitle,      
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Plus } from "lucide-react"
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -51,7 +53,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-
+const SHOW_USER_TAGS = false;
 interface UserDetailViewProps {
   user: User | null;
   open: boolean;
@@ -898,28 +900,11 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                </div>
-
-                {/* Tags */}
-                <div className="mt-6 pt-6 border-t">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold flex items-center gap-2">
-                      <ChevronDown className="h-4 w-4" />
-                      <span>Tags (0)</span>
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-blue-600 p-0 h-auto text-sm"
-                    >
-                      + Add tags
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
             </div>
-          </div>
 
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto">
@@ -1274,7 +1259,10 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         </Dialog>
 
         {/* Pay Rate Edit Dialog */}
-        <Dialog open={editingPayRate} onOpenChange={setEditingPayRate}>
+        <Dialog
+          open={editingPayRate}
+          onOpenChange={(open) => setEditingPayRate(open)}
+        >
           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <h2 className="text-lg font-semibold">
@@ -1285,21 +1273,22 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
               </DialogDescription>
             </DialogHeader>
 
+            {/* single wrapper for ALL dialog body */}
             <div className="space-y-6 py-4">
-              {/* Default Rate Section */}
+
+              {/* Default Rate Section (safe version) */}
               <div className="space-y-3 pb-4 border-b">
                 <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">
-                    Default rate
-                  </Label>
+                  <Label className="text-base font-semibold">Default rate</Label>
                   <Switch
                     checked={payRate.useDefaultRateEnabled}
                     onCheckedChange={(checked) =>
-                      setPayRate({ ...payRate, useDefaultRateEnabled: checked })
+                      setPayRate((prev) => ({ ...prev, useDefaultRateEnabled: checked }))
                     }
                     data-testid="switch-default-rate-enabled"
                   />
                 </div>
+
                 {payRate.useDefaultRateEnabled && (
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2 flex-1">
@@ -1308,110 +1297,23 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                         type="number"
                         value={payRate.defaultRate.replace(/[^0-9.]/g, "")}
                         onChange={(e) =>
-                          setPayRate({
-                            ...payRate,
+                          setPayRate((prev) => ({
+                            ...prev,
                             defaultRate: `$${e.target.value}/hour`,
-                          })
+                          }))
                         }
                         className="h-10 text-base"
                         placeholder="35"
                         data-testid="input-payrate-default"
                       />
-                      <span className="text-sm text-muted-foreground">
-                        /hour
-                      </span>
+                      <span className="text-sm text-muted-foreground">/hour</span>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Job Rate Section */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">Job rate</Label>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="h-8 text-xs">
-                      All items
-                    </Button>
-                    <Input placeholder="Search" className="h-8 w-32 text-xs" />
-                    <Switch
-                      checked={true}
-                      data-testid="switch-job-rate-enabled"
-                    />
-                  </div>
-                </div>
-
-                {/* Programs List */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {payRate.jobRates.map((job, idx) => (
-                    <div
-                      key={idx}
-                      className="space-y-2 p-3 rounded-lg border bg-card"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1">
-                          <div
-                            className={`h-3 w-3 rounded-full ${job.color} flex-shrink-0`}
-                          />
-                          <span className="text-sm font-medium">
-                            {job.name}
-                          </span>
-                        </div>
-                        <Switch
-                          checked={!job.useDefaultRate}
-                          onCheckedChange={(checked) => {
-                            const newJobRates = [...payRate.jobRates];
-                            newJobRates[idx].useDefaultRate = !checked;
-                            setPayRate({ ...payRate, jobRates: newJobRates });
-                          }}
-                          data-testid={`switch-job-custom-rate-${idx}`}
-                        />
-                      </div>
-
-                      {!job.useDefaultRate && (
-                        <div className="flex items-center gap-2 pl-5">
-                          <span className="text-sm text-muted-foreground">
-                            Custom rate:
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-sm">$</span>
-                            <Input
-                              type="number"
-                              value={job.rate.replace(/[^0-9.]/g, "")}
-                              onChange={(e) => {
-                                const newJobRates = [...payRate.jobRates];
-                                newJobRates[idx].rate =
-                                  `$${e.target.value}/hour`;
-                                setPayRate({
-                                  ...payRate,
-                                  jobRates: newJobRates,
-                                });
-                              }}
-                              className="h-8 w-20 text-sm"
-                              placeholder="35"
-                              data-testid={`input-job-rate-${idx}`}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              /hour
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="flex gap-2">
-                <Button
-                  variant="default"
-                  size="sm"
-                  data-testid="button-payrate-tab-payrate"
-                >
-                  Pay rate
-                </Button>
+              {/* Buttons row */}
+              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1419,20 +1321,25 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                 >
                   Effective date
                 </Button>
+
+                <Button
+                  onClick={() => {
+                    setEditingPayRate(false);
+                    handleSave();
+                  }}
+                  data-testid="button-save-payrate"
+                >
+                  Continue
+                </Button>
               </div>
-              <Button
-                onClick={() => {
-                  setEditingPayRate(false);
-                  handleSave();
-                }}
-                data-testid="button-save-payrate"
-              >
-                Continue
-              </Button>
-            </div>
+            </div> {/* end body wrapper */}
+
           </DialogContent>
         </Dialog>
+
       </DialogContent>
     </Dialog>
   );
 }
+
+

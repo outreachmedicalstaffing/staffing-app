@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UserTimesheetDetail } from "@/components/user-timesheet-detail";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
-
+import { Moon, CornerRightUp, CornerLeftDown } from "lucide-react";
 export default function Timesheets() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -59,7 +59,24 @@ export default function Timesheets() {
     entryDate.setHours(0, 0, 0, 0);
     return entryDate.getTime() === today.getTime();
   });
+  // parse "9:27 AM" / "09:27 AM" / "12:00 AM" into minutes since midnight
+  const parse12h = (t: string) => {
+    const m = t?.trim().match(/^(\d{1,2}):(\d{2})\s?([AP]M)$/i);
+    if (!m) return null;
+    let [, hh, mm, ap] = m;
+    let h = Number(hh) % 12;
+    if (/pm/i.test(ap)) h += 12;
+    return h * 60 + Number(mm);
+  };
 
+  const isMidnight = (t: string) => /^12:0?0\s?AM$/i.test((t || "").trim());
+  const crossesMidnight = (start: string, end: string) => {
+    const s = parse12h(start);
+    const e = parse12h(end);
+    if (s == null || e == null) return false;
+    // if end is <= start in same-day minutes, it rolled into the next day
+    return e <= s;
+  };
   // Group today's entries by user
   const todayByUser = users.map(user => {
     const userEntries = todayEntries.filter(entry => entry.userId === user.id);

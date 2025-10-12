@@ -7,12 +7,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import * as React from "react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -108,7 +115,23 @@ const jobLocations = [
   { id: 14, name: "AdventHealth Central Florida", color: "#7C3AED" },
   { id: 15, name: "Haven", color: "#EAB308" },
 ];
+// === Job description store (no backend needed) ===
+type JobInfo = { description: string; color?: string };
+const JOB_STORE_KEY = "oms.jobInfo.v1";
 
+const loadJobInfo = (): Record<string, JobInfo> => {
+  try {
+    const raw = localStorage.getItem(JOB_STORE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+const saveJobInfo = (data: Record<string, JobInfo>) => {
+  try {
+    localStorage.setItem(JOB_STORE_KEY, JSON.stringify(data));
+  } catch {}
+};
 export default function Schedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("week");
@@ -151,7 +174,21 @@ export default function Schedule() {
   >([]);
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  // Store job descriptions by job name (persisted in localStorage)
+  const [jobInfo, setJobInfo] = useState<Record<string, JobInfo>>(() =>
+    loadJobInfo(),
+  );
+  useEffect(() => saveJobInfo(jobInfo), [jobInfo]);
+  // Description text being edited in the Edit Job sheet
+  const [jobDescDraft, setJobDescDraft] = useState<string>("");
 
+  // When the sheet opens for a job, preload the saved description
+  useEffect(() => {
+    if (editingJob) {
+      setJobDescDraft(jobInfo[editingJob.name]?.description || "");
+    }
+  }, [editingJob, jobInfo]);
+  const [showJobDesc, setShowJobDesc] = useState(false);
   // Helper function to detect night shifts
   const isNightShift = (startTime: Date, endTime: Date) => {
     const startHour = startTime.getHours();
@@ -160,7 +197,32 @@ export default function Schedule() {
     // or if end time is before start time (crosses midnight)
     return startHour >= 19 || endHour <= 7 || endTime < startTime;
   };
+  // --- attachments shown in the Edit Shift modal ---
+  const [editAttachments, setEditAttachments] = React.useState<any[]>([]);
+  const [loadingEditAttachments, setLoadingEditAttachments] =
+    React.useState(false);
 
+  async function loadEditAttachments(shiftId: string) {
+    setLoadingEditAttachments(true);
+    try {
+      // NOTE: if your apiRequest returns a Response, we parse .json(); if it already returns data, skip .json()
+      const resp = await apiRequest(
+        "GET",
+        `/api/shifts/${shiftId}?include=attachments`,
+      );
+      const data = typeof resp.json === "function" ? await resp.json() : resp;
+      setEditAttachments(data.attachments || []);
+      console.log(
+        "[edit] loaded attachments:",
+        (data.attachments || []).length,
+      );
+    } catch (e) {
+      console.error("Failed to load attachments for edit modal:", e);
+      setEditAttachments([]);
+    } finally {
+      setLoadingEditAttachments(false);
+    }
+  }
   // Calculate shift duration
   const calculateDuration = () => {
     if (shiftFormData.allDay) {
@@ -578,10 +640,34 @@ export default function Schedule() {
         maxAssignees: shift.maxAssignees,
       };
 
+      // 1️⃣ Create the new shift
       const response = await apiRequest("POST", "/api/shifts", shiftData);
       const newShift = await response.json();
 
-      // Assign the same users to the new shift
+      // 2️⃣ Copy the attachments from the old shift to the new one
+      try {
+        const attachments = await apiRequest(
+          "GET",
+          `/api/shifts/${shift.id}?include=attachments`,
+        );
+        const oldShift = await attachments.json();
+
+        if (oldShift.attachments && oldShift.attachments.length > 0) {
+          for (const att of oldShift.attachments) {
+            await apiRequest("POST", `/api/shifts/${newShift.id}/attachments`, {
+              fileUrl: att.file_url || att.fileUrl,
+              fileName: att.file_name || att.fileName,
+              mimeType: att.mime_type || att.mimeType,
+              sizeBytes: att.size_bytes || att.sizeBytes,
+              uploadedBy: att.uploaded_by || att.uploadedBy,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error duplicating attachments:", error);
+      }
+
+      // 3️⃣ Assign the same users to the new shift
       for (const userId of assignedUsers) {
         try {
           await apiRequest("POST", `/api/shifts/${newShift.id}/assign`, {
@@ -650,7 +736,76 @@ export default function Schedule() {
     if (!assignment) return null;
     return users.find((u) => u.id === assignment.userId) || null;
   };
+  // ---- Drop-in attachments panel for the Edit Shift UI ----
+  function EditAttachments({ shiftId }: { shiftId?: string }) {
+    const [items, setItems] = React.useState<any[]>([]);
+    const [loading, setLoading] = React.useState(false);
 
+    React.useEffect(() => {
+      if (!shiftId) return;
+      let cancelled = false;
+
+      (async () => {
+        setLoading(true);
+        try {
+          // If your apiRequest returns a Response, parse .json(); if it returns data, skip .json()
+          const resp = await apiRequest(
+            "GET",
+            `/api/shifts/${shiftId}?include=attachments`,
+          );
+          const data =
+            typeof (resp as any)?.json === "function"
+              ? await (resp as any).json()
+              : resp;
+          if (!cancelled) setItems(data?.attachments || []);
+          console.log(
+            "[EditAttachments] for",
+            shiftId,
+            "count:",
+            data?.attachments?.length ?? 0,
+          );
+        } catch (e) {
+          console.error("EditAttachments load failed:", e);
+          if (!cancelled) setItems([]);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [shiftId]);
+
+    return (
+      <div className="mt-3">
+        <div className="text-xs font-medium text-muted-foreground">
+          Attachments
+        </div>
+        {loading ? (
+          <div className="text-sm text-muted-foreground mt-1">Loading…</div>
+        ) : items.length ? (
+          <div className="mt-1 space-y-1">
+            {items.map((a: any) => (
+              <a
+                key={a.id}
+                href={(a.file_url ?? a.fileUrl) || "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="block text-sm underline"
+              >
+                {(a.file_name ?? a.fileName) || "Attachment"}
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground mt-1">
+            No attachments
+          </div>
+        )}
+      </div>
+    );
+  }
   // Get all users assigned to a shift (for multi-assignee shifts)
   const getUsersForShift = (shift: Shift) => {
     const assignments = shiftAssignments.filter((a) => a.shiftId === shift.id);
@@ -1093,6 +1248,14 @@ export default function Schedule() {
                                 {isNight && (
                                   <Moon className="h-3 w-3 flex-shrink-0" />
                                 )}
+                                {Array.isArray(shift.attachments) &&
+                                  shift.attachments.length > 0 && (
+                                    <Paperclip
+                                      className="h-3 w-3 flex-shrink-0 opacity-90"
+                                      title={`${shift.attachments.length} attachment${shift.attachments.length > 1 ? "s" : ""}`}
+                                      data-testid={`paperclip-${shift.id}`}
+                                    />
+                                  )}
                               </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger
@@ -1345,6 +1508,14 @@ export default function Schedule() {
                                   {isNight && (
                                     <Moon className="h-3 w-3 flex-shrink-0" />
                                   )}
+                                  {Array.isArray(shift.attachments) &&
+                                    shift.attachments.length > 0 && (
+                                      <Paperclip
+                                        className="h-3 w-3 flex-shrink-0 opacity-90"
+                                        title={`${shift.attachments.length} attachment${shift.attachments.length > 1 ? "s" : ""}`}
+                                        data-testid={`paperclip-${shift.id}`}
+                                      />
+                                    )}
                                 </div>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger
@@ -1498,10 +1669,8 @@ export default function Schedule() {
                   id="job-description"
                   rows={10}
                   placeholder="Enter job description..."
-                  defaultValue="Overlapping Shift Start times and End times: Dayshift hours are 8a-8p and Nightshift hours are 8p-8a, unless modified by scheduling/supervision/management determining and scheduling later coverage hours or Patient need. Contractors should start at scheduled start times, unless direct patient care requires a 2 person assist. CC documentation must reflect the direct assigned patient, based on the tech Plan. Contractor should end at scheduled end times. Reports should be short, sweet, and to the point. Remember the shift has 12 hrs to read documentation from off-going shifts.
-
-**Please upload all of your notes in this app by the end of your shift.
-If you have any trouble uploading your notes, use the Adobe Scan app on your phone to scan all of your notes and email them to staffing@outreachmedicalstaffing.com"
+                  value={jobDescDraft}
+                  onChange={(e) => setJobDescDraft(e.target.value)}
                   data-testid="textarea-job-description"
                 />
               </div>
@@ -1515,7 +1684,26 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                 <Paperclip className="h-4 w-4 mr-2" />
                 Attach
               </Button>
-
+              <div className="flex justify-end pt-2">
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    if (!editingJob) return;
+                    setJobInfo((prev) => ({
+                      ...prev,
+                      [editingJob.name]: {
+                        ...(prev[editingJob.name] || {}),
+                        description: jobDescDraft.trim(),
+                        color: editingJob.color,
+                      },
+                    }));
+                    toast({ title: "Job description saved" });
+                  }}
+                  data-testid="button-save-job-description"
+                >
+                  Save description
+                </Button>
+              </div>
               {/* Qualified Section */}
               <div className="space-y-2">
                 <Label>Qualified</Label>
@@ -2170,37 +2358,48 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
               </div>
 
               {/* Job Selection */}
-              <div>
-                <Label htmlFor="job-select">Job</Label>
-                <Select
-                  value={shiftFormData.job}
-                  onValueChange={(value) =>
-                    setShiftFormData({ ...shiftFormData, job: value })
-                  }
-                >
-                  <SelectTrigger id="job-select" data-testid="select-job">
-                    <SelectValue placeholder="Select a job" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {jobLocations.map((job) => (
-                      <SelectItem
-                        key={job.id}
-                        value={job.name}
-                        data-testid={`job-option-${job.id}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: job.color }}
-                          />
-                          {job.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Job description viewer (from saved Job details) */}
+              {shiftFormData.job && jobInfo[shiftFormData.job]?.description ? (
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-primary"
+                    onClick={() => setShowJobDesc((v) => !v)}
+                    data-testid="button-toggle-job-desc"
+                  >
+                    {showJobDesc ? "Hide job details" : "View job details"}
+                  </Button>
 
+                  {showJobDesc && (
+                    <div className="mt-2 rounded-md border p-3 bg-muted/30 text-sm whitespace-pre-wrap">
+                      {jobInfo[shiftFormData.job]?.description}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              {(() => {
+                const job = jobLocations.find(
+                  (j) => j.name === shiftFormData.job,
+                );
+                if (!job || !job.description) return null;
+
+                return (
+                  <Accordion type="single" collapsible className="mt-2">
+                    <AccordionItem value="job-details">
+                      <AccordionTrigger className="text-sm">
+                        Job details
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
+                          {job.description}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                );
+              })()}
               {/* User Assignment */}
               <div>
                 <Label>Assign to</Label>
@@ -2516,6 +2715,7 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                             startTime: template.startTime,
                             endTime: template.endTime,
                             shiftTitle: template.title,
+                            note: template.description || "", // <-- pulls “Additional notes” into Note
                           });
                           toast({
                             title: `Applied template: ${template.title}`,
@@ -2599,7 +2799,27 @@ If you have any trouble uploading your notes, use the Adobe Scan app on your pho
                   </SelectContent>
                 </Select>
               </div>
+              {(() => {
+                const job = jobLocations.find(
+                  (j) => j.name === (editingShift.jobName || ""),
+                );
+                if (!job || !job.description) return null;
 
+                return (
+                  <Accordion type="single" collapsible className="mt-2">
+                    <AccordionItem value="job-details">
+                      <AccordionTrigger className="text-sm">
+                        Job details
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
+                          {job.description}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                );
+              })()}
               {/* Date - Show separate start/end dates for night shifts that cross midnight */}
               {(() => {
                 const shiftStart = new Date(editingShift.startTime);

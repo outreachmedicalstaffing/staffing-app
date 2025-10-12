@@ -431,15 +431,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req, res) => {
       try {
         const entryId = req.params.id;
-        
+
         // Convert ISO string dates to Date objects
-        if (req.body.clockIn && typeof req.body.clockIn === 'string') {
+        if (req.body.clockIn && typeof req.body.clockIn === "string") {
           req.body.clockIn = new Date(req.body.clockIn);
         }
-        if (req.body.clockOut && typeof req.body.clockOut === 'string') {
+        if (req.body.clockOut && typeof req.body.clockOut === "string") {
           req.body.clockOut = new Date(req.body.clockOut);
         }
-        
+
         const updateSchema = insertTimeEntrySchema.partial();
         const data = updateSchema.parse(req.body);
 
@@ -873,7 +873,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to list shift assignments" });
     }
   });
+  // ✅ Duplicate a shift and copy its attachments
+  app.post("/api/shifts/:id/duplicate", requireAuth, async (req, res) => {
+    const { id: oldId } = req.params;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
 
+      // 1️⃣ Duplicate the shift record
+      const { rows } = await client.query(
+        `
+        INSERT INTO shifts
+          (title, job_id, date, start_time, end_time, address, notes, created_by, updated_by)
+        SELECT 
+          title, job_id, date, start_time, end_time, address, notes, $1, $1
+        FROM shifts
+        WHERE id = $2
+        RETURNING id
+        `,
+        [req.user?.id ?? null, oldId],
+      );
+      const newId = rows[0].id;
+
+      // 2️⃣ Copy attachments linked to the old shift
+      await client.query(
+        `
+        INSERT INTO shift_attachments
+          (shift_id, file_url, file_name, mime_type, size_bytes, uploaded_by, created_at)
+        SELECT 
+          $1, file_url, file_name, mime_type, size_bytes, uploaded_by, NOW()
+        FROM shift_attachments
+        WHERE shift_id = $2
+        `,
+        [newId, oldId],
+      );
+
+      await client.query("COMMIT");
+      res.json({ id: newId });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("Error duplicating shift:", err);
+      res.status(500).json({ error: "Failed to duplicate shift" });
+    } finally {
+      client.release();
+    }
+  });
+  // ✅ Add a single attachment to a shift (used during duplication)
+  app.post("/api/shifts/:id/attachments", requireAuth, async (req, res) => {
+    const shiftId = req.params.id;
+    const { fileUrl, fileName, mimeType, sizeBytes, uploadedBy } = req.body;
+
+    if (!fileUrl || !fileName) {
+      return res
+        .status(400)
+        .json({ error: "fileUrl and fileName are required" });
+    }
+
+    try {
+      const { rows } = await pool.query(
+        `
+        INSERT INTO shift_attachments
+          (shift_id, file_url, file_name, mime_type, size_bytes, uploaded_by, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING id
+        `,
+        [
+          shiftId,
+          fileUrl,
+          fileName,
+          mimeType ?? null,
+          sizeBytes ?? null,
+          uploadedBy ?? null,
+        ],
+      );
+      res.json({ id: rows[0].id });
+    } catch (err) {
+      console.error("Error adding attachment:", err);
+      res.status(500).json({ error: "Failed to add attachment" });
+    }
+  });
+  // === Add: GET single shift WITH optional attachments ===
+  app.get("/api/shifts/:id", requireAuth, async (req, res) => {
+    const id = req.params.id as string;
+    const include = (req.query.include as string) ?? "";
+
+    try {
+      // fetch the shift (adjust table/column names if different)
+      const shiftResult = await pool.query(
+        `SELECT * FROM shifts WHERE id = $1`,
+        [id],
+      );
+      const shift = shiftResult.rows[0];
+      if (!shift) return res.status(404).json({ error: "Not found" });
+
+      if (include.split(",").includes("attachments")) {
+        const attsResult = await pool.query(
+          `SELECT id, file_url, file_name, mime_type, size_bytes, uploaded_by
+           FROM shift_attachments
+           WHERE shift_id = $1
+           ORDER BY id ASC`,
+          [id],
+        );
+        (shift as any).attachments = attsResult.rows;
+
+        // TEMP debug: prints a NUMBER so you can see it worked
+        console.log(
+          "[GET /api/shifts/:id] attachments count =",
+          attsResult.rows.length,
+          "for",
+          id,
+        );
+      }
+
+      res.json(shift);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to fetch shift" });
+    }
+  });
+
+  // === Add: POST one attachment to a shift (used during duplication) ===
+  app.post("/api/shifts/:id/attachments", requireAuth, async (req, res) => {
+    const shiftId = req.params.id as string;
+    const { fileUrl, fileName, mimeType, sizeBytes, uploadedBy } = req.body;
+
+    if (!fileUrl || !fileName) {
+      return res
+        .status(400)
+        .json({ error: "fileUrl and fileName are required" });
+    }
+
+    try {
+      // TEMP debug: shows a NUMBER only in sizeBytes if present
+      console.log(
+        "[POST /api/shifts/:id/attachments] shiftId=",
+        shiftId,
+        "fileName=",
+        fileName,
+      );
+
+      const insert = await pool.query(
+        `
+        INSERT INTO shift_attachments
+          (shift_id, file_url, file_name, mime_type, size_bytes, uploaded_by, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING id
+        `,
+        [
+          shiftId,
+          fileUrl,
+          fileName,
+          mimeType ?? null,
+          sizeBytes ?? null,
+          uploadedBy ?? null,
+        ],
+      );
+      res.json({ id: insert.rows[0].id });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Failed to add attachment" });
+    }
+  });
   // ===== User Availability Routes =====
 
   // Create user availability
