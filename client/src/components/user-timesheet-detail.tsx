@@ -172,10 +172,89 @@ export function UserTimesheetDetail({
     queryKey: user?.id ? [`/api/timesheets?userId=${user.id}`] : [],
     enabled: !!user,
   });
+  function computeOvernightParts(startISO: string, endISO: string) {
+    const start = new Date(startISO);
+    const end = new Date(endISO);
+    // if end <= start, it rolled past midnight
+    if (end <= start) end.setDate(end.getDate() + 1);
 
+    const midnight = new Date(start);
+    midnight.setHours(24, 0, 0, 0);
+
+    const before =
+      Math.min(end.getTime(), midnight.getTime()) - start.getTime();
+    const after = Math.max(0, end.getTime() - midnight.getTime());
+
+    const h = (ms: number) => +(ms / 3_600_000).toFixed(2);
+
+    const startDayHours = h(Math.max(0, before));
+    const carryNextDayHours = h(Math.max(0, after));
+    const fullShiftHours = +(startDayHours + carryNextDayHours).toFixed(2);
+
+    return {
+      startDayHours,
+      carryNextDayHours,
+      fullShiftHours,
+      isOvernight: carryNextDayHours > 0,
+      nextDayDateISO:
+        carryNextDayHours > 0 ? midnight.toISOString().slice(0, 10) : null,
+    };
+  }
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const weekRangeDisplay = `${format(currentWeekStart, "MM/dd")} - ${format(weekEnd, "MM/dd")}`;
+  // --- Build rows for the detail table: start-day row + optional carry row ---
+  const enhancedRows = timeEntries
+    // only include entries that have clockOut and whose START is inside the visible week
+    .filter((e) => e.clockOut)
+    .filter((e) => {
+      const s = new Date(e.clockIn);
+      return s >= currentWeekStart && s <= weekEnd;
+    })
+    .flatMap((entry) => {
+      const parts = computeOvernightParts(entry.clockIn, entry.clockOut!);
 
+      const startRow = {
+        ...entry,
+        isShiftStart: true,
+        isCarryOnly: false,
+        dateISO: new Date(entry.clockIn).toISOString().slice(0, 10),
+        dateLabel: format(new Date(entry.clockIn), "EEE M/d"),
+        jobLabel: entry.location ?? entry.jobName ?? "—",
+        startLabel: format(new Date(entry.clockIn), "h:mm a"),
+        endLabel: format(new Date(entry.clockOut!), "h:mm a"),
+
+        // per-day vs full-shift
+        totalHoursForThisRow: parts.startDayHours, // e.g. 5.00
+        dailyTotalForThisShift: parts.fullShiftHours, // e.g. 13.00
+        regularForThisShift: parts.fullShiftHours, // e.g. 13.00
+
+        // carry info for UI
+        carryNextDayHours: parts.carryNextDayHours, // e.g. 8.00
+        nextDayDateISO: parts.nextDayDateISO,
+        hourlyRate: entry.hourlyRate ?? null,
+      };
+
+      if (parts.carryNextDayHours > 0 && parts.nextDayDateISO) {
+        const carryRow = {
+          ...entry,
+          isShiftStart: false,
+          isCarryOnly: true,
+          dateISO: parts.nextDayDateISO,
+          dateLabel: format(new Date(parts.nextDayDateISO), "EEE M/d"),
+          jobLabel: entry.location ?? entry.jobName ?? "—",
+          startLabel: "—",
+          endLabel: "—",
+
+          // show the moon amount only in 'Total hours'
+          totalHoursForThisRow: parts.carryNextDayHours, // e.g. 8.00
+          dailyTotalForThisShift: null,
+          regularForThisShift: null,
+          hourlyRate: entry.hourlyRate ?? null,
+        };
+        return [startRow, carryRow];
+      }
+      return [startRow];
+    });
   // Get all days of the week
   const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
 
@@ -809,422 +888,11 @@ export function UserTimesheetDetail({
                     <TableHead>Manager notes</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  {daysReversed.map((date) => {
-                    const entry = getEntryForDay(date);
-                    const splitInfo = entry
-                      ? getSplitShiftInfo(entry, date)
-                      : null;
-                    const hours = splitInfo
-                      ? splitInfo.hours
-                      : calculateHours(entry);
-                    const hourlyRate = entry?.hourlyRate
-                      ? parseFloat(entry.hourlyRate)
-                      : parseFloat(
-                          ((user as any)?.defaultHourlyRate ?? "25") as string,
-                        );
-                    const dailyPay = hours * hourlyRate;
-                    const isLocked = entry?.locked || false;
-                    // --- overnight visual linking helpers ---
-                    const rowId = `row-${format(date, "yyyy-MM-dd")}`;
-
-                    const prev = new Date(date);
-                    prev.setDate(prev.getDate() - 1);
-                    const next = new Date(date);
-                    next.setDate(next.getDate() + 1);
-
-                    const prevId = `row-${format(prev, "yyyy-MM-dd")}`;
-                    const nextId = `row-${format(next, "yyyy-MM-dd")}`;
-                    // light band + left border for both sides of an overnight pair
-                    const pairClass = splitInfo
-                      ? "bg-blue-50/60 border-l-4 border-blue-600"
-                      : "";
-                    // ---
-                    return (
-                      <TableRow
-                        id={rowId}
-                        key={date.toISOString()}
-                        data-testid={`row-day-${format(date, "yyyy-MM-dd")}`}
-                        className={pairClass}
-                      >
-                        <TableCell className="font-medium">
-                          {format(date, "EEE M/d")}
-                        </TableCell>
-
-                        {/* Job cell */}
-                        <TableCell>
-                          {entry ? (
-                            canEdit ? (
-                              <Popover
-                                open={jobPopoverOpen[entry.id] || false}
-                                onOpenChange={(open) =>
-                                  !isLocked &&
-                                  setJobPopoverOpen((prev) => ({
-                                    ...prev,
-                                    [entry.id]: open,
-                                  }))
-                                }
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    className="w-[200px] justify-between h-8 font-normal"
-                                    data-testid={`select-job-${format(date, "yyyy-MM-dd")}`}
-                                    disabled={isLocked}
-                                    title={
-                                      splitInfo && !splitInfo.isFirstDay
-                                        ? "Overnight continuation — editing job updates the whole shift"
-                                        : undefined
-                                    }
-                                  >
-                                    {entry.location || "Select"}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-[250px] p-0"
-                                  align="start"
-                                >
-                                  <Command>
-                                    <CommandInput placeholder="Search" />
-                                    <CommandList>
-                                      <CommandEmpty>No job found.</CommandEmpty>
-                                      <CommandGroup>
-                                        <CommandItem
-                                          onSelect={() => {
-                                            handleJobChange(entry.id, "");
-                                            setJobPopoverOpen((prev) => ({
-                                              ...prev,
-                                              [entry.id]: false,
-                                            }));
-                                          }}
-                                          className="text-muted-foreground"
-                                        >
-                                          Clear
-                                        </CommandItem>
-                                        <CommandItem
-                                          disabled
-                                          className="text-muted-foreground opacity-100"
-                                        >
-                                          Manage job items
-                                        </CommandItem>
-                                      </CommandGroup>
-                                      <CommandSeparator />
-                                      <CommandGroup>
-                                        {jobLocations.map((job) => (
-                                          <CommandItem
-                                            key={job.id}
-                                            value={job.name}
-                                            onSelect={() => {
-                                              handleJobChange(
-                                                entry.id,
-                                                job.name,
-                                              );
-                                              setJobPopoverOpen((prev) => ({
-                                                ...prev,
-                                                [entry.id]: false,
-                                              }));
-                                            }}
-                                          >
-                                            <div className="flex items-center gap-2 w-full">
-                                              <div
-                                                className="w-3 h-3 rounded-full shrink-0"
-                                                style={{
-                                                  backgroundColor: job.color,
-                                                }}
-                                              />
-                                              <span className="flex-1">
-                                                {job.name}
-                                              </span>
-                                              <Check
-                                                className={`ml-auto h-4 w-4 ${entry.location === job.name ? "opacity-100" : "opacity-0"}`}
-                                              />
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
-                            ) : (
-                              <span className="text-sm">
-                                {entry.location || "—"}
-                              </span>
-                            )
-                          ) : canEdit ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleManualEntry(date)}
-                              className="h-8"
-                            >
-                              Add Entry
-                            </Button>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-
-                        {/* Start cell */}
-                        <TableCell>
-                          {entry ? (
-                            // Second day of an overnight: show a clear link back to the previous day
-                            splitInfo && !splitInfo.isFirstDay ? (
-                              <a
-                                href={`#${prevId}`}
-                                className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"
-                                title={`Linked from ${format(prev, "EEE M/d")}`}
-                              >
-                                <CornerRightUp className="h-3 w-3" />
-                                <span>12:00 AM</span>
-                                <span className="ml-1 text-[11px]">
-                                  from {format(prev, "EEE M/d")}
-                                </span>
-                              </a>
-                            ) : canEdit ? (
-                              <Input
-                                type="time"
-                                defaultValue={format(
-                                  new Date(entry.clockIn),
-                                  "HH:mm",
-                                )}
-                                onBlur={(e) => {
-                                  const newValue = e.target.value;
-                                  const oldValue = format(
-                                    new Date(entry.clockIn),
-                                    "HH:mm",
-                                  );
-                                  if (newValue !== oldValue) {
-                                    handleTimeChange(
-                                      entry.id,
-                                      "clockIn",
-                                      newValue,
-                                    );
-                                  }
-                                }}
-                                className="w-[120px] h-8"
-                                data-testid={`input-start-${format(date, "yyyy-MM-dd")}`}
-                                disabled={isLocked}
-                              />
-                            ) : (
-                              <span className="text-sm">
-                                {format(new Date(entry.clockIn), "h:mm a")}
-                              </span>
-                            )
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-
-                        {/* End cell */}
-                        <TableCell>
-                          {entry?.clockOut ? (
-                            // First day of an overnight: clear link forward to the next day
-                            splitInfo && splitInfo.isFirstDay ? (
-                              <a
-                                href={`#${nextId}`}
-                                className="inline-flex items-center gap-1 text-sm text-blue-700 whitespace-nowrap hover:underline"
-                                title={`Continues to ${format(next, "EEE M/d")}`}
-                              >
-                                <span>12:00 AM</span>
-                                <CornerLeftDown className="h-3 w-3" />
-                                <Moon className="h-3 w-3" />
-                                <span className="ml-1 text-[11px]">
-                                  to {format(next, "EEE M/d")}
-                                </span>
-                              </a>
-                            ) : canEdit ? (
-                              <Input
-                                type="time"
-                                defaultValue={format(
-                                  new Date(entry.clockOut),
-                                  "HH:mm",
-                                )}
-                                onBlur={(e) => {
-                                  const newValue = e.target.value;
-                                  const oldValue = format(
-                                    new Date(entry.clockOut),
-                                    "HH:mm",
-                                  );
-                                  if (newValue !== oldValue) {
-                                    handleTimeChange(
-                                      entry.id,
-                                      "clockOut",
-                                      newValue,
-                                    );
-                                  }
-                                }}
-                                className="w-[120px] h-8"
-                                data-testid={`input-end-${format(date, "yyyy-MM-dd")}`}
-                                disabled={isLocked}
-                              />
-                            ) : (
-                              <span className="text-sm whitespace-nowrap">
-                                {format(new Date(entry.clockOut), "h:mm a")}
-                              </span>
-                            )
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-
-                        {/* Totals for the day */}
-                        <TableCell>
-                          {splitInfo && !splitInfo.isFirstDay ? (
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">
-                              {hours.toFixed(2)} 🌙
-                            </span>
-                          ) : hours > 0 ? (
-                            <span className="whitespace-nowrap">
-                              {hours.toFixed(2)}
-                            </span>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {entry ? `$${hourlyRate.toFixed(2)}` : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {hours > 0 ? hours.toFixed(2) : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {hours > 0 ? `$${dailyPay.toFixed(2)}` : "$0.00"}
-                        </TableCell>
-                        <TableCell>—</TableCell>
-                        <TableCell>
-                          {hours > 0 ? hours.toFixed(2) : "—"}
-                        </TableCell>
-                        <TableCell>—</TableCell>
-
-                        {/* Actions */}
-                        <TableCell>
-                          {canEdit && entry && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleLockToggle(date, entry)}
-                              data-testid={`button-lock-${format(date, "yyyy-MM-dd")}`}
-                              className="h-8 w-8"
-                            >
-                              {isLocked ? (
-                                <Lock className="h-4 w-4 text-red-600" />
-                              ) : (
-                                <Unlock className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </Button>
-                          )}
-                        </TableCell>
-
-                        <TableCell>
-                          {entry?.relievingNurseSignature ? (
-                            <img
-                              src={entry.relievingNurseSignature}
-                              alt="Signature"
-                              className="h-8 max-w-[100px] object-contain cursor-pointer"
-                              onClick={() =>
-                                window.open(
-                                  entry.relievingNurseSignature!,
-                                  "_blank",
-                                )
-                              }
-                            />
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {entry?.shiftNoteAttachments?.length
-                            ? (() => {
-                                // Make an array of URLs from the attachments in this row
-                                const urls = (
-                                  entry.shiftNoteAttachments as any[]
-                                )
-                                  .map((a) =>
-                                    typeof a === "string" ? a : a?.url,
-                                  )
-                                  .filter(Boolean) as string[];
-
-                                return (
-                                  <div className="flex items-center gap-2">
-                                    {/* Open the preview dialog and show the first image */}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => openPreview(urls, 0)}
-                                      title="Open in a new tab"
-                                    >
-                                      <ExternalLink className="h-4 w-4 mr-1" />
-                                      Open
-                                    </Button>
-
-                                    {/* These use your existing download helpers which read previewImages */}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={downloadCurrent}
-                                      title="Download this image"
-                                    >
-                                      <Download className="h-4 w-4 mr-1" />
-                                      Download
-                                    </Button>
-
-                                    {urls.length > 1 && (
-                                      <Button
-                                        variant="ghost"
-                                        onClick={downloadAll}
-                                      >
-                                        <Download className="h-4 w-4 mr-1" />
-                                        Download all
-                                      </Button>
-                                    )}
-                                  </div>
-                                );
-                              })()
-                            : "—"}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">
-                            {entry?.employeeNotes || "—"}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {entry ? (
-                            canEdit ? (
-                              <Input
-                                type="text"
-                                value={
-                                  notesDraft[entry.id] ??
-                                  entry.managerNotes ??
-                                  ""
-                                }
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setNotesDraft((prev) => ({
-                                    ...prev,
-                                    [entry.id]: val,
-                                  }));
-                                  queueSaveNotes(entry.id, val); // debounced save
-                                }}
-                                placeholder="Add notes..."
-                                className="w-full min-w-[150px] h-8"
-                                data-testid={`input-manager-notes-${format(date, "yyyy-MM-dd")}`}
-                                disabled={isLocked}
-                              />
-                            ) : (
-                              <span className="text-sm">
-                                {entry.managerNotes || "—"}
-                              </span>
-                            )
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  <TableRow>
+                    <TableCell colSpan={16}>ok</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
