@@ -189,6 +189,12 @@ export default function Schedule() {
     }
   }, [editingJob, jobInfo]);
   const [showJobDesc, setShowJobDesc] = useState(false);
+  // State for shift preference selection dialog
+  const [showShiftPreference, setShowShiftPreference] = useState(false);
+  const [shiftPreferenceData, setShiftPreferenceData] = useState<{
+    userId: string;
+    date: Date;
+  } | null>(null);
   // Helper function to detect night shifts
   const isNightShift = (startTime: Date, endTime: Date) => {
     const startHour = startTime.getHours();
@@ -473,6 +479,7 @@ export default function Schedule() {
       userId: string;
       date: Date;
       type: "unavailable" | "preferred";
+      shiftPreference?: "day" | "night" | "both";
     }) => {
       return apiRequest("POST", "/api/user-availability", data);
     },
@@ -1414,11 +1421,11 @@ export default function Schedule() {
                                 className="h-5 w-5 bg-background/80 hover:bg-green-100 dark:hover:bg-green-950/50"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  createAvailabilityMutation.mutate({
+                                  setShiftPreferenceData({
                                     userId: user.id,
                                     date: day,
-                                    type: "preferred",
                                   });
+                                  setShowShiftPreference(true);
                                 }}
                                 title="Mark preferred"
                                 data-testid={`button-mark-preferred-${user.id}-${dayIdx}`}
@@ -1459,7 +1466,15 @@ export default function Schedule() {
                                   : "text-green-600 dark:text-green-500"
                               }`}
                             >
-                              {isUnavailable ? "Unavailable" : "Prefer to work"}
+                              {isUnavailable
+                                ? "Unavailable"
+                                : availability.shiftPreference === "day"
+                                  ? "Prefer to work day shift"
+                                  : availability.shiftPreference === "night"
+                                    ? "Prefer to work night shift"
+                                    : availability.shiftPreference === "both"
+                                      ? "Prefer to work anytime"
+                                      : "Prefer to work"}
                             </div>
                             <div
                               className={`text-xs font-medium ${
@@ -3111,6 +3126,91 @@ export default function Schedule() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Shift Preference Dialog */}
+      <Dialog open={showShiftPreference} onOpenChange={setShowShiftPreference}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Shift Preference</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              What type of shift would you prefer to work?
+            </p>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                onClick={() => {
+                  if (shiftPreferenceData) {
+                    createAvailabilityMutation.mutate({
+                      userId: shiftPreferenceData.userId,
+                      date: shiftPreferenceData.date,
+                      type: "preferred",
+                      shiftPreference: "day",
+                    });
+                  }
+                  setShowShiftPreference(false);
+                  setShiftPreferenceData(null);
+                }}
+              >
+                <div className="text-left">
+                  <div className="font-semibold">Day Shift</div>
+                  <div className="text-xs text-muted-foreground">
+                    Prefer to work during daytime hours
+                  </div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                onClick={() => {
+                  if (shiftPreferenceData) {
+                    createAvailabilityMutation.mutate({
+                      userId: shiftPreferenceData.userId,
+                      date: shiftPreferenceData.date,
+                      type: "preferred",
+                      shiftPreference: "night",
+                    });
+                  }
+                  setShowShiftPreference(false);
+                  setShiftPreferenceData(null);
+                }}
+              >
+                <div className="text-left">
+                  <div className="font-semibold">Night Shift</div>
+                  <div className="text-xs text-muted-foreground">
+                    Prefer to work during nighttime hours
+                  </div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+                onClick={() => {
+                  if (shiftPreferenceData) {
+                    createAvailabilityMutation.mutate({
+                      userId: shiftPreferenceData.userId,
+                      date: shiftPreferenceData.date,
+                      type: "preferred",
+                      shiftPreference: "both",
+                    });
+                  }
+                  setShowShiftPreference(false);
+                  setShiftPreferenceData(null);
+                }}
+              >
+                <div className="text-left">
+                  <div className="font-semibold">Both (Anytime)</div>
+                  <div className="text-xs text-muted-foreground">
+                    Prefer to work any shift
+                  </div>
+                </div>
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
