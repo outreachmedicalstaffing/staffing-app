@@ -1471,17 +1471,15 @@ export default function Schedule() {
                                 </div>
                               </>
                             ) : (
-                              availability.shiftPreference && (
-                                <div className="text-xs font-semibold text-green-600 dark:text-green-500">
-                                  {availability.shiftPreference === "day"
-                                    ? "Day"
-                                    : availability.shiftPreference === "night"
-                                      ? "Night"
-                                      : availability.shiftPreference === "both"
-                                        ? "Anytime"
-                                        : ""}
-                                </div>
-                              )
+                              <div className="text-xs font-semibold text-green-600 dark:text-green-500">
+                                {availability.shiftPreference === "day"
+                                  ? "Day"
+                                  : availability.shiftPreference === "night"
+                                    ? "Night"
+                                    : availability.shiftPreference === "both"
+                                      ? "Anytime"
+                                      : ""}
+                              </div>
                             )}
                           </div>
                         )}
