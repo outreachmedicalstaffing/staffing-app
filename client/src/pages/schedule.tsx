@@ -133,7 +133,7 @@ const saveJobInfo = (data: Record<string, JobInfo>) => {
   } catch {}
 };
 export default function Schedule() {
-  const [selectedShift, setSelectedShift] = useState<'day' | 'night' | 'anytime'>('anytime');
+  const [shiftByDate, setShiftByDate] = useState<Record<string, 'day' | 'night' | 'anytime'>>({});
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
@@ -717,6 +717,14 @@ export default function Schedule() {
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  const dayKey = (d: { date?: string; id?: string | number } | string | Date) => {
+    if (typeof d === 'string') return d;
+    if (d instanceof Date) return d.toISOString().slice(0, 10); // YYYY-MM-DD
+    if (d?.date) return d.date; // assume already YYYY-MM-DD
+    if (d?.id !== undefined) return String(d.id);
+    throw new Error('Calendar day needs a stable key');
+  };
 
   const goToPreviousWeek = () => {
     setCurrentDate(addDays(currentDate, -7));
@@ -1473,7 +1481,7 @@ export default function Schedule() {
                               </>
                             ) : (
                               <div className="text-xs font-semibold text-green-600 dark:text-green-500">
-                                {selectedShift}
+                                {shiftByDate[dayKey(day)] ?? 'anytime'}
                               </div>
                             )}
                           </div>
@@ -3133,8 +3141,8 @@ export default function Schedule() {
                 variant="outline"
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
-                  setSelectedShift('day');
                   if (shiftPreferenceData) {
+                    setShiftByDate(prev => ({ ...prev, [dayKey(shiftPreferenceData.date)]: 'day' }));
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
                       date: shiftPreferenceData.date,
@@ -3152,8 +3160,8 @@ export default function Schedule() {
                 variant="outline"
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
-                  setSelectedShift('night');
                   if (shiftPreferenceData) {
+                    setShiftByDate(prev => ({ ...prev, [dayKey(shiftPreferenceData.date)]: 'night' }));
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
                       date: shiftPreferenceData.date,
@@ -3171,8 +3179,8 @@ export default function Schedule() {
                 variant="outline"
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
-                  setSelectedShift('anytime');
                   if (shiftPreferenceData) {
+                    setShiftByDate(prev => ({ ...prev, [dayKey(shiftPreferenceData.date)]: 'anytime' }));
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
                       date: shiftPreferenceData.date,
