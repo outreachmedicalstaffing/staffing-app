@@ -1459,42 +1459,30 @@ export default function Schedule() {
                             className="text-center mb-2 space-y-0.5"
                             data-testid={`availability-display-${user.id}-${dayIdx}`}
                           >
-                            <div
-                              className={`text-xs font-semibold ${
-                                isUnavailable
-                                  ? "text-red-600 dark:text-red-500"
-                                  : "text-green-600 dark:text-green-500"
-                              }`}
-                            >
-                              {isUnavailable
-                                ? "Unavailable"
-                                : availability.shiftPreference === "day"
-                                  ? "Prefer to work day shift"
-                                  : availability.shiftPreference === "night"
-                                    ? "Prefer to work night shift"
-                                    : availability.shiftPreference === "both"
-                                      ? "Prefer to work anytime"
-                                      : "Prefer to work"}
-                            </div>
-                            <div
-                              className={`text-xs font-medium ${
-                                isUnavailable
-                                  ? "text-red-600 dark:text-red-500"
-                                  : "text-green-600 dark:text-green-500"
-                              }`}
-                            >
-                              {isUnavailable
-                                ? availability.allDay
-                                  ? "All day"
-                                  : `${availability.startTime} - ${availability.endTime}`
-                                : availability.shiftPreference === "day"
-                                  ? "Day"
-                                  : availability.shiftPreference === "night"
-                                    ? "Night"
-                                    : availability.shiftPreference === "both"
-                                      ? "Anytime"
-                                      : ""}
-                            </div>
+                            {isUnavailable ? (
+                              <>
+                                <div className="text-xs font-semibold text-red-600 dark:text-red-500">
+                                  Unavailable
+                                </div>
+                                <div className="text-xs font-medium text-red-600 dark:text-red-500">
+                                  {availability.allDay
+                                    ? "All day"
+                                    : `${availability.startTime} - ${availability.endTime}`}
+                                </div>
+                              </>
+                            ) : (
+                              availability.shiftPreference && (
+                                <div className="text-xs font-semibold text-green-600 dark:text-green-500">
+                                  {availability.shiftPreference === "day"
+                                    ? "Day"
+                                    : availability.shiftPreference === "night"
+                                      ? "Night"
+                                      : availability.shiftPreference === "both"
+                                        ? "Anytime"
+                                        : ""}
+                                </div>
+                              )
+                            )}
                           </div>
                         )}
 
