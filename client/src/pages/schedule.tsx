@@ -133,6 +133,7 @@ const saveJobInfo = (data: Record<string, JobInfo>) => {
   } catch {}
 };
 export default function Schedule() {
+  const [selectedShift, setSelectedShift] = useState<'day' | 'night' | 'anytime'>('anytime');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1472,13 +1473,7 @@ export default function Schedule() {
                               </>
                             ) : (
                               <div className="text-xs font-semibold text-green-600 dark:text-green-500">
-                                {availability.shiftPreference === "day"
-                                  ? "Day"
-                                  : availability.shiftPreference === "night"
-                                    ? "Night"
-                                    : availability.shiftPreference === "both"
-                                      ? "Anytime"
-                                      : ""}
+                                {selectedShift}
                               </div>
                             )}
                           </div>
@@ -3138,6 +3133,7 @@ export default function Schedule() {
                 variant="outline"
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
+                  setSelectedShift('day');
                   if (shiftPreferenceData) {
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
@@ -3156,6 +3152,7 @@ export default function Schedule() {
                 variant="outline"
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
+                  setSelectedShift('night');
                   if (shiftPreferenceData) {
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
@@ -3174,6 +3171,7 @@ export default function Schedule() {
                 variant="outline"
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
+                  setSelectedShift('anytime');
                   if (shiftPreferenceData) {
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
