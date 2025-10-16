@@ -132,8 +132,10 @@ const saveJobInfo = (data: Record<string, JobInfo>) => {
     localStorage.setItem(JOB_STORE_KEY, JSON.stringify(data));
   } catch {}
 };
+type Shift = 'day' | 'night' | 'anytime';
+
 export default function Schedule() {
-  const [shiftByDate, setShiftByDate] = useState<Record<string, 'day' | 'night' | 'anytime'>>({});
+  const [shiftByUserDay, setShiftByUserDay] = useState<Record<string, Record<string, Shift>>>({});
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
@@ -724,6 +726,13 @@ export default function Schedule() {
     if (d?.date) return d.date; // assume already YYYY-MM-DD
     if (d?.id !== undefined) return String(d.id);
     throw new Error('Calendar day needs a stable key');
+  };
+
+  const userKey = (nurse: { id?: string | number; email?: string; name?: string }) => {
+    if (nurse?.id != null) return String(nurse.id);
+    if (nurse?.email) return nurse.email;
+    if (nurse?.name) return nurse.name;
+    throw new Error('User needs a stable key (id, email, or name)');
   };
 
   const goToPreviousWeek = () => {
@@ -1481,7 +1490,7 @@ export default function Schedule() {
                               </>
                             ) : (
                               <div className="text-xs font-semibold text-green-600 dark:text-green-500">
-                                {shiftByDate[dayKey(day)] ?? 'anytime'}
+                                {shiftByUserDay[userKey(user)]?.[dayKey(day)] ?? 'anytime'}
                               </div>
                             )}
                           </div>
@@ -3142,7 +3151,12 @@ export default function Schedule() {
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
                   if (shiftPreferenceData) {
-                    setShiftByDate(prev => ({ ...prev, [dayKey(shiftPreferenceData.date)]: 'day' }));
+                    const u = shiftPreferenceData.userId;
+                    const d = dayKey(shiftPreferenceData.date);
+                    setShiftByUserDay(prev => ({
+                      ...prev,
+                      [u]: { ...(prev[u] ?? {}), [d]: 'day' }
+                    }));
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
                       date: shiftPreferenceData.date,
@@ -3161,7 +3175,12 @@ export default function Schedule() {
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
                   if (shiftPreferenceData) {
-                    setShiftByDate(prev => ({ ...prev, [dayKey(shiftPreferenceData.date)]: 'night' }));
+                    const u = shiftPreferenceData.userId;
+                    const d = dayKey(shiftPreferenceData.date);
+                    setShiftByUserDay(prev => ({
+                      ...prev,
+                      [u]: { ...(prev[u] ?? {}), [d]: 'night' }
+                    }));
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
                       date: shiftPreferenceData.date,
@@ -3180,7 +3199,12 @@ export default function Schedule() {
                 className="w-full justify-start h-auto py-4"
                 onClick={() => {
                   if (shiftPreferenceData) {
-                    setShiftByDate(prev => ({ ...prev, [dayKey(shiftPreferenceData.date)]: 'anytime' }));
+                    const u = shiftPreferenceData.userId;
+                    const d = dayKey(shiftPreferenceData.date);
+                    setShiftByUserDay(prev => ({
+                      ...prev,
+                      [u]: { ...(prev[u] ?? {}), [d]: 'anytime' }
+                    }));
                     createAvailabilityMutation.mutate({
                       userId: shiftPreferenceData.userId,
                       date: shiftPreferenceData.date,
