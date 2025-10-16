@@ -735,6 +735,16 @@ export default function Schedule() {
     throw new Error('User needs a stable key (id, email, or name)');
   };
 
+  const shiftClasses = (shift: Shift, scheduled: boolean) => {
+    const base = {
+      day:     'bg-green-100 text-green-900 border-green-300',
+      night:   'bg-pink-100 text-pink-900 border-pink-300',
+      anytime: 'bg-gray-100 text-gray-900 border-gray-300',
+    }[shift ?? 'anytime'];
+    // Extra emphasis when scheduled
+    return scheduled ? `${base} border-2 ring-1 ring-black/5` : `${base} border`;
+  };
+
   const goToPreviousWeek = () => {
     setCurrentDate(addDays(currentDate, -7));
   };
@@ -1489,7 +1499,7 @@ export default function Schedule() {
                                 </div>
                               </>
                             ) : (
-                              <div className="text-xs font-semibold text-green-600 dark:text-green-500">
+                              <div className={`rounded-md px-2 py-1 text-xs font-semibold ${shiftClasses((shiftByUserDay[userKey(user)]?.[dayKey(day)] ?? 'anytime') as Shift, userShifts.length > 0)}`}>
                                 {shiftByUserDay[userKey(user)]?.[dayKey(day)] ?? 'anytime'}
                               </div>
                             )}
