@@ -1466,7 +1466,15 @@ export default function Schedule() {
                                   : "text-green-600 dark:text-green-500"
                               }`}
                             >
-                              {isUnavailable ? "Unavailable" : "Prefer to work"}
+                              {isUnavailable
+                                ? "Unavailable"
+                                : availability.shiftPreference === "day"
+                                  ? "Prefer to work day shift"
+                                  : availability.shiftPreference === "night"
+                                    ? "Prefer to work night shift"
+                                    : availability.shiftPreference === "both"
+                                      ? "Prefer to work anytime"
+                                      : "Prefer to work"}
                             </div>
                             <div
                               className={`text-xs font-medium ${
