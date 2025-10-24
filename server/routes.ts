@@ -196,6 +196,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Onboarding Routes =====
+
+  // Get user info by onboarding token (no auth required)
+  app.get("/api/onboarding/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const user = await storage.getUserByOnboardingToken(token);
+
+      if (!user) {
+        return res.status(404).json({ error: "Invalid or expired onboarding link" });
+      }
+
+      // Check if token is expired
+      if (user.onboardingTokenExpiry && new Date(user.onboardingTokenExpiry) < new Date()) {
+        return res.status(400).json({ error: "Onboarding link has expired" });
+      }
+
+      // Check if already completed
+      if (user.onboardingCompleted) {
+        return res.status(400).json({ error: "Onboarding already completed" });
+      }
+
+      // Return basic user info (no sensitive data)
+      res.json({
+        id: user.id,
+        fullName: user.fullName,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get onboarding info" });
+    }
+  });
+
+  // Complete onboarding (no auth required, uses token)
+  app.post("/api/onboarding/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const {
+        username,
+        password,
+        email,
+        emergencyContact,
+        shiftPreference,
+        workSetting,
+        allergies,
+        address,
+      } = req.body;
+
+      // Validate required fields
+      if (!username || !password || !email) {
+        return res.status(400).json({
+          error: "Username, password, and email are required"
+        });
+      }
+
+      const user = await storage.getUserByOnboardingToken(token);
+      if (!user) {
+        return res.status(404).json({ error: "Invalid onboarding link" });
+      }
+
+      // Check if token is expired
+      if (user.onboardingTokenExpiry && new Date(user.onboardingTokenExpiry) < new Date()) {
+        return res.status(400).json({ error: "Onboarding link has expired" });
+      }
+
+      // Check if already completed
+      if (user.onboardingCompleted) {
+        return res.status(400).json({ error: "Onboarding already completed" });
+      }
+
+      // Check if username or email already taken by another user
+      const existingByUsername = await storage.getUserByUsername(username);
+      if (existingByUsername && existingByUsername.id !== user.id) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+
+      const existingByEmail = await storage.getUserByEmail(email);
+      if (existingByEmail && existingByEmail.id !== user.id) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Update user with onboarding data
+      const customFields = {
+        ...(user.customFields as any || {}),
+        emergencyContact,
+        shiftPreference,
+        workSetting,
+        allergies,
+        address,
+      };
+
+      const updatedUser = await storage.updateUser(user.id, {
+        username,
+        passwordHash,
+        email,
+        customFields,
+        onboardingCompleted: true,
+        onboardingToken: null,
+        onboardingTokenExpiry: null,
+        status: "active",
+      });
+
+      await logAudit(
+        user.id,
+        "complete_onboarding",
+        "user",
+        user.id,
+        true,
+        ["emergencyContact", "shiftPreference", "workSetting", "allergies", "address"],
+        {},
+        req.ip,
+      );
+
+      // Auto-login the user after onboarding
+      req.session.userId = user.id;
+
+      const { passwordHash: _, ...userResponse } = updatedUser;
+      res.json(userResponse);
+    } catch (error: any) {
+      console.error("Failed to complete onboarding:", error);
+      res.status(500).json({ error: "Failed to complete onboarding" });
+    }
+  });
+
   // ===== Time Entry Routes =====
 
   // Clock in
@@ -1805,6 +1933,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(sanitizedUsers);
     } catch (error) {
       res.status(500).json({ error: "Failed to list users" });
+    }
+  });
+
+  // Create new user (Admin/Owner only)
+  app.post("/api/users", requireRole("Admin", "Owner"), async (req, res) => {
+    try {
+      const { fullName, phoneNumber, role } = req.body;
+
+      // Validate required fields
+      if (!fullName || !phoneNumber || !role) {
+        return res.status(400).json({
+          error: "Name, phone number, and role are required"
+        });
+      }
+
+      // Generate a temporary username and email from the name
+      const nameParts = fullName.trim().split(' ');
+      const firstName = nameParts[0].toLowerCase();
+      const lastName = nameParts[nameParts.length - 1]?.toLowerCase() || '';
+      const baseUsername = `${firstName}${lastName}${Math.floor(Math.random() * 1000)}`;
+      const tempEmail = `${baseUsername}@temp.outreachops.com`;
+
+      // Generate onboarding token (valid for 7 days)
+      const onboardingToken = Array.from({ length: 32 }, () =>
+        Math.floor(Math.random() * 16).toString(16)
+      ).join('');
+      const onboardingTokenExpiry = new Date();
+      onboardingTokenExpiry.setDate(onboardingTokenExpiry.getDate() + 7);
+
+      // Create user with temporary password
+      const tempPassword = Array.from({ length: 16 }, () =>
+        Math.floor(Math.random() * 36).toString(36)
+      ).join('');
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+      const userData = {
+        username: baseUsername,
+        passwordHash,
+        email: tempEmail,
+        fullName,
+        phoneNumber,
+        role,
+        status: "pending-onboarding" as const,
+        onboardingToken,
+        onboardingTokenExpiry,
+        onboardingCompleted: false,
+      };
+
+      const user = await storage.createUser(userData);
+
+      await logAudit(
+        req.session.userId,
+        "create",
+        "user",
+        user.id,
+        false,
+        [],
+        { role, phoneNumber },
+        req.ip,
+      );
+
+      // Return sanitized user with onboarding link
+      const { passwordHash: _, ...userResponse } = user;
+      res.json({
+        ...userResponse,
+        onboardingLink: `${req.protocol}://${req.get('host')}/onboarding/${onboardingToken}`,
+      });
+    } catch (error: any) {
+      console.error("Failed to create user:", error);
+      res.status(500).json({ error: "Failed to create user" });
     }
   });
 

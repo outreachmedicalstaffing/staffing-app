@@ -24,7 +24,8 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(), // bcrypt hashed password
     email: text("email").notNull().unique(),
     fullName: text("full_name").notNull(),
-    role: text("role").notNull(), // Owner, Admin, Scheduler, Payroll, HR, Manager, Staff
+    phoneNumber: text("phone_number"), // For SMS notifications
+    role: text("role").notNull(), // Owner, Admin, Scheduler, Payroll, HR, Manager, Staff, CNA, LPN, RN
     defaultHourlyRate: decimal("default_hourly_rate", {
       precision: 8,
       scale: 2,
@@ -33,9 +34,12 @@ export const users = pgTable(
     groups: text("groups")
       .array()
       .default(sql`ARRAY[]::text[]`),
-    customFields: jsonb("custom_fields").default(sql`'{}'::jsonb`), // Encrypted PHI: license, SSN, etc.
-    status: text("status").notNull().default("active"), // active, archived
+    customFields: jsonb("custom_fields").default(sql`'{}'::jsonb`), // Encrypted PHI: license, SSN, emergency contact, shift preferences, work setting, allergies, address
+    status: text("status").notNull().default("active"), // active, archived, pending-onboarding
     requireMfa: boolean("require_mfa").default(false),
+    onboardingToken: text("onboarding_token"), // Unique token for onboarding link
+    onboardingTokenExpiry: timestamp("onboarding_token_expiry"), // Token expiration
+    onboardingCompleted: boolean("onboarding_completed").default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
@@ -43,6 +47,7 @@ export const users = pgTable(
     usernameIdx: index("users_username_idx").on(table.username),
     roleIdx: index("users_role_idx").on(table.role),
     statusIdx: index("users_status_idx").on(table.status),
+    onboardingTokenIdx: index("users_onboarding_token_idx").on(table.onboardingToken),
   }),
 );
 

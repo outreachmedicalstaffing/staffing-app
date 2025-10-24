@@ -10,11 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { UserDetailView } from "@/components/user-detail-view";
+import { AddUserDialog } from "@/components/add-user-dialog";
 
 export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("users");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showAddUserDialog, setShowAddUserDialog] = useState(false);
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -98,7 +100,7 @@ export default function Users() {
                     <FileDown className="h-4 w-4 mr-2" />
                     Export
                   </Button>
-                  <Button size="sm" data-testid="button-add-users">
+                  <Button size="sm" onClick={() => setShowAddUserDialog(true)} data-testid="button-add-users">
                     <UserPlus className="h-4 w-4 mr-2" />
                     Add users
                   </Button>
@@ -200,7 +202,7 @@ export default function Users() {
                     <FileDown className="h-4 w-4 mr-2" />
                     Export
                   </Button>
-                  <Button size="sm" data-testid="button-add-admin">
+                  <Button size="sm" onClick={() => setShowAddUserDialog(true)} data-testid="button-add-admin">
                     <UserPlus className="h-4 w-4 mr-2" />
                     Add users
                   </Button>
@@ -346,10 +348,15 @@ export default function Users() {
         </TabsContent>
       </Tabs>
 
-      <UserDetailView 
+      <UserDetailView
         user={selectedUser}
         open={!!selectedUser}
         onClose={() => setSelectedUser(null)}
+      />
+
+      <AddUserDialog
+        open={showAddUserDialog}
+        onClose={() => setShowAddUserDialog(false)}
       />
     </div>
   );

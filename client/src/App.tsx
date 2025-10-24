@@ -20,6 +20,7 @@ import Users from "@/pages/users";
 import SmartGroups from "@/pages/smart-groups";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
+import Onboarding from "@/pages/onboarding";
 import type { User } from "@shared/schema";
 import { useEffect, useState } from "react";
 
@@ -70,6 +71,11 @@ function Router() {
 
   if (location === '/login') {
     return <Login />;
+  }
+
+  // Check if it's an onboarding route
+  if (location.startsWith('/onboarding/')) {
+    return <Onboarding />;
   }
 
   return <AuthenticatedRouter />;
