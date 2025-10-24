@@ -6,6 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Clock from "@/pages/clock";
@@ -18,7 +21,7 @@ import SmartGroups from "@/pages/smart-groups";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import type { User } from "@shared/schema";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 function AuthenticatedRouter() {
   const [location, setLocation] = useLocation();
@@ -72,6 +75,65 @@ function Router() {
   return <AuthenticatedRouter />;
 }
 
+function Header() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        // Clear the auth query cache
+        queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+        toast({
+          title: "Success",
+          description: "Logged out successfully",
+        });
+        setLocation("/login");
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to logout",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to logout",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <header className="flex items-center justify-between p-4 border-b">
+      <SidebarTrigger data-testid="button-sidebar-toggle" />
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleLogout}
+          disabled={loading}
+          data-testid="button-logout"
+          title="Logout"
+        >
+          <LogOut className="h-4 w-4" />
+        </Button>
+        <ThemeToggle />
+      </div>
+    </header>
+  );
+}
+
 export default function App() {
   const style = {
     "--sidebar-width": "16rem",
@@ -93,10 +155,7 @@ export default function App() {
             <div className="flex h-screen w-full">
               <AppSidebar hipaaMode={true} />
               <div className="flex flex-col flex-1">
-                <header className="flex items-center justify-between p-4 border-b">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <ThemeToggle />
-                </header>
+                <Header />
                 <main className="flex-1 overflow-y-auto p-6">
                   <Router />
                 </main>
