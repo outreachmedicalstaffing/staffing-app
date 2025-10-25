@@ -1384,14 +1384,15 @@ export default function Schedule() {
                     );
                     const isUnavailable = availability?.type === "unavailable";
                     const isPreferred = availability?.type === "preferred";
+                    const hasShifts = userShifts.length > 0;
 
                     return (
                       <div
                         key={dayIdx}
                         className={`border-r last:border-r-0 p-2 min-h-[80px] space-y-1 cursor-pointer transition-colors relative group ${
-                          isUnavailable
+                          !hasShifts && isUnavailable
                             ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30"
-                            : isPreferred
+                            : !hasShifts && isPreferred
                               ? "bg-green-50 dark:bg-green-950/20 hover:bg-green-100 dark:hover:bg-green-950/30"
                               : "hover:bg-muted/30"
                         }`}
@@ -1482,7 +1483,7 @@ export default function Schedule() {
                         </div>
 
                         {/* Availability Display */}
-                        {availability && (
+                        {availability && !hasShifts && (
                           <div
                             className="text-center mb-2 space-y-0.5"
                             data-testid={`availability-display-${user.id}-${dayIdx}`}
