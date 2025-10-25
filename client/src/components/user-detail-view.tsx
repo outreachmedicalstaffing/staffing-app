@@ -64,6 +64,7 @@ interface EditableUser {
   firstName: string;
   lastName: string;
   email: string;
+  username: string;
   role: string;
   mobilePhone: string;
   birthday: string;
@@ -155,6 +156,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     firstName: firstName || "",
     lastName: lastName || "",
     email: user?.email || "",
+    username: user?.username || "",
     role: user?.role || "Staff",
     mobilePhone: customFields.mobilePhone || "",
     birthday: customFields.birthday || "",
@@ -201,6 +203,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         firstName: firstName || "",
         lastName: lastName || "",
         email: user.email || "",
+        username: user.username || "",
         role: user.role || "Staff",
         mobilePhone: customFields.mobilePhone || "",
         birthday: customFields.birthday || "",
@@ -283,6 +286,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
       return await apiRequest("PATCH", `/api/users/${user!.id}`, {
         fullName,
         email: data.email,
+        username: data.username,
         role: data.role,
         defaultHourlyRate: payRate.defaultRate.replace(/[^0-9.]/g, ""),
         jobRates: jobRatesObject,
@@ -324,6 +328,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
       firstName,
       lastName,
       email: user.email,
+      username: user.username,
       role: user.role,
       mobilePhone: customFields.mobilePhone || "",
       birthday: customFields.birthday || "",
@@ -526,6 +531,34 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                         disabled={!isEditing}
                         className="mt-1 h-9"
                         data-testid="input-email"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Username
+                      </Label>
+                      <Input
+                        value={formData.username}
+                        onChange={(e) =>
+                          setFormData({ ...formData, username: e.target.value })
+                        }
+                        disabled={!isEditing}
+                        className="mt-1 h-9"
+                        data-testid="input-username"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Password
+                      </Label>
+                      <Input
+                        value="••••••••"
+                        disabled={true}
+                        className="mt-1 h-9"
+                        data-testid="input-password"
+                        title="Password is set (hidden for security)"
                       />
                     </div>
 
