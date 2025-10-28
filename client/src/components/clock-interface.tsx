@@ -15,11 +15,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { useMutation } from "@tanstack/react-query";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { TimeEntry } from "@shared/schema";
+import { format } from "date-fns";
 
 // ---- Props definition for ClockInterface ----
 type ClockInterfaceProps = {
@@ -43,6 +47,8 @@ export default function ClockInterface({
   const [signature, setSignature] = useState<string | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [showNotesDialog, setShowNotesDialog] = useState(false);
+  const [showShiftSelection, setShowShiftSelection] = useState(false);
+  const [selectedShiftId, setSelectedShiftId] = useState<string>("");
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,10 +57,34 @@ export default function ClockInterface({
 
   const isClockedIn = !!activeEntry;
 
+  // Fetch user info for shift filtering
+  const { data: me } = useQuery<{ id: string }>({ queryKey: ["/api/auth/me"] });
+
+  // Fetch shifts and assignments for shift selection
+  const { data: shifts = [] } = useQuery<any[]>({ queryKey: ["/api/shifts"] });
+  const { data: assignments = [] } = useQuery<any[]>({
+    queryKey: ["/api/shift-assignments"],
+  });
+
+  // Get today's assigned shifts
+  const todayShifts = shifts.filter((shift) => {
+    const shiftDate = new Date(shift.startTime);
+    const today = new Date();
+    const isToday =
+      shiftDate.getDate() === today.getDate() &&
+      shiftDate.getMonth() === today.getMonth() &&
+      shiftDate.getFullYear() === today.getFullYear();
+    const isAssigned = assignments.some(
+      (a) => a.shiftId === shift.id && a.userId === me?.id
+    );
+    return isToday && isAssigned;
+  });
+
   // Check if current shift is AdventHealth IPU (photos optional)
-  const isAdventHealthIPU = currentJob &&
-    (currentJob.toLowerCase().includes('advent') || currentJob.toLowerCase().includes('adventhealth')) &&
-    currentJob.toLowerCase().includes('ipu');
+  const activeShift = (activeEntry as any)?.shift;
+  const isAdventHealthIPU = activeShift?.jobName &&
+    (activeShift.jobName.toLowerCase().includes('advent') || activeShift.jobName.toLowerCase().includes('adventhealth')) &&
+    activeShift.jobName.toLowerCase().includes('ipu');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -69,8 +99,9 @@ export default function ClockInterface({
   }, [activeEntry]);
 
   const clockInMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (shiftId?: string) => {
       const res = await apiRequest("POST", "/api/time/clock-in", {
+        shiftId: shiftId || null,
         location: "Office",
         notes: "",
       });
@@ -79,6 +110,8 @@ export default function ClockInterface({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/time/active"] });
+      setShowShiftSelection(false);
+      setSelectedShiftId("");
       toast({
         title: "Clocked In",
         description: "You have successfully clocked in",
@@ -212,8 +245,19 @@ export default function ClockInterface({
       // Clocking out triggers the parent popups (upload + optional notes)
       setShowNotesDialog(true); // show the required notes dialog first
     } else {
-      clockInMutation.mutate();
+      // Show shift selection dialog if there are shifts available
+      if (todayShifts.length > 0) {
+        setShowShiftSelection(true);
+      } else {
+        // No shifts assigned, clock in without shift
+        clockInMutation.mutate();
+      }
     }
+  };
+
+  // Confirm clock in with selected shift
+  const confirmClockIn = () => {
+    clockInMutation.mutate(selectedShiftId || undefined);
   };
 
   // When user confirms clock out inside the notes dialog:
@@ -355,6 +399,55 @@ export default function ClockInterface({
           <CurrentShift />
         </div>
       </CardContent>
+
+      {/* Shift Selection Dialog */}
+      <Dialog open={showShiftSelection} onOpenChange={setShowShiftSelection}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Your Shift</DialogTitle>
+            <DialogDescription>
+              Choose which shift you're clocking in for today.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {todayShifts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No assigned shifts found for today.
+              </p>
+            ) : (
+              <RadioGroup value={selectedShiftId} onValueChange={setSelectedShiftId}>
+                {todayShifts.map((shift) => (
+                  <div key={shift.id} className="flex items-center space-x-2 border rounded-md p-3">
+                    <RadioGroupItem value={shift.id} id={shift.id} />
+                    <Label htmlFor={shift.id} className="flex-1 cursor-pointer">
+                      <div className="font-medium">{shift.title}</div>
+                      {shift.jobName && (
+                        <div className="text-sm text-muted-foreground">{shift.jobName}</div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(shift.startTime), "h:mm a")} - {format(new Date(shift.endTime), "h:mm a")}
+                      </div>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowShiftSelection(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmClockIn}
+              disabled={clockInMutation.isPending || !selectedShiftId}
+            >
+              {clockInMutation.isPending ? "Clocking In..." : "Clock In"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Notes (photos) – required before clock out (except AdventHealth IPU) */}
       <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>

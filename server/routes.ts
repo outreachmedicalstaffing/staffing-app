@@ -343,12 +343,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Auto-detect which shift the user is clocking in for
+      // Get shiftId from request if provided
+      const shiftId = req.body.shiftId || null;
       let jobName = req.body.jobName || null;
       let hourlyRate = user.defaultHourlyRate;
 
-      // If no job provided, try to find user's assigned shift for today
-      if (!jobName) {
+      // If shiftId provided, get shift details
+      if (shiftId) {
+        const shift = await storage.getShift(shiftId);
+        if (shift) {
+          jobName = shift.jobName || jobName;
+        }
+      } else if (!jobName) {
+        // Auto-detect which shift the user is clocking in for
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
@@ -386,6 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const entry = await storage.createTimeEntry({
         userId,
+        shiftId,
         clockIn: new Date(),
         clockOut: null,
         jobName,
@@ -422,12 +430,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Not clocked in" });
       }
 
+      // Check if shift requires photos
+      let photosRequired = true;
+      if (activeEntry.shiftId) {
+        const shift = await storage.getShift(activeEntry.shiftId);
+        if (shift?.jobName) {
+          // Photos are optional for AdventHealth IPU
+          const isAdventHealthIPU =
+            (shift.jobName.toLowerCase().includes('advent') || shift.jobName.toLowerCase().includes('adventhealth')) &&
+            shift.jobName.toLowerCase().includes('ipu');
+          photosRequired = !isAdventHealthIPU;
+        }
+      }
+
+      // Validate photo requirement
+      const photos = req.body.shiftNoteAttachments;
+      if (photosRequired && (!photos || photos.length === 0)) {
+        return res.status(400).json({
+          error: "At least one photo is required to clock out for this shift"
+        });
+      }
+
       const entry = await storage.updateTimeEntry(activeEntry.id, {
         clockOut: new Date(),
         status: "completed",
         breakMinutes: req.body.breakMinutes || 0,
         notes: req.body.notes || activeEntry.notes,
-        shiftNoteAttachments: req.body.shiftNoteAttachments || null,
+        shiftNoteAttachments: photos || null,
         relievingNurseSignature: req.body.relievingNurseSignature || null,
       });
 
@@ -452,7 +481,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const entry = await storage.getActiveTimeEntry(userId);
-      res.json(entry || null);
+
+      if (!entry) {
+        return res.json(null);
+      }
+
+      // Include shift data if entry is linked to a shift
+      let shift = null;
+      if (entry.shiftId) {
+        shift = await storage.getShift(entry.shiftId);
+      }
+
+      res.json({ ...entry, shift });
     } catch (error) {
       res.status(500).json({ error: "Failed to get active time entry" });
     }

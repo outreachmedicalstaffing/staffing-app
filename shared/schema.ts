@@ -73,6 +73,7 @@ export const timeEntries = pgTable(
     userId: varchar("user_id")
       .notNull()
       .references(() => users.id),
+    shiftId: varchar("shift_id").references(() => shifts.id), // Link to the assigned shift
     clockIn: timestamp("clock_in").notNull(),
     clockOut: timestamp("clock_out"),
     breakMinutes: integer("break_minutes").default(0),
