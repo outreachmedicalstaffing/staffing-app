@@ -51,6 +51,11 @@ export default function ClockInterface({
 
   const isClockedIn = !!activeEntry;
 
+  // Check if current shift is AdventHealth IPU (photos optional)
+  const isAdventHealthIPU = currentJob &&
+    (currentJob.toLowerCase().includes('advent') || currentJob.toLowerCase().includes('adventhealth')) &&
+    currentJob.toLowerCase().includes('ipu');
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -351,17 +356,20 @@ export default function ClockInterface({
         </div>
       </CardContent>
 
-      {/* Notes (photos) – required before clock out */}
+      {/* Notes (photos) – required before clock out (except AdventHealth IPU) */}
       <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Attach shift notes (required)</DialogTitle>
+            <DialogTitle>
+              Attach shift notes {isAdventHealthIPU ? '(optional)' : '(required)'}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Take photos of your paper notes. At least one image is required to
-              clock out.
+              {isAdventHealthIPU
+                ? 'Take photos of your paper notes if applicable.'
+                : 'Take photos of your paper notes. At least one image is required to clock out.'}
             </p>
 
             {uploadedPhotos.length > 0 && (
@@ -408,7 +416,8 @@ export default function ClockInterface({
             <Button
               onClick={confirmClockOut}
               disabled={
-                clockOutMutation.isPending || uploadedPhotos.length === 0
+                clockOutMutation.isPending ||
+                (!isAdventHealthIPU && uploadedPhotos.length === 0)
               }
             >
               {clockOutMutation.isPending
