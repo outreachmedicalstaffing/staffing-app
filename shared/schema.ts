@@ -13,6 +13,20 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session table for express-session with connect-pg-simple
+// This table is managed by connect-pg-simple, not by our application code
+export const session = pgTable(
+  "session",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire", { precision: 6 }).notNull(),
+  },
+  (table) => ({
+    expireIdx: index("IDX_session_expire").on(table.expire),
+  })
+);
+
 // Users table with role-based access control
 export const users = pgTable(
   "users",
