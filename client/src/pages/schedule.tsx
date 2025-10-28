@@ -160,6 +160,7 @@ export default function Schedule() {
     endTime: "8:00pm",
     shiftTitle: "",
     job: "",
+    program: "",
     selectedUsers: [] as string[],
     address: "",
     note: "",
@@ -422,6 +423,7 @@ export default function Schedule() {
       const shiftData = {
         title: shiftFormData.shiftTitle,
         jobName: shiftFormData.job || null,
+        program: shiftFormData.program || null,
         startTime: startTime,
         endTime: endTime,
         location: shiftFormData.address || null,
@@ -2256,6 +2258,7 @@ export default function Schedule() {
               endTime: "8:00pm",
               shiftTitle: "",
               job: "",
+              program: "",
               selectedUsers: [],
               address: "",
               note: "",
@@ -2387,6 +2390,45 @@ export default function Schedule() {
                   placeholder="Enter shift title"
                   data-testid="input-shift-title"
                 />
+              </div>
+
+              {/* Program Selection */}
+              <div>
+                <Label htmlFor="program-select">Program</Label>
+                <Select
+                  value={shiftFormData.program}
+                  onValueChange={(value) =>
+                    setShiftFormData({ ...shiftFormData, program: value })
+                  }
+                >
+                  <SelectTrigger id="program-select" data-testid="select-program">
+                    <SelectValue placeholder="Select a program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Advent/Health IPU">Advent/Health IPU</SelectItem>
+                    <SelectItem value="Vitas VHVP">Vitas VHVP</SelectItem>
+                    <SelectItem value="Vitas Central Florida">Vitas Central Florida</SelectItem>
+                    <SelectItem value="Vitas West Jacksonville">Vitas West Jacksonville</SelectItem>
+                    <SelectItem value="Haven Hospice">Haven Hospice</SelectItem>
+                    <SelectItem value="Vitas Brevard">Vitas Brevard</SelectItem>
+                    <SelectItem value="Gentiva Palm Coast">Gentiva Palm Coast</SelectItem>
+                    <SelectItem value="Gentiva Daytona">Gentiva Daytona</SelectItem>
+                    <SelectItem value="Gentiva DeLand">Gentiva DeLand</SelectItem>
+                    <SelectItem value="Gentiva Orlando">Gentiva Orlando</SelectItem>
+                    <SelectItem value="Gentiva Kissimmee">Gentiva Kissimmee</SelectItem>
+                    <SelectItem value="Vitas Nature Coast">Vitas Nature Coast</SelectItem>
+                    <SelectItem value="Vitas Citrus">Vitas Citrus</SelectItem>
+                    <SelectItem value="Vitas Jacksonville">Vitas Jacksonville</SelectItem>
+                    <SelectItem value="Vitas St. Johns">Vitas St. Johns</SelectItem>
+                    <SelectItem value="Treasure Coast">Treasure Coast</SelectItem>
+                    <SelectItem value="St. Augustine">St. Augustine</SelectItem>
+                    <SelectItem value="Vero Beach">Vero Beach</SelectItem>
+                    <SelectItem value="Stuart">Stuart</SelectItem>
+                    <SelectItem value="Port St. Lucie">Port St. Lucie</SelectItem>
+                    <SelectItem value="Melbourne">Melbourne</SelectItem>
+                    <SelectItem value="Cocoa Beach">Cocoa Beach</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Job Selection */}
@@ -2831,6 +2873,46 @@ export default function Schedule() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Program Selection */}
+              <div>
+                <Label htmlFor="edit-program-select">Program</Label>
+                <Select
+                  value={(editingShift as any).program || undefined}
+                  onValueChange={(value) =>
+                    setEditingShift({ ...editingShift, program: value } as any)
+                  }
+                >
+                  <SelectTrigger id="edit-program-select" data-testid="select-edit-program">
+                    <SelectValue placeholder="Select a program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Advent/Health IPU">Advent/Health IPU</SelectItem>
+                    <SelectItem value="Vitas VHVP">Vitas VHVP</SelectItem>
+                    <SelectItem value="Vitas Central Florida">Vitas Central Florida</SelectItem>
+                    <SelectItem value="Vitas West Jacksonville">Vitas West Jacksonville</SelectItem>
+                    <SelectItem value="Haven Hospice">Haven Hospice</SelectItem>
+                    <SelectItem value="Vitas Brevard">Vitas Brevard</SelectItem>
+                    <SelectItem value="Gentiva Palm Coast">Gentiva Palm Coast</SelectItem>
+                    <SelectItem value="Gentiva Daytona">Gentiva Daytona</SelectItem>
+                    <SelectItem value="Gentiva DeLand">Gentiva DeLand</SelectItem>
+                    <SelectItem value="Gentiva Orlando">Gentiva Orlando</SelectItem>
+                    <SelectItem value="Gentiva Kissimmee">Gentiva Kissimmee</SelectItem>
+                    <SelectItem value="Vitas Nature Coast">Vitas Nature Coast</SelectItem>
+                    <SelectItem value="Vitas Citrus">Vitas Citrus</SelectItem>
+                    <SelectItem value="Vitas Jacksonville">Vitas Jacksonville</SelectItem>
+                    <SelectItem value="Vitas St. Johns">Vitas St. Johns</SelectItem>
+                    <SelectItem value="Treasure Coast">Treasure Coast</SelectItem>
+                    <SelectItem value="St. Augustine">St. Augustine</SelectItem>
+                    <SelectItem value="Vero Beach">Vero Beach</SelectItem>
+                    <SelectItem value="Stuart">Stuart</SelectItem>
+                    <SelectItem value="Port St. Lucie">Port St. Lucie</SelectItem>
+                    <SelectItem value="Melbourne">Melbourne</SelectItem>
+                    <SelectItem value="Cocoa Beach">Cocoa Beach</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {(() => {
                 const job = jobLocations.find(
                   (j) => j.name === (editingShift.jobName || ""),
@@ -3128,6 +3210,7 @@ export default function Schedule() {
                         data: {
                           title: editingShift.title,
                           jobName: editingShift.jobName,
+                          program: (editingShift as any).program,
                           startTime: editingShift.startTime,
                           endTime: editingShift.endTime,
                           location: editingShift.location,

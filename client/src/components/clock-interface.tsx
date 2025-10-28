@@ -82,9 +82,9 @@ export default function ClockInterface({
 
   // Check if current shift is AdventHealth IPU (photos optional)
   const activeShift = (activeEntry as any)?.shift;
-  const isAdventHealthIPU = activeShift?.jobName &&
-    (activeShift.jobName.toLowerCase().includes('advent') || activeShift.jobName.toLowerCase().includes('adventhealth')) &&
-    activeShift.jobName.toLowerCase().includes('ipu');
+  const isAdventHealthIPU = activeShift?.program &&
+    (activeShift.program.toLowerCase().includes('advent') || activeShift.program.toLowerCase().includes('adventhealth')) &&
+    activeShift.program.toLowerCase().includes('ipu');
 
   useEffect(() => {
     const timer = setInterval(() => {

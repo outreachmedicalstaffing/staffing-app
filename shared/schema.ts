@@ -162,6 +162,7 @@ export const shifts = pgTable(
     templateId: varchar("template_id").references(() => shiftTemplates.id),
     title: text("title").notNull(),
     jobName: text("job_name"), // The job/location this shift is for
+    program: text("program"), // The program/facility this shift is for (e.g., "Vitas VHVP", "AdventHealth IPU")
     startTime: timestamp("start_time").notNull(),
     endTime: timestamp("end_time").notNull(),
     location: text("location"),

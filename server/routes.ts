@@ -434,11 +434,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let photosRequired = true;
       if (activeEntry.shiftId) {
         const shift = await storage.getShift(activeEntry.shiftId);
-        if (shift?.jobName) {
+        if (shift?.program) {
           // Photos are optional for AdventHealth IPU
           const isAdventHealthIPU =
-            (shift.jobName.toLowerCase().includes('advent') || shift.jobName.toLowerCase().includes('adventhealth')) &&
-            shift.jobName.toLowerCase().includes('ipu');
+            (shift.program.toLowerCase().includes('advent') || shift.program.toLowerCase().includes('adventhealth')) &&
+            shift.program.toLowerCase().includes('ipu');
           photosRequired = !isAdventHealthIPU;
         }
       }
