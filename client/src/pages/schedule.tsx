@@ -2420,6 +2420,35 @@ export default function Schedule() {
                 </Select>
               </div>
 
+              {/* Program details viewer */}
+              {(() => {
+                const program = jobLocations.find(
+                  (j) => j.name === shiftFormData.program,
+                );
+                // Check both jobLocations description and jobInfo description
+                const hasLocalDescription = program && (program as any).description;
+                const hasSavedDescription = shiftFormData.program && jobInfo[shiftFormData.program]?.description;
+
+                if (!hasLocalDescription && !hasSavedDescription) return null;
+
+                const description = (program as any)?.description || jobInfo[shiftFormData.program]?.description;
+
+                return (
+                  <Accordion type="single" collapsible className="mt-2">
+                    <AccordionItem value="program-details">
+                      <AccordionTrigger className="text-sm">
+                        Program details
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
+                          {description}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                );
+              })()}
+
               {/* Job Selection */}
               {/* Job description viewer (from saved Job details) */}
               {shiftFormData.job && jobInfo[shiftFormData.job]?.description ? (
@@ -2890,6 +2919,35 @@ export default function Schedule() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Program details viewer */}
+              {(() => {
+                const program = jobLocations.find(
+                  (j) => j.name === ((editingShift as any).program || ""),
+                );
+                // Check both jobLocations description and jobInfo description
+                const hasLocalDescription = program && (program as any).description;
+                const hasSavedDescription = (editingShift as any).program && jobInfo[(editingShift as any).program]?.description;
+
+                if (!hasLocalDescription && !hasSavedDescription) return null;
+
+                const description = (program as any)?.description || jobInfo[(editingShift as any).program]?.description;
+
+                return (
+                  <Accordion type="single" collapsible className="mt-2">
+                    <AccordionItem value="program-details">
+                      <AccordionTrigger className="text-sm">
+                        Program details
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
+                          {description}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                );
+              })()}
 
               {(() => {
                 const job = jobLocations.find(
