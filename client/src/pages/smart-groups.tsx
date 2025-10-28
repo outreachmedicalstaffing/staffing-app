@@ -24,6 +24,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface GroupCategory {
   id: string;
@@ -38,6 +45,8 @@ export default function SmartGroups() {
   const [editingGroup, setEditingGroup] = useState<{ categoryId: string; group: { id: string; name: string; count: number; color: string } } | null>(null);
   const [deletingGroup, setDeletingGroup] = useState<{ categoryId: string; groupId: string; groupName: string } | null>(null);
   const [editFormData, setEditFormData] = useState({ name: "", count: 0, color: "" });
+  const [addingGroup, setAddingGroup] = useState(false);
+  const [newGroupData, setNewGroupData] = useState({ name: "", categoryId: "", color: "bg-blue-500" });
 
   const [categories, setCategories] = useState<GroupCategory[]>([
     {
@@ -153,6 +162,35 @@ export default function SmartGroups() {
     setDeletingGroup(null);
   };
 
+  const handleAddGroup = () => {
+    setAddingGroup(true);
+    setNewGroupData({ name: "", categoryId: "", color: "bg-blue-500" });
+  };
+
+  const handleSaveNewGroup = () => {
+    if (!newGroupData.name || !newGroupData.categoryId) return;
+
+    const newGroup = {
+      id: newGroupData.name.toLowerCase().replace(/\s+/g, '-'),
+      name: newGroupData.name,
+      count: 0,
+      color: newGroupData.color
+    };
+
+    setCategories(prev => prev.map(category => {
+      if (category.id === newGroupData.categoryId) {
+        return {
+          ...category,
+          groups: [...category.groups, newGroup]
+        };
+      }
+      return category;
+    }));
+
+    setAddingGroup(false);
+    setNewGroupData({ name: "", categoryId: "", color: "bg-blue-500" });
+  };
+
   const filteredCategories = categories.map(category => ({
     ...category,
     groups: category.groups.filter(group =>
@@ -203,7 +241,7 @@ export default function SmartGroups() {
                 data-testid="input-search-groups"
               />
             </div>
-            <Button size="sm" data-testid="button-add-segment">
+            <Button size="sm" onClick={handleAddGroup} data-testid="button-add-segment">
               <UserPlus className="h-4 w-4 mr-2" />
               Add segment
             </Button>
@@ -349,6 +387,66 @@ export default function SmartGroups() {
             </Button>
             <Button onClick={handleSaveEdit}>
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Group Dialog */}
+      <Dialog open={addingGroup} onOpenChange={(open) => !open && setAddingGroup(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Group</DialogTitle>
+            <DialogDescription>
+              Create a new group by providing a name, selecting a category, and choosing a color.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-group-name">Group Name</Label>
+              <Input
+                id="new-group-name"
+                value={newGroupData.name}
+                onChange={(e) => setNewGroupData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter group name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-group-category">Category</Label>
+              <Select
+                value={newGroupData.categoryId}
+                onValueChange={(value) => setNewGroupData(prev => ({ ...prev, categoryId: value }))}
+              >
+                <SelectTrigger id="new-group-category">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="discipline">Groups by Discipline</SelectItem>
+                  <SelectItem value="general">General groups</SelectItem>
+                  <SelectItem value="program">Groups by Program</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-group-color">Color Class</Label>
+              <Input
+                id="new-group-color"
+                value={newGroupData.color}
+                onChange={(e) => setNewGroupData(prev => ({ ...prev, color: e.target.value }))}
+                placeholder="e.g., bg-blue-500"
+              />
+              <div className="flex items-center gap-2 mt-2">
+                <div className={`h-6 w-6 rounded-full ${newGroupData.color}`} />
+                <span className="text-xs text-muted-foreground">Preview</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddingGroup(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveNewGroup} disabled={!newGroupData.name || !newGroupData.categoryId}>
+              Add Group
             </Button>
           </DialogFooter>
         </DialogContent>
