@@ -422,8 +422,8 @@ export default function ClockInterface({
                     <RadioGroupItem value={shift.id} id={shift.id} />
                     <Label htmlFor={shift.id} className="flex-1 cursor-pointer">
                       <div className="font-medium">{shift.title}</div>
-                      {shift.jobName && (
-                        <div className="text-sm text-muted-foreground">{shift.jobName}</div>
+                      {(shift as any).program && (
+                        <div className="text-sm text-muted-foreground">{(shift as any).program}</div>
                       )}
                       <div className="text-xs text-muted-foreground">
                         {format(new Date(shift.startTime), "h:mm a")} - {format(new Date(shift.endTime), "h:mm a")}
