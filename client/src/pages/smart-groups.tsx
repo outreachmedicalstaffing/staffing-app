@@ -3,8 +3,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, ChevronDown, ChevronRight, UserPlus, Settings as SettingsIcon } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, UserPlus, Settings as SettingsIcon, Pencil, Trash2 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 
 interface GroupCategory {
   id: string;
@@ -16,8 +35,11 @@ interface GroupCategory {
 export default function SmartGroups() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["discipline", "general", "program"]);
+  const [editingGroup, setEditingGroup] = useState<{ categoryId: string; group: { id: string; name: string; count: number; color: string } } | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState<{ categoryId: string; groupId: string; groupName: string } | null>(null);
+  const [editFormData, setEditFormData] = useState({ name: "", count: 0, color: "" });
 
-  const categories: GroupCategory[] = [
+  const [categories, setCategories] = useState<GroupCategory[]>([
     {
       id: "discipline",
       name: "Groups by Discipline",
@@ -67,7 +89,7 @@ export default function SmartGroups() {
         { id: "cocoa", name: "Cocoa Beach", count: 3, color: "bg-emerald-600" },
       ]
     }
-  ];
+  ]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev =>
@@ -83,6 +105,52 @@ export default function SmartGroups() {
 
   const collapseAll = () => {
     setExpandedCategories([]);
+  };
+
+  const handleEditGroup = (categoryId: string, group: { id: string; name: string; count: number; color: string }) => {
+    setEditingGroup({ categoryId, group });
+    setEditFormData({ name: group.name, count: group.count, color: group.color });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingGroup) return;
+
+    setCategories(prev => prev.map(category => {
+      if (category.id === editingGroup.categoryId) {
+        return {
+          ...category,
+          groups: category.groups.map(group =>
+            group.id === editingGroup.group.id
+              ? { ...group, name: editFormData.name, count: editFormData.count, color: editFormData.color }
+              : group
+          )
+        };
+      }
+      return category;
+    }));
+
+    setEditingGroup(null);
+    setEditFormData({ name: "", count: 0, color: "" });
+  };
+
+  const handleDeleteGroup = (categoryId: string, groupId: string, groupName: string) => {
+    setDeletingGroup({ categoryId, groupId, groupName });
+  };
+
+  const confirmDelete = () => {
+    if (!deletingGroup) return;
+
+    setCategories(prev => prev.map(category => {
+      if (category.id === deletingGroup.categoryId) {
+        return {
+          ...category,
+          groups: category.groups.filter(group => group.id !== deletingGroup.groupId)
+        };
+      }
+      return category;
+    }));
+
+    setDeletingGroup(null);
   };
 
   const filteredCategories = categories.map(category => ({
@@ -178,16 +246,42 @@ export default function SmartGroups() {
                         {category.groups.map((group) => (
                           <div
                             key={group.id}
-                            className="flex items-center justify-between p-3 rounded-md border hover-elevate cursor-pointer"
+                            className="flex items-center justify-between p-3 rounded-md border hover-elevate"
                             data-testid={`group-${group.id}`}
                           >
                             <div className="flex items-center gap-3">
                               <div className={`h-3 w-3 rounded-full ${group.color}`} />
                               <span className="text-sm font-medium">{group.name}</span>
                             </div>
-                            <Badge variant="secondary" className="text-xs">
-                              {group.count} {group.count === 1 ? 'member' : 'members'}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs">
+                                {group.count} {group.count === 1 ? 'member' : 'members'}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditGroup(category.id, group);
+                                }}
+                                data-testid={`edit-group-${group.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteGroup(category.id, group.id, group.name);
+                                }}
+                                data-testid={`delete-group-${group.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -205,6 +299,78 @@ export default function SmartGroups() {
           </div>
         )}
       </Card>
+
+      {/* Edit Group Dialog */}
+      <Dialog open={editingGroup !== null} onOpenChange={(open) => !open && setEditingGroup(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Group</DialogTitle>
+            <DialogDescription>
+              Update the group name, member count, and color.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="group-name">Group Name</Label>
+              <Input
+                id="group-name"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter group name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="member-count">Member Count</Label>
+              <Input
+                id="member-count"
+                type="number"
+                value={editFormData.count}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, count: parseInt(e.target.value) || 0 }))}
+                placeholder="Enter member count"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="group-color">Color Class</Label>
+              <Input
+                id="group-color"
+                value={editFormData.color}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, color: e.target.value }))}
+                placeholder="e.g., bg-blue-500"
+              />
+              <div className="flex items-center gap-2 mt-2">
+                <div className={`h-6 w-6 rounded-full ${editFormData.color}`} />
+                <span className="text-xs text-muted-foreground">Preview</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingGroup(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deletingGroup !== null} onOpenChange={(open) => !open && setDeletingGroup(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deletingGroup?.groupName}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingGroup(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
