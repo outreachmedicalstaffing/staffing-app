@@ -2486,6 +2486,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const groupId = req.params.id;
         const userId = req.session.userId!;
 
+        // Validate groupId
+        if (!groupId || groupId.trim() === "") {
+          return res.status(400).json({ error: "Invalid group ID" });
+        }
+
+        console.log(`[Delete Smart Group] Attempting to delete group with ID: ${groupId}`);
+
         // Check if group exists
         const [group] = await storage.db
           .select()
@@ -2493,13 +2500,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(schema.smartGroups.id, groupId));
 
         if (!group) {
+          console.log(`[Delete Smart Group] Group not found: ${groupId}`);
           return res.status(404).json({ error: "Group not found" });
         }
 
+        console.log(`[Delete Smart Group] Found group: ${group.name} (${groupId})`);
+
         // Delete the group (cascade will delete members)
-        await storage.db
+        const result = await storage.db
           .delete(schema.smartGroups)
-          .where(eq(schema.smartGroups.id, groupId));
+          .where(eq(schema.smartGroups.id, groupId))
+          .returning();
+
+        console.log(`[Delete Smart Group] Successfully deleted group: ${group.name} (${groupId})`);
 
         await logAudit(
           userId,
@@ -2512,9 +2525,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.ip
         );
 
-        res.json({ success: true });
+        res.json({ success: true, deletedGroup: result[0] });
       } catch (error) {
-        console.error("Failed to delete smart group:", error);
+        console.error("[Delete Smart Group] Error:", error);
         res.status(500).json({ error: "Failed to delete smart group" });
       }
     }

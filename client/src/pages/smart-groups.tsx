@@ -82,24 +82,31 @@ export default function SmartGroups() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (groupId: string) => {
+      console.log(`[Frontend] Deleting group with ID: ${groupId}`);
       const res = await fetch(`/api/smart-groups/${groupId}`, {
         method: "DELETE",
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to delete group");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete group");
+      }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, groupId) => {
+      console.log(`[Frontend] Successfully deleted group: ${groupId}`);
       queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+      setDeletingGroup(null); // Close dialog after successful deletion
       toast({
         title: "Success",
         description: "Group deleted successfully",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error(`[Frontend] Failed to delete group:`, error);
       toast({
         title: "Error",
-        description: "Failed to delete group",
+        description: error.message || "Failed to delete group",
         variant: "destructive",
       });
     },
@@ -204,8 +211,9 @@ export default function SmartGroups() {
   const confirmDelete = () => {
     if (!deletingGroup) return;
 
+    console.log(`[Frontend] Confirming delete for group: ${deletingGroup.groupName} (${deletingGroup.groupId})`);
     deleteMutation.mutate(deletingGroup.groupId);
-    setDeletingGroup(null);
+    // Dialog will close automatically on success via onSuccess callback
   };
 
   const handleAddGroup = () => {
@@ -486,7 +494,7 @@ export default function SmartGroups() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deletingGroup !== null} onOpenChange={(open) => !open && setDeletingGroup(null)}>
+      <AlertDialog open={deletingGroup !== null} onOpenChange={(open) => !open && !deleteMutation.isPending && setDeletingGroup(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Group</AlertDialogTitle>
@@ -495,9 +503,15 @@ export default function SmartGroups() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingGroup(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+            <AlertDialogCancel onClick={() => setDeletingGroup(null)} disabled={deleteMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
