@@ -2331,6 +2331,263 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Smart Groups Routes =====
+
+  // List smart groups with member counts
+  app.get("/api/smart-groups", requireAuth, async (req, res) => {
+    try {
+      const groups = await storage.db
+        .select()
+        .from(schema.smartGroups)
+        .orderBy(schema.smartGroups.name);
+
+      // Get member counts for each group
+      const groupsWithCounts = await Promise.all(
+        groups.map(async (group) => {
+          const [result] = await storage.db
+            .select({ count: count() })
+            .from(schema.smartGroupMembers)
+            .where(eq(schema.smartGroupMembers.groupId, group.id));
+
+          return {
+            ...group,
+            count: result.count,
+          };
+        })
+      );
+
+      res.json(groupsWithCounts);
+    } catch (error) {
+      console.error("Failed to list smart groups:", error);
+      res.status(500).json({ error: "Failed to list smart groups" });
+    }
+  });
+
+  // Get single smart group with members
+  app.get("/api/smart-groups/:id", requireAuth, async (req, res) => {
+    try {
+      const groupId = req.params.id;
+
+      const [group] = await storage.db
+        .select()
+        .from(schema.smartGroups)
+        .where(eq(schema.smartGroups.id, groupId));
+
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+
+      // Get members
+      const members = await storage.db
+        .select({
+          userId: schema.smartGroupMembers.userId,
+          userName: schema.users.fullName,
+          userRole: schema.users.role,
+          addedAt: schema.smartGroupMembers.addedAt,
+        })
+        .from(schema.smartGroupMembers)
+        .leftJoin(schema.users, eq(schema.smartGroupMembers.userId, schema.users.id))
+        .where(eq(schema.smartGroupMembers.groupId, groupId));
+
+      res.json({ ...group, members });
+    } catch (error) {
+      console.error("Failed to get smart group:", error);
+      res.status(500).json({ error: "Failed to get smart group" });
+    }
+  });
+
+  // Create smart group (Admin/Owner only)
+  app.post(
+    "/api/smart-groups",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const userId = req.session.userId!;
+
+        const newGroup = schema.insertSmartGroupSchema.parse(req.body);
+
+        const [created] = await storage.db
+          .insert(schema.smartGroups)
+          .values(newGroup)
+          .returning();
+
+        await logAudit(
+          userId,
+          "create",
+          "smart_group",
+          created.id,
+          false,
+          ["name", "category"],
+          {},
+          req.ip
+        );
+
+        res.json(created);
+      } catch (error: any) {
+        console.error("Failed to create smart group:", error);
+        if (error.errors) {
+          return res.status(400).json({ error: error.errors });
+        }
+        res.status(500).json({ error: "Failed to create smart group" });
+      }
+    }
+  );
+
+  // Update smart group (Admin/Owner only)
+  app.patch(
+    "/api/smart-groups/:id",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const groupId = req.params.id;
+        const userId = req.session.userId!;
+
+        const [updated] = await storage.db
+          .update(schema.smartGroups)
+          .set({
+            ...req.body,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.smartGroups.id, groupId))
+          .returning();
+
+        if (!updated) {
+          return res.status(404).json({ error: "Group not found" });
+        }
+
+        await logAudit(
+          userId,
+          "update",
+          "smart_group",
+          groupId,
+          false,
+          Object.keys(req.body),
+          {},
+          req.ip
+        );
+
+        res.json(updated);
+      } catch (error: any) {
+        console.error("Failed to update smart group:", error);
+        if (error.errors) {
+          return res.status(400).json({ error: error.errors });
+        }
+        res.status(500).json({ error: "Failed to update smart group" });
+      }
+    }
+  );
+
+  // Delete smart group (Admin/Owner only)
+  app.delete(
+    "/api/smart-groups/:id",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const groupId = req.params.id;
+        const userId = req.session.userId!;
+
+        // Check if group exists
+        const [group] = await storage.db
+          .select()
+          .from(schema.smartGroups)
+          .where(eq(schema.smartGroups.id, groupId));
+
+        if (!group) {
+          return res.status(404).json({ error: "Group not found" });
+        }
+
+        // Delete the group (cascade will delete members)
+        await storage.db
+          .delete(schema.smartGroups)
+          .where(eq(schema.smartGroups.id, groupId));
+
+        await logAudit(
+          userId,
+          "delete",
+          "smart_group",
+          groupId,
+          false,
+          [],
+          { name: group.name },
+          req.ip
+        );
+
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Failed to delete smart group:", error);
+        res.status(500).json({ error: "Failed to delete smart group" });
+      }
+    }
+  );
+
+  // Add member to group (Admin/Owner only)
+  app.post(
+    "/api/smart-groups/:id/members",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const groupId = req.params.id;
+        const { userId } = req.body;
+
+        if (!userId) {
+          return res.status(400).json({ error: "User ID is required" });
+        }
+
+        // Check if already a member
+        const existing = await storage.db
+          .select()
+          .from(schema.smartGroupMembers)
+          .where(
+            and(
+              eq(schema.smartGroupMembers.groupId, groupId),
+              eq(schema.smartGroupMembers.userId, userId)
+            )
+          )
+          .limit(1);
+
+        if (existing.length > 0) {
+          return res.status(400).json({ error: "User is already a member" });
+        }
+
+        const [member] = await storage.db
+          .insert(schema.smartGroupMembers)
+          .values({ groupId, userId })
+          .returning();
+
+        res.json(member);
+      } catch (error) {
+        console.error("Failed to add member:", error);
+        res.status(500).json({ error: "Failed to add member" });
+      }
+    }
+  );
+
+  // Remove member from group (Admin/Owner only)
+  app.delete(
+    "/api/smart-groups/:id/members/:userId",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const groupId = req.params.id;
+        const userId = req.params.userId;
+
+        await storage.db
+          .delete(schema.smartGroupMembers)
+          .where(
+            and(
+              eq(schema.smartGroupMembers.groupId, groupId),
+              eq(schema.smartGroupMembers.userId, userId)
+            )
+          );
+
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Failed to remove member:", error);
+        res.status(500).json({ error: "Failed to remove member" });
+      }
+    }
+  );
+
   // ===== User Management Routes =====
 
   // List users

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -40,6 +42,8 @@ interface GroupCategory {
 }
 
 export default function SmartGroups() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["discipline", "general", "program"]);
   const [editingGroup, setEditingGroup] = useState<{ categoryId: string; group: { id: string; name: string; count: number; color: string } } | null>(null);
@@ -48,57 +52,114 @@ export default function SmartGroups() {
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupData, setNewGroupData] = useState({ name: "", categoryId: "", color: "bg-blue-500" });
 
-  const [categories, setCategories] = useState<GroupCategory[]>([
+  // Fetch smart groups from API
+  const { data: smartGroups = [], isLoading } = useQuery<Array<{ id: string; name: string; count: number; category: string | null; color: string }>>({
+    queryKey: ["/api/smart-groups"],
+  });
+
+  // Transform API data into category structure for UI
+  const categories: GroupCategory[] = [
     {
       id: "discipline",
       name: "Groups by Discipline",
       icon: "🩺",
-      groups: [
-        { id: "rn", name: "Registered Nurses (RN)", count: 45, color: "bg-blue-500" },
-        { id: "lpn", name: "Licensed Practical Nurses (LPN)", count: 28, color: "bg-purple-500" },
-        { id: "cna", name: "Certified Nursing Assistants (CNA)", count: 62, color: "bg-green-500" },
-        { id: "manager", name: "Managers", count: 8, color: "bg-orange-500" },
-      ]
+      groups: smartGroups.filter(g => g.category === "discipline")
     },
     {
       id: "general",
       name: "General groups",
       icon: "👥",
-      groups: [
-        { id: "full-time", name: "Full-time Staff", count: 98, color: "bg-teal-500" },
-        { id: "part-time", name: "Part-time Staff", count: 45, color: "bg-cyan-500" },
-      ]
+      groups: smartGroups.filter(g => g.category === "general")
     },
     {
       id: "program",
       name: "Groups by Program",
       icon: "📋",
-      groups: [
-        { id: "vitas-vhvp", name: "Vitas VHVP", count: 32, color: "bg-pink-500" },
-        { id: "vitas-central", name: "Vitas Central Florida", count: 28, color: "bg-indigo-500" },
-        { id: "vitas-west", name: "Vitas West Jacksonville", count: 24, color: "bg-red-500" },
-        { id: "advent-ipu", name: "Advent/Health IPU", count: 18, color: "bg-yellow-500" },
-        { id: "haven-hospice", name: "Haven Hospice", count: 15, color: "bg-emerald-500" },
-        { id: "brevard", name: "Vitas Brevard", count: 12, color: "bg-violet-500" },
-        { id: "palm-coast", name: "Gentiva Palm Coast", count: 10, color: "bg-fuchsia-500" },
-        { id: "daytona", name: "Gentiva Daytona", count: 9, color: "bg-rose-500" },
-        { id: "deland", name: "Gentiva DeLand", count: 8, color: "bg-sky-500" },
-        { id: "orlando", name: "Gentiva Orlando", count: 11, color: "bg-lime-500" },
-        { id: "kissimmee", name: "Gentiva Kissimmee", count: 7, color: "bg-amber-500" },
-        { id: "nature-coast", name: "Vitas Nature Coast", count: 6, color: "bg-teal-600" },
-        { id: "citrus", name: "Vitas Citrus", count: 5, color: "bg-cyan-600" },
-        { id: "jacksonville", name: "Vitas Jacksonville", count: 14, color: "bg-purple-600" },
-        { id: "st-johns", name: "Vitas St. Johns", count: 8, color: "bg-pink-600" },
-        { id: "treasure-coast", name: "Treasure Coast", count: 9, color: "bg-orange-600" },
-        { id: "st-augustine", name: "St. Augustine", count: 6, color: "bg-blue-600" },
-        { id: "vero-beach", name: "Vero Beach", count: 5, color: "bg-green-600" },
-        { id: "stuart", name: "Stuart", count: 4, color: "bg-red-600" },
-        { id: "port-st-lucie", name: "Port St. Lucie", count: 7, color: "bg-indigo-600" },
-        { id: "melbourne", name: "Melbourne", count: 6, color: "bg-yellow-600" },
-        { id: "cocoa", name: "Cocoa Beach", count: 3, color: "bg-emerald-600" },
-      ]
+      groups: smartGroups.filter(g => g.category === "program")
     }
-  ]);
+  ];
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const res = await fetch(`/api/smart-groups/${groupId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete group");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+      toast({
+        title: "Success",
+        description: "Group deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name: string; color: string } }) => {
+      const res = await fetch(`/api/smart-groups/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update group");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+      toast({
+        title: "Success",
+        description: "Group updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: { name: string; category: string; color: string }) => {
+      const res = await fetch("/api/smart-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create group");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+      toast({
+        title: "Success",
+        description: "Group created successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create group",
+        variant: "destructive",
+      });
+    },
+  });
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev =>
@@ -124,19 +185,13 @@ export default function SmartGroups() {
   const handleSaveEdit = () => {
     if (!editingGroup) return;
 
-    setCategories(prev => prev.map(category => {
-      if (category.id === editingGroup.categoryId) {
-        return {
-          ...category,
-          groups: category.groups.map(group =>
-            group.id === editingGroup.group.id
-              ? { ...group, name: editFormData.name, count: editFormData.count, color: editFormData.color }
-              : group
-          )
-        };
-      }
-      return category;
-    }));
+    updateMutation.mutate({
+      id: editingGroup.group.id,
+      data: {
+        name: editFormData.name,
+        color: editFormData.color,
+      },
+    });
 
     setEditingGroup(null);
     setEditFormData({ name: "", count: 0, color: "" });
@@ -149,16 +204,7 @@ export default function SmartGroups() {
   const confirmDelete = () => {
     if (!deletingGroup) return;
 
-    setCategories(prev => prev.map(category => {
-      if (category.id === deletingGroup.categoryId) {
-        return {
-          ...category,
-          groups: category.groups.filter(group => group.id !== deletingGroup.groupId)
-        };
-      }
-      return category;
-    }));
-
+    deleteMutation.mutate(deletingGroup.groupId);
     setDeletingGroup(null);
   };
 
@@ -170,22 +216,11 @@ export default function SmartGroups() {
   const handleSaveNewGroup = () => {
     if (!newGroupData.name || !newGroupData.categoryId) return;
 
-    const newGroup = {
-      id: newGroupData.name.toLowerCase().replace(/\s+/g, '-'),
+    createMutation.mutate({
       name: newGroupData.name,
-      count: 0,
-      color: newGroupData.color
-    };
-
-    setCategories(prev => prev.map(category => {
-      if (category.id === newGroupData.categoryId) {
-        return {
-          ...category,
-          groups: [...category.groups, newGroup]
-        };
-      }
-      return category;
-    }));
+      category: newGroupData.categoryId,
+      color: newGroupData.color,
+    });
 
     setAddingGroup(false);
     setNewGroupData({ name: "", categoryId: "", color: "bg-blue-500" });
@@ -199,6 +234,14 @@ export default function SmartGroups() {
   })).filter(category => category.groups.length > 0);
 
   const totalGroups = categories.reduce((sum, cat) => sum + cat.groups.length, 0);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading groups...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -344,7 +387,7 @@ export default function SmartGroups() {
           <DialogHeader>
             <DialogTitle>Edit Group</DialogTitle>
             <DialogDescription>
-              Update the group name, member count, and color.
+              Update the group name and color.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -355,16 +398,6 @@ export default function SmartGroups() {
                 value={editFormData.name}
                 onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Enter group name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="member-count">Member Count</Label>
-              <Input
-                id="member-count"
-                type="number"
-                value={editFormData.count}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, count: parseInt(e.target.value) || 0 }))}
-                placeholder="Enter member count"
               />
             </div>
             <div className="space-y-2">
