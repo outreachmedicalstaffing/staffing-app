@@ -40,8 +40,23 @@ import {
   Send,
   Calendar,
   Users,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 interface Update {
   id: string;
@@ -68,12 +83,19 @@ interface Comment {
   userName: string;
 }
 
+interface SmartGroup {
+  id: string;
+  name: string;
+}
+
 export default function Updates() {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [selectedUpdate, setSelectedUpdate] = useState<Update | null>(null);
   const [newComment, setNewComment] = useState("");
+  const [openUserSelect, setOpenUserSelect] = useState(false);
+  const [openGroupSelect, setOpenGroupSelect] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -97,6 +119,12 @@ export default function Updates() {
   // Fetch users for targeting
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
+    enabled: isAdmin,
+  });
+
+  // Fetch smart groups for targeting
+  const { data: smartGroups = [] } = useQuery<SmartGroup[]>({
+    queryKey: ["/api/smart-groups"],
     enabled: isAdmin,
   });
 
@@ -453,39 +481,135 @@ export default function Updates() {
               </Select>
             </div>
 
+            {formData.visibility === "specific_users" && (
+              <div>
+                <Label>Target Users</Label>
+                <Popover open={openUserSelect} onOpenChange={setOpenUserSelect}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openUserSelect}
+                      className="w-full justify-between mt-2"
+                      data-testid="button-select-users"
+                    >
+                      {formData.targetUserIds.length > 0
+                        ? `${formData.targetUserIds.length} user(s) selected`
+                        : "Select users..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search users..." />
+                      <CommandEmpty>No users found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {users.map((user) => (
+                          <CommandItem
+                            key={user.id}
+                            onSelect={() => {
+                              const isSelected = formData.targetUserIds.includes(user.id);
+                              setFormData({
+                                ...formData,
+                                targetUserIds: isSelected
+                                  ? formData.targetUserIds.filter((id) => id !== user.id)
+                                  : [...formData.targetUserIds, user.id],
+                              });
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.targetUserIds.includes(user.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {user.fullName} ({user.role})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {formData.targetUserIds.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.targetUserIds.map((userId) => {
+                      const user = users.find((u) => u.id === userId);
+                      return user ? (
+                        <Badge key={userId} variant="secondary">
+                          {user.fullName}
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {formData.visibility === "specific_groups" && (
               <div>
                 <Label>Target Groups</Label>
-                <div className="space-y-2 mt-2">
-                  {["RN", "LPN", "CNA", "Admin"].map((role) => (
-                    <label
-                      key={role}
-                      className="flex items-center space-x-2 cursor-pointer"
+                <Popover open={openGroupSelect} onOpenChange={setOpenGroupSelect}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openGroupSelect}
+                      className="w-full justify-between mt-2"
+                      data-testid="button-select-groups"
                     >
-                      <input
-                        type="checkbox"
-                        checked={formData.targetGroups.includes(role)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({
-                              ...formData,
-                              targetGroups: [...formData.targetGroups, role],
-                            });
-                          } else {
-                            setFormData({
-                              ...formData,
-                              targetGroups: formData.targetGroups.filter(
-                                (g) => g !== role
-                              ),
-                            });
-                          }
-                        }}
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">{role}</span>
-                    </label>
-                  ))}
-                </div>
+                      {formData.targetGroups.length > 0
+                        ? `${formData.targetGroups.length} group(s) selected`
+                        : "Select groups..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search groups..." />
+                      <CommandEmpty>No groups found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {smartGroups.map((group) => (
+                          <CommandItem
+                            key={group.id}
+                            onSelect={() => {
+                              const isSelected = formData.targetGroups.includes(group.id);
+                              setFormData({
+                                ...formData,
+                                targetGroups: isSelected
+                                  ? formData.targetGroups.filter((id) => id !== group.id)
+                                  : [...formData.targetGroups, group.id],
+                              });
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.targetGroups.includes(group.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {group.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {formData.targetGroups.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.targetGroups.map((groupId) => {
+                      const group = smartGroups.find((g) => g.id === groupId);
+                      return group ? (
+                        <Badge key={groupId} variant="secondary">
+                          {group.name}
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

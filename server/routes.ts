@@ -1954,6 +1954,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.updates)
         .orderBy(desc(schema.updates.publishDate));
 
+      // Get user's smart groups for filtering
+      const userGroups = await storage.db
+        .select({ groupId: schema.smartGroupMembers.groupId })
+        .from(schema.smartGroupMembers)
+        .where(eq(schema.smartGroupMembers.userId, currentUser.id));
+
+      const userGroupIds = userGroups.map(g => g.groupId);
+
       // Filter updates based on user role and visibility
       const filteredUpdates = allUpdates.filter(update => {
         // Admins/Owners can see all updates
@@ -1976,7 +1984,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         if (update.visibility === "specific_groups" && update.targetGroups) {
-          return update.targetGroups.includes(currentUser.role);
+          // Check if user belongs to any of the targeted groups
+          return update.targetGroups.some(groupId => userGroupIds.includes(groupId));
         }
 
         return false;
