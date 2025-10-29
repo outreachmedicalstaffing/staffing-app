@@ -9,6 +9,7 @@ import {
   Shield,
   ClipboardList,
   FolderTree,
+  Bell,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -34,6 +35,7 @@ const menuItems = [
   { title: "Timesheets", url: "/timesheets", icon: ClipboardList },
   { title: "Documents", url: "/documents", icon: FileText },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
+  { title: "Updates", url: "/updates", icon: Bell },
   { title: "Users", url: "/users", icon: Users },
   { title: "Smart Groups", url: "/smart-groups", icon: FolderTree },
   { title: "Settings", url: "/settings", icon: Settings },

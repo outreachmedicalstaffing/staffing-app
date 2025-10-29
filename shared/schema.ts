@@ -391,6 +391,103 @@ export type InsertKnowledgeArticle = z.infer<
 >;
 export type KnowledgeArticle = typeof knowledgeArticles.$inferSelect;
 
+// Updates/Announcements system
+export const updates = pgTable("updates", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  publishDate: timestamp("publish_date").notNull(),
+  createdBy: varchar("created_by")
+    .notNull()
+    .references(() => users.id),
+  visibility: text("visibility").notNull().default("all"), // all, specific_users, specific_groups
+  targetUserIds: text("target_user_ids").array(), // For specific users
+  targetGroups: text("target_groups").array(), // For specific groups (e.g., ["RN", "Admin"])
+  status: text("status").notNull().default("draft"), // draft, published, archived
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertUpdateSchema = createInsertSchema(updates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUpdate = z.infer<typeof insertUpdateSchema>;
+export type Update = typeof updates.$inferSelect;
+
+// Update views tracking
+export const updateViews = pgTable("update_views", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  updateId: varchar("update_id")
+    .notNull()
+    .references(() => updates.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
+  viewedAt: timestamp("viewed_at").notNull().defaultNow(),
+});
+
+export const insertUpdateViewSchema = createInsertSchema(updateViews).omit({
+  id: true,
+  viewedAt: true,
+});
+
+export type InsertUpdateView = z.infer<typeof insertUpdateViewSchema>;
+export type UpdateView = typeof updateViews.$inferSelect;
+
+// Update likes
+export const updateLikes = pgTable("update_likes", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  updateId: varchar("update_id")
+    .notNull()
+    .references(() => updates.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
+  likedAt: timestamp("liked_at").notNull().defaultNow(),
+});
+
+export const insertUpdateLikeSchema = createInsertSchema(updateLikes).omit({
+  id: true,
+  likedAt: true,
+});
+
+export type InsertUpdateLike = z.infer<typeof insertUpdateLikeSchema>;
+export type UpdateLike = typeof updateLikes.$inferSelect;
+
+// Update comments
+export const updateComments = pgTable("update_comments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  updateId: varchar("update_id")
+    .notNull()
+    .references(() => updates.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertUpdateCommentSchema = createInsertSchema(
+  updateComments,
+).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUpdateComment = z.infer<typeof insertUpdateCommentSchema>;
+export type UpdateComment = typeof updateComments.$inferSelect;
+
 // Audit logs for HIPAA compliance - comprehensive tracking
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id")

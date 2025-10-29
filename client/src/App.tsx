@@ -16,6 +16,7 @@ import Schedule from "@/pages/schedule";
 import Timesheets from "@/pages/timesheets";
 import Documents from "@/pages/documents";
 import Knowledge from "@/pages/knowledge";
+import Updates from "@/pages/updates";
 import Users from "@/pages/users";
 import SmartGroups from "@/pages/smart-groups";
 import Settings from "@/pages/settings";
@@ -58,6 +59,7 @@ function AuthenticatedRouter() {
       <Route path="/timesheets" component={Timesheets} />
       <Route path="/documents" component={Documents} />
       <Route path="/knowledge" component={Knowledge} />
+      <Route path="/updates" component={Updates} />
       <Route path="/users" component={Users} />
       <Route path="/smart-groups" component={SmartGroups} />
       <Route path="/settings" component={Settings} />

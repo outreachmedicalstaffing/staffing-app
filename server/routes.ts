@@ -1939,6 +1939,389 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // ===== Updates/Announcements Routes =====
+
+  // List updates (filtered based on user role and visibility)
+  app.get("/api/updates", requireAuth, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const allUpdates = await storage.db
+        .select()
+        .from(schema.updates)
+        .orderBy(desc(schema.updates.publishDate));
+
+      // Filter updates based on user role and visibility
+      const filteredUpdates = allUpdates.filter(update => {
+        // Admins/Owners can see all updates
+        if (["Admin", "Owner"].includes(currentUser.role)) {
+          return true;
+        }
+
+        // Only show published updates to non-admins
+        if (update.status !== "published") {
+          return false;
+        }
+
+        // Check visibility
+        if (update.visibility === "all") {
+          return true;
+        }
+
+        if (update.visibility === "specific_users" && update.targetUserIds) {
+          return update.targetUserIds.includes(currentUser.id);
+        }
+
+        if (update.visibility === "specific_groups" && update.targetGroups) {
+          return update.targetGroups.includes(currentUser.role);
+        }
+
+        return false;
+      });
+
+      // Get metrics for each update
+      const updatesWithMetrics = await Promise.all(
+        filteredUpdates.map(async (update) => {
+          const [views, likes, comments] = await Promise.all([
+            storage.db
+              .select({ count: count() })
+              .from(schema.updateViews)
+              .where(eq(schema.updateViews.updateId, update.id)),
+            storage.db
+              .select({ count: count() })
+              .from(schema.updateLikes)
+              .where(eq(schema.updateLikes.updateId, update.id)),
+            storage.db
+              .select({ count: count() })
+              .from(schema.updateComments)
+              .where(eq(schema.updateComments.updateId, update.id)),
+          ]);
+
+          // Check if current user has liked
+          const userLike = await storage.db
+            .select()
+            .from(schema.updateLikes)
+            .where(
+              and(
+                eq(schema.updateLikes.updateId, update.id),
+                eq(schema.updateLikes.userId, currentUser.id)
+              )
+            )
+            .limit(1);
+
+          return {
+            ...update,
+            viewCount: views[0].count,
+            likeCount: likes[0].count,
+            commentCount: comments[0].count,
+            isLikedByUser: userLike.length > 0,
+          };
+        })
+      );
+
+      res.json(updatesWithMetrics);
+    } catch (error) {
+      console.error("Failed to list updates:", error);
+      res.status(500).json({ error: "Failed to list updates" });
+    }
+  });
+
+  // Get single update with details
+  app.get("/api/updates/:id", requireAuth, async (req, res) => {
+    try {
+      const updateId = req.params.id;
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const [update] = await storage.db
+        .select()
+        .from(schema.updates)
+        .where(eq(schema.updates.id, updateId));
+
+      if (!update) {
+        return res.status(404).json({ error: "Update not found" });
+      }
+
+      // Track view
+      const existingView = await storage.db
+        .select()
+        .from(schema.updateViews)
+        .where(
+          and(
+            eq(schema.updateViews.updateId, updateId),
+            eq(schema.updateViews.userId, currentUser.id)
+          )
+        )
+        .limit(1);
+
+      if (existingView.length === 0) {
+        await storage.db.insert(schema.updateViews).values({
+          updateId,
+          userId: currentUser.id,
+        });
+      }
+
+      res.json(update);
+    } catch (error) {
+      console.error("Failed to get update:", error);
+      res.status(500).json({ error: "Failed to get update" });
+    }
+  });
+
+  // Create update (Admin/Owner only)
+  app.post(
+    "/api/updates",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const userId = req.session.userId!;
+
+        const newUpdate = schema.insertUpdateSchema.parse({
+          ...req.body,
+          createdBy: userId,
+        });
+
+        const [created] = await storage.db
+          .insert(schema.updates)
+          .values(newUpdate)
+          .returning();
+
+        await logAudit(
+          userId,
+          "create",
+          "update",
+          created.id,
+          false,
+          ["title", "content", "visibility"],
+          {},
+          req.ip
+        );
+
+        res.json(created);
+      } catch (error: any) {
+        console.error("Failed to create update:", error);
+        if (error.errors) {
+          return res.status(400).json({ error: error.errors });
+        }
+        res.status(500).json({ error: "Failed to create update" });
+      }
+    }
+  );
+
+  // Update update (Admin/Owner only)
+  app.patch(
+    "/api/updates/:id",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const updateId = req.params.id;
+        const userId = req.session.userId!;
+
+        const [updated] = await storage.db
+          .update(schema.updates)
+          .set({
+            ...req.body,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.updates.id, updateId))
+          .returning();
+
+        if (!updated) {
+          return res.status(404).json({ error: "Update not found" });
+        }
+
+        await logAudit(
+          userId,
+          "update",
+          "update",
+          updateId,
+          false,
+          Object.keys(req.body),
+          {},
+          req.ip
+        );
+
+        res.json(updated);
+      } catch (error: any) {
+        console.error("Failed to update update:", error);
+        if (error.errors) {
+          return res.status(400).json({ error: error.errors });
+        }
+        res.status(500).json({ error: "Failed to update update" });
+      }
+    }
+  );
+
+  // Delete update (Admin/Owner only)
+  app.delete(
+    "/api/updates/:id",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const updateId = req.params.id;
+        const userId = req.session.userId!;
+
+        await storage.db
+          .delete(schema.updates)
+          .where(eq(schema.updates.id, updateId));
+
+        await logAudit(
+          userId,
+          "delete",
+          "update",
+          updateId,
+          false,
+          [],
+          {},
+          req.ip
+        );
+
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Failed to delete update:", error);
+        res.status(500).json({ error: "Failed to delete update" });
+      }
+    }
+  );
+
+  // Like/unlike update
+  app.post("/api/updates/:id/like", requireAuth, async (req, res) => {
+    try {
+      const updateId = req.params.id;
+      const userId = req.session.userId!;
+
+      // Check if already liked
+      const existingLike = await storage.db
+        .select()
+        .from(schema.updateLikes)
+        .where(
+          and(
+            eq(schema.updateLikes.updateId, updateId),
+            eq(schema.updateLikes.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (existingLike.length > 0) {
+        // Unlike
+        await storage.db
+          .delete(schema.updateLikes)
+          .where(eq(schema.updateLikes.id, existingLike[0].id));
+
+        res.json({ liked: false });
+      } else {
+        // Like
+        await storage.db.insert(schema.updateLikes).values({
+          updateId,
+          userId,
+        });
+
+        res.json({ liked: true });
+      }
+    } catch (error) {
+      console.error("Failed to like/unlike update:", error);
+      res.status(500).json({ error: "Failed to like/unlike update" });
+    }
+  });
+
+  // Get comments for update
+  app.get("/api/updates/:id/comments", requireAuth, async (req, res) => {
+    try {
+      const updateId = req.params.id;
+
+      const comments = await storage.db
+        .select({
+          id: schema.updateComments.id,
+          content: schema.updateComments.content,
+          createdAt: schema.updateComments.createdAt,
+          userId: schema.updateComments.userId,
+          userName: schema.users.fullName,
+        })
+        .from(schema.updateComments)
+        .leftJoin(schema.users, eq(schema.updateComments.userId, schema.users.id))
+        .where(eq(schema.updateComments.updateId, updateId))
+        .orderBy(desc(schema.updateComments.createdAt));
+
+      res.json(comments);
+    } catch (error) {
+      console.error("Failed to get comments:", error);
+      res.status(500).json({ error: "Failed to get comments" });
+    }
+  });
+
+  // Add comment to update
+  app.post("/api/updates/:id/comments", requireAuth, async (req, res) => {
+    try {
+      const updateId = req.params.id;
+      const userId = req.session.userId!;
+      const { content } = req.body;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ error: "Comment content is required" });
+      }
+
+      const [comment] = await storage.db
+        .insert(schema.updateComments)
+        .values({
+          updateId,
+          userId,
+          content: content.trim(),
+        })
+        .returning();
+
+      const user = await storage.getUser(userId);
+
+      res.json({
+        ...comment,
+        userName: user?.fullName,
+      });
+    } catch (error) {
+      console.error("Failed to add comment:", error);
+      res.status(500).json({ error: "Failed to add comment" });
+    }
+  });
+
+  // Delete comment (own comments or admin)
+  app.delete("/api/updates/:id/comments/:commentId", requireAuth, async (req, res) => {
+    try {
+      const commentId = req.params.commentId;
+      const userId = req.session.userId!;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const [comment] = await storage.db
+        .select()
+        .from(schema.updateComments)
+        .where(eq(schema.updateComments.id, commentId));
+
+      if (!comment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+
+      // Only allow deletion if user owns comment or is admin
+      if (comment.userId !== userId && !["Admin", "Owner"].includes(currentUser.role)) {
+        return res.status(403).json({ error: "Not authorized to delete this comment" });
+      }
+
+      await storage.db
+        .delete(schema.updateComments)
+        .where(eq(schema.updateComments.id, commentId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
   // ===== User Management Routes =====
 
   // List users
