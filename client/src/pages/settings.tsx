@@ -5,10 +5,50 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Clock, Bell, Users, Database } from "lucide-react";
+import { Shield, Clock, Bell, Users, Database, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useState } from "react";
+
+interface Holiday {
+  id: string;
+  name: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+}
 
 export default function Settings() {
+  const [holidays, setHolidays] = useState<Holiday[]>([
+    { id: "1", name: "New Year's Day", date: "2025-01-01" },
+    { id: "2", name: "Memorial Day", date: "2025-05-26" },
+    { id: "3", name: "Independence Day", date: "2025-07-04" },
+    { id: "4", name: "Labor Day", date: "2025-09-01" },
+    { id: "5", name: "Thanksgiving", date: "2025-11-27" },
+    { id: "6", name: "Christmas", date: "2025-12-25" },
+  ]);
+
+  const [regularRate, setRegularRate] = useState("1.0");
+  const [holidayRateType, setHolidayRateType] = useState<"additional" | "custom">("additional");
+  const [holidayAdditionalRate, setHolidayAdditionalRate] = useState("0.5");
+  const [holidayCustomRate, setHolidayCustomRate] = useState("1.5");
+
+  const addHoliday = () => {
+    const newHoliday: Holiday = {
+      id: Date.now().toString(),
+      name: "New Holiday",
+      date: new Date().toISOString().split('T')[0],
+    };
+    setHolidays([...holidays, newHoliday]);
+  };
+
+  const updateHoliday = (id: string, updates: Partial<Holiday>) => {
+    setHolidays(holidays.map(h => h.id === id ? { ...h, ...updates } : h));
+  };
+
+  const removeHoliday = (id: string) => {
+    setHolidays(holidays.filter(h => h.id !== id));
+  };
   return (
     <div className="space-y-6">
       <div>
@@ -231,6 +271,204 @@ export default function Settings() {
                 <Button variant="outline" size="sm" data-testid="button-connect-adp">
                   Connect
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Pay Rules Policy</CardTitle>
+              <CardDescription>Configure pay rates for regular time and holidays</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Regular Rate */}
+              <div className="space-y-2">
+                <Label htmlFor="regular-rate">Regular Rate</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">x</span>
+                  <Input
+                    id="regular-rate"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={regularRate}
+                    onChange={(e) => setRegularRate(e.target.value)}
+                    className="w-24"
+                    data-testid="input-regular-rate"
+                  />
+                  <span className="text-sm text-muted-foreground">/hour</span>
+                </div>
+              </div>
+
+              {/* Holiday Rate Configuration */}
+              <div className="space-y-3">
+                <Label>Holiday Rate</Label>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="holiday-additional"
+                      name="holiday-rate-type"
+                      checked={holidayRateType === "additional"}
+                      onChange={() => setHolidayRateType("additional")}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="holiday-additional" className="flex items-center gap-2 font-normal cursor-pointer">
+                      Additional rate
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-muted-foreground">+x</span>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={holidayAdditionalRate}
+                          onChange={(e) => setHolidayAdditionalRate(e.target.value)}
+                          disabled={holidayRateType !== "additional"}
+                          className="w-20"
+                          data-testid="input-holiday-additional-rate"
+                        />
+                        <span className="text-sm text-muted-foreground">/hour</span>
+                      </div>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="holiday-custom"
+                      name="holiday-rate-type"
+                      checked={holidayRateType === "custom"}
+                      onChange={() => setHolidayRateType("custom")}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="holiday-custom" className="flex items-center gap-2 font-normal cursor-pointer">
+                      Custom rate
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-muted-foreground">x</span>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={holidayCustomRate}
+                          onChange={(e) => setHolidayCustomRate(e.target.value)}
+                          disabled={holidayRateType !== "custom"}
+                          className="w-20"
+                          data-testid="input-holiday-custom-rate"
+                        />
+                        <span className="text-sm text-muted-foreground">/hour</span>
+                      </div>
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Holidays List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Holidays</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addHoliday}
+                    data-testid="button-add-holiday"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Holiday
+                  </Button>
+                </div>
+
+                <Accordion type="single" collapsible className="space-y-2">
+                  {holidays.map((holiday) => (
+                    <AccordionItem
+                      key={holiday.id}
+                      value={holiday.id}
+                      className="border rounded-md px-4"
+                      data-testid={`holiday-item-${holiday.id}`}
+                    >
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-3 flex-1">
+                          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">{holiday.name}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(holiday.date + 'T00:00:00').toLocaleDateString('en-US', {
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                              {holiday.startTime && holiday.endTime &&
+                                ` • ${holiday.startTime} - ${holiday.endTime}`
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`holiday-name-${holiday.id}`}>Holiday Name</Label>
+                          <Input
+                            id={`holiday-name-${holiday.id}`}
+                            value={holiday.name}
+                            onChange={(e) => updateHoliday(holiday.id, { name: e.target.value })}
+                            data-testid={`input-holiday-name-${holiday.id}`}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`holiday-date-${holiday.id}`}>Date</Label>
+                          <Input
+                            id={`holiday-date-${holiday.id}`}
+                            type="date"
+                            value={holiday.date}
+                            onChange={(e) => updateHoliday(holiday.id, { date: e.target.value })}
+                            data-testid={`input-holiday-date-${holiday.id}`}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`holiday-start-${holiday.id}`}>Start Time (Optional)</Label>
+                            <Input
+                              id={`holiday-start-${holiday.id}`}
+                              type="time"
+                              value={holiday.startTime || ""}
+                              onChange={(e) => updateHoliday(holiday.id, { startTime: e.target.value })}
+                              data-testid={`input-holiday-start-${holiday.id}`}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`holiday-end-${holiday.id}`}>End Time (Optional)</Label>
+                            <Input
+                              id={`holiday-end-${holiday.id}`}
+                              type="time"
+                              value={holiday.endTime || ""}
+                              onChange={(e) => updateHoliday(holiday.id, { endTime: e.target.value })}
+                              data-testid={`input-holiday-end-${holiday.id}`}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => removeHoliday(holiday.id)}
+                            data-testid={`button-remove-holiday-${holiday.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Remove Holiday
+                          </Button>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+
+                {holidays.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No holidays configured. Click "Add Holiday" to get started.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
