@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, ChevronDown, ChevronRight, UserPlus, Settings as SettingsIcon, Pencil, Trash2 } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, UserPlus, Settings as SettingsIcon, Trash2 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
@@ -71,8 +71,37 @@ export default function SmartGroups() {
   const [newGroupData, setNewGroupData] = useState({ name: "", categoryId: "", color: "bg-blue-500" });
 
   // Fetch smart groups from API
-  const { data: smartGroups = [], isLoading } = useQuery<SmartGroupType[]>({
+  const { data: smartGroups = [], isLoading, refetch } = useQuery<SmartGroupType[]>({
     queryKey: ["/api/smart-groups"],
+  });
+
+  // Seed mutation for populating initial data
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/smart-groups/seed", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to seed groups");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      refetch();
+      toast({
+        title: "Success",
+        description: "Initial groups have been created",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to seed groups",
+        variant: "destructive",
+      });
+    },
   });
 
   // Transform API data into category structure for UI
@@ -357,10 +386,18 @@ export default function SmartGroups() {
                             data-testid={`group-${group.id}`}
                           >
                             <div className="flex items-center gap-6 flex-1">
-                              {/* Group name with color indicator */}
-                              <div className="flex items-center gap-3 min-w-[200px]">
+                              {/* Group name with color indicator - clickable */}
+                              <div
+                                className="flex items-center gap-3 min-w-[200px] cursor-pointer hover:opacity-70 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditGroup(category.id, group);
+                                }}
+                              >
                                 <div className={`h-3 w-3 rounded-full ${group.color}`} />
-                                <span className="text-sm font-medium">{group.name}</span>
+                                <span className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+                                  {group.name}
+                                </span>
                               </div>
 
                               {/* Connected users */}
@@ -374,9 +411,20 @@ export default function SmartGroups() {
                               {/* Created by */}
                               <div className="flex items-center gap-2 min-w-[150px]">
                                 <span className="text-xs text-muted-foreground">Created by:</span>
-                                <span className="text-xs font-medium">
-                                  {group.creator ? group.creator.fullName : "System"}
-                                </span>
+                                {group.creator ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                                      <span className="text-xs font-medium">
+                                        {getInitials(group.creator.fullName)}
+                                      </span>
+                                    </div>
+                                    <span className="text-xs font-medium">
+                                      {group.creator.fullName}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs">System</span>
+                                )}
                               </div>
 
                               {/* Assignments dropdown placeholder */}
@@ -410,24 +458,13 @@ export default function SmartGroups() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditGroup(category.id, group);
-                                }}
-                                data-testid={`edit-group-${group.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
                                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDeleteGroup(category.id, group.id, group.name);
                                 }}
                                 data-testid={`delete-group-${group.id}`}
+                                title="Delete group"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -443,7 +480,19 @@ export default function SmartGroups() {
           })}
         </div>
 
-        {filteredCategories.length === 0 && (
+        {smartGroups.length === 0 && !isLoading && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mb-4">No groups found. Click below to create initial groups.</p>
+            <Button
+              onClick={() => seedMutation.mutate()}
+              disabled={seedMutation.isPending}
+            >
+              {seedMutation.isPending ? "Creating Groups..." : "Create Initial Groups"}
+            </Button>
+          </div>
+        )}
+
+        {filteredCategories.length === 0 && smartGroups.length > 0 && (
           <div className="text-center text-muted-foreground py-12">
             No groups found matching your search
           </div>
