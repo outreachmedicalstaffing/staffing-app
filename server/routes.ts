@@ -2601,6 +2601,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Seed initial smart groups (Owner only)
+  app.post("/api/smart-groups/seed", requireRole("Owner"), async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+
+      // Check if groups already exist
+      const existingGroups = await storage.db
+        .select()
+        .from(schema.smartGroups);
+
+      if (existingGroups.length > 0) {
+        return res.json({
+          message: "Groups already exist",
+          count: existingGroups.length
+        });
+      }
+
+      const initialGroups = [
+        // Groups by Discipline
+        { name: "Registered Nurses (RN)", category: "discipline", color: "bg-blue-500", description: "All RN staff members" },
+        { name: "Licensed Practical Nurses (LPN)", category: "discipline", color: "bg-purple-500", description: "All LPN staff members" },
+        { name: "Certified Nursing Assistants (CNA)", category: "discipline", color: "bg-green-500", description: "All CNA staff members" },
+        { name: "Medical Assistant", category: "discipline", color: "bg-orange-500", description: "All Medical Assistant staff members" },
+
+        // General groups
+        { name: "All users group", category: "general", color: "bg-teal-500", description: "All users in the system" },
+        { name: "All admins group", category: "general", color: "bg-cyan-500", description: "All administrators" },
+
+        // Groups by Program
+        { name: "Vitas Nature Coast", category: "program", color: "bg-teal-600", description: "Vitas Nature Coast location" },
+        { name: "Vitas Citrus", category: "program", color: "bg-cyan-600", description: "Vitas Citrus location" },
+        { name: "Vitas Jacksonville", category: "program", color: "bg-purple-600", description: "Vitas Jacksonville location" },
+        { name: "Vitas St. Johns", category: "program", color: "bg-pink-600", description: "Vitas St. Johns location" },
+        { name: "Vitas VHVP", category: "program", color: "bg-pink-500", description: "Vitas VHVP location" },
+        { name: "Vitas Central Florida", category: "program", color: "bg-indigo-500", description: "Vitas Central Florida location" },
+        { name: "Vitas West Jacksonville", category: "program", color: "bg-red-500", description: "Vitas West Jacksonville location" },
+        { name: "Vitas Brevard", category: "program", color: "bg-violet-500", description: "Vitas Brevard location" },
+        { name: "Advent/Health IPU", category: "program", color: "bg-yellow-500", description: "Advent/Health IPU location" },
+        { name: "Haven Hospice", category: "program", color: "bg-emerald-500", description: "Haven Hospice location" },
+        { name: "Gentiva Palm Coast", category: "program", color: "bg-fuchsia-500", description: "Gentiva Palm Coast location" },
+        { name: "Gentiva Daytona", category: "program", color: "bg-rose-500", description: "Gentiva Daytona location" },
+        { name: "Gentiva DeLand", category: "program", color: "bg-sky-500", description: "Gentiva DeLand location" },
+        { name: "Gentiva Orlando", category: "program", color: "bg-lime-500", description: "Gentiva Orlando location" },
+        { name: "Gentiva Kissimmee", category: "program", color: "bg-amber-500", description: "Gentiva Kissimmee location" },
+      ];
+
+      const createdGroups = [];
+      for (const groupData of initialGroups) {
+        const [group] = await storage.db
+          .insert(schema.smartGroups)
+          .values({
+            name: groupData.name,
+            description: groupData.description,
+            category: groupData.category,
+            color: groupData.color,
+          })
+          .returning();
+
+        createdGroups.push(group);
+
+        await logAudit(
+          userId,
+          "create",
+          "smart_group",
+          group.id,
+          false,
+          ["name", "category", "color"],
+          {},
+          req.ip
+        );
+      }
+
+      res.json({
+        message: "Initial groups created successfully",
+        count: createdGroups.length,
+        groups: createdGroups
+      });
+    } catch (error) {
+      console.error("Failed to seed smart groups:", error);
+      res.status(500).json({ error: "Failed to seed smart groups" });
+    }
+  });
+
   // ===== User Management Routes =====
 
   // List users
