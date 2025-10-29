@@ -179,17 +179,33 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
   });
 
   const initialPrograms = customFields.programs || ["Vitas Central Florida"];
-  const initialDefaultRate = customFields.payRateDefault || "$35/hour";
+  // Load default rate from user.defaultHourlyRate, not customFields
+  const initialDefaultRate = user?.defaultHourlyRate
+    ? `$${user.defaultHourlyRate}/hour`
+    : "$35/hour";
+
+  // Convert user.jobRates object to array format
+  const initialJobRatesArray = user?.jobRates
+    ? Object.entries(user.jobRates as Record<string, string>).map(([name, rate]) => ({
+        name,
+        rate: `$${rate}/hour`,
+        color: getProgramColor(name),
+        useDefaultRate: false,
+      }))
+    : [];
+
+  const initialSyncedJobRates = syncJobRatesWithPrograms(
+    initialPrograms,
+    initialJobRatesArray,
+    initialDefaultRate,
+  );
 
   const [payRate, setPayRate] = useState<PayRate>({
     effectiveDate: customFields.payRateEffectiveDate || "05/29/2025",
     defaultRate: initialDefaultRate,
-    useDefaultRateEnabled: true,
-    jobRates: syncJobRatesWithPrograms(
-      initialPrograms,
-      customFields.jobRates || [],
-      initialDefaultRate,
-    ),
+    // Enable "use default rate" switch only if no programs have custom rates
+    useDefaultRateEnabled: !initialSyncedJobRates.some(job => !job.useDefaultRate),
+    jobRates: initialSyncedJobRates,
   });
 
   // Update all form data when user changes or dialog opens
@@ -225,18 +241,34 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         holidayRate: customFields.overtimeHolidayRate || "+0.5$/hour",
       });
 
-      const defaultRate = customFields.payRateDefault || "$35/hour";
+      // Load default rate from user.defaultHourlyRate
+      const defaultRate = user.defaultHourlyRate
+        ? `$${user.defaultHourlyRate}/hour`
+        : "$35/hour";
       const programs = customFields.programs || ["Vitas Central Florida"];
+
+      // Convert user.jobRates object to array format
+      const jobRatesArray = user.jobRates
+        ? Object.entries(user.jobRates as Record<string, string>).map(([name, rate]) => ({
+            name,
+            rate: `$${rate}/hour`,
+            color: getProgramColor(name),
+            useDefaultRate: false,
+          }))
+        : [];
+
+      const syncedJobRates = syncJobRatesWithPrograms(
+        programs,
+        jobRatesArray,
+        defaultRate,
+      );
 
       setPayRate({
         effectiveDate: customFields.payRateEffectiveDate || "05/29/2025",
         defaultRate: defaultRate,
-        useDefaultRateEnabled: true,
-        jobRates: syncJobRatesWithPrograms(
-          programs,
-          customFields.jobRates || [],
-          defaultRate,
-        ),
+        // Enable "use default rate" switch only if no programs have custom rates
+        useDefaultRateEnabled: !syncedJobRates.some(job => !job.useDefaultRate),
+        jobRates: syncedJobRates,
       });
     }
   }, [user, open]);
