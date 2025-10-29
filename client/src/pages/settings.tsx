@@ -8,7 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, Clock, Bell, Users, Database, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface Holiday {
   id: string;
@@ -18,7 +20,17 @@ interface Holiday {
   endTime?: string;
 }
 
+interface PayRules {
+  regularRate: string;
+  holidayRateType: "additional" | "custom";
+  holidayAdditionalRate: string;
+  holidayCustomRate: string;
+}
+
 export default function Settings() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const [holidays, setHolidays] = useState<Holiday[]>([
     { id: "1", name: "New Year's Day", date: "2025-01-01" },
     { id: "2", name: "Memorial Day", date: "2025-05-26" },
@@ -32,6 +44,34 @@ export default function Settings() {
   const [holidayRateType, setHolidayRateType] = useState<"additional" | "custom">("additional");
   const [holidayAdditionalRate, setHolidayAdditionalRate] = useState("0.5");
   const [holidayCustomRate, setHolidayCustomRate] = useState("1.5");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load pay rules from the database
+  const { data: payRulesData } = useQuery({
+    queryKey: ['/api/settings/pay_rules'],
+  });
+
+  // Load holidays from the database
+  const { data: holidaysData } = useQuery({
+    queryKey: ['/api/settings/holidays'],
+  });
+
+  // Update state when data is loaded
+  useEffect(() => {
+    if (payRulesData?.value) {
+      const rules = payRulesData.value as PayRules;
+      setRegularRate(rules.regularRate || "1.0");
+      setHolidayRateType(rules.holidayRateType || "additional");
+      setHolidayAdditionalRate(rules.holidayAdditionalRate || "0.5");
+      setHolidayCustomRate(rules.holidayCustomRate || "1.5");
+    }
+  }, [payRulesData]);
+
+  useEffect(() => {
+    if (holidaysData?.value) {
+      setHolidays(holidaysData.value as Holiday[]);
+    }
+  }, [holidaysData]);
 
   const addHoliday = () => {
     const newHoliday: Holiday = {
@@ -48,6 +88,54 @@ export default function Settings() {
 
   const removeHoliday = (id: string) => {
     setHolidays(holidays.filter(h => h.id !== id));
+  };
+
+  const saveSettings = async () => {
+    setIsSaving(true);
+    try {
+      // Save pay rules
+      await fetch('/api/settings/pay_rules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          value: {
+            regularRate,
+            holidayRateType,
+            holidayAdditionalRate,
+            holidayCustomRate,
+          },
+        }),
+        credentials: 'include',
+      });
+
+      // Save holidays
+      await fetch('/api/settings/holidays', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          value: holidays,
+        }),
+        credentials: 'include',
+      });
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/settings/pay_rules'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/settings/holidays'] });
+
+      toast({
+        title: "Settings saved",
+        description: "Your settings have been saved successfully.",
+      });
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
   return (
     <div className="space-y-6">
@@ -553,8 +641,12 @@ export default function Settings() {
         <Button variant="outline" data-testid="button-cancel">
           Cancel
         </Button>
-        <Button data-testid="button-save-settings">
-          Save Changes
+        <Button
+          onClick={saveSettings}
+          disabled={isSaving}
+          data-testid="button-save-settings"
+        >
+          {isSaving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </div>
