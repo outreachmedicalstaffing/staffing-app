@@ -3,7 +3,7 @@ import { ShiftCard } from "@/components/shift-card";
 import { Clock, Calendar, CheckCircle, AlertTriangle, MapPin, Paperclip } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { User, TimeEntry, Shift, Document, Timesheet } from "@shared/schema";
 import { format, isAfter, isBefore, startOfWeek, endOfWeek, differenceInDays, addDays } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,10 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [viewingShift, setViewingShift] = useState<Shift | null>(null);
+  const { toast } = useToast();
 
   // Fetch current user
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -41,6 +44,79 @@ export default function Dashboard() {
   const { data: timesheets = [], isLoading: timesheetsLoading } = useQuery<Timesheet[]>({
     queryKey: ['/api/timesheets'],
   });
+
+  // Clock in/out logic
+  const activeEntry = timeEntries.find((e) => !e.clockOut);
+
+  // Check if currently clocked in to the viewing shift
+  const isClockedInToShift = activeEntry && viewingShift &&
+    (activeEntry as any).shiftId === viewingShift.id;
+
+  // Clock in mutation
+  const clockInMutation = useMutation({
+    mutationFn: async (shiftId: string) => {
+      const res = await apiRequest("POST", "/api/time/clock-in", {
+        shiftId,
+        location: "Office",
+        notes: "",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time/active"] });
+      toast({
+        title: "Clocked In",
+        description: "You have successfully clocked in to this shift",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Clock out mutation
+  const clockOutMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/time/clock-out", {
+        shiftNoteAttachments: [],
+        relievingNurseSignature: null,
+      });
+      const text = await res.text();
+      return text ? JSON.parse(text) : {};
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time/active"] });
+      toast({
+        title: "Clocked Out",
+        description: "You have successfully clocked out",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle clock in for the viewing shift
+  const handleClockIn = () => {
+    if (viewingShift) {
+      clockInMutation.mutate(viewingShift.id);
+    }
+  };
+
+  // Handle clock out
+  const handleClockOut = () => {
+    clockOutMutation.mutate();
+  };
 
   const isLoading = userLoading || timeEntriesLoading || shiftsLoading || documentsLoading || timesheetsLoading;
 
@@ -335,10 +411,37 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Close Button */}
-              <div className="flex justify-end pt-4">
+              {/* Clock In/Out Buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                {activeEntry ? (
+                  isClockedInToShift ? (
+                    <Button
+                      className="flex-1 bg-chart-2 hover:bg-chart-2/90 text-white"
+                      onClick={handleClockOut}
+                      disabled={clockOutMutation.isPending}
+                      data-testid="button-modal-clock-out"
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      {clockOutMutation.isPending ? "Clocking Out..." : "Clock Out"}
+                    </Button>
+                  ) : (
+                    <div className="flex-1 text-sm text-muted-foreground p-2">
+                      You're currently clocked in to a different shift
+                    </div>
+                  )
+                ) : (
+                  <Button
+                    className="flex-1"
+                    onClick={handleClockIn}
+                    disabled={clockInMutation.isPending}
+                    data-testid="button-modal-clock-in"
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    {clockInMutation.isPending ? "Clocking In..." : "Clock In"}
+                  </Button>
+                )}
                 <Button
-                  variant="default"
+                  variant="outline"
                   onClick={() => setViewingShift(null)}
                   data-testid="button-close-shift-details"
                 >
