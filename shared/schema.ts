@@ -92,6 +92,7 @@ export const timeEntries = pgTable(
     clockOut: timestamp("clock_out"),
     breakMinutes: integer("break_minutes").default(0),
     jobName: text("job_name"), // Which job/location this shift was for
+    program: text("program"), // Which program this shift was for (e.g., "AdventHealth IPU")
     hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }), // Rate used for THIS shift
     location: text("location"), // GPS or manual location
     notes: text("notes"),

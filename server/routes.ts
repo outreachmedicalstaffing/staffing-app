@@ -346,6 +346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get shiftId from request if provided
       const shiftId = req.body.shiftId || null;
       let jobName = req.body.jobName || null;
+      let program: string | null = null;
       let hourlyRate = user.defaultHourlyRate;
 
       // If shiftId provided, get shift details
@@ -353,6 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const shift = await storage.getShift(shiftId);
         if (shift) {
           jobName = shift.jobName || jobName;
+          program = (shift as any).program || null;
         }
       } else if (!jobName) {
         // Auto-detect which shift the user is clocking in for
@@ -380,6 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (assignedShift) {
           jobName = assignedShift.jobName;
+          program = (assignedShift as any).program || null;
         }
       }
 
@@ -397,6 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clockIn: new Date(),
         clockOut: null,
         jobName,
+        program,
         hourlyRate,
         location: req.body.location || null,
         notes: req.body.notes || null,
