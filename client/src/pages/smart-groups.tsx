@@ -34,11 +34,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface SmartGroupType {
+  id: string;
+  name: string;
+  count: number;
+  category: string | null;
+  color: string;
+  creator?: { id: string; fullName: string } | null;
+  administrator?: { id: string; fullName: string } | null;
+}
+
 interface GroupCategory {
   id: string;
   name: string;
   icon: string;
-  groups: Array<{ id: string; name: string; count: number; color: string }>;
+  groups: SmartGroupType[];
+}
+
+function getInitials(fullName: string): string {
+  const names = fullName.trim().split(" ");
+  if (names.length === 1) {
+    return names[0].substring(0, 2).toUpperCase();
+  }
+  return (names[0][0] + names[names.length - 1][0]).toUpperCase();
 }
 
 export default function SmartGroups() {
@@ -46,14 +64,14 @@ export default function SmartGroups() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["discipline", "general", "program"]);
-  const [editingGroup, setEditingGroup] = useState<{ categoryId: string; group: { id: string; name: string; count: number; color: string } } | null>(null);
+  const [editingGroup, setEditingGroup] = useState<{ categoryId: string; group: SmartGroupType } | null>(null);
   const [deletingGroup, setDeletingGroup] = useState<{ categoryId: string; groupId: string; groupName: string } | null>(null);
   const [editFormData, setEditFormData] = useState({ name: "", count: 0, color: "" });
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupData, setNewGroupData] = useState({ name: "", categoryId: "", color: "bg-blue-500" });
 
   // Fetch smart groups from API
-  const { data: smartGroups = [], isLoading } = useQuery<Array<{ id: string; name: string; count: number; category: string | null; color: string }>>({
+  const { data: smartGroups = [], isLoading } = useQuery<SmartGroupType[]>({
     queryKey: ["/api/smart-groups"],
   });
 
@@ -335,17 +353,60 @@ export default function SmartGroups() {
                         {category.groups.map((group) => (
                           <div
                             key={group.id}
-                            className="flex items-center justify-between p-3 rounded-md border hover-elevate"
+                            className="flex items-center justify-between p-4 rounded-md border hover-elevate"
                             data-testid={`group-${group.id}`}
                           >
-                            <div className="flex items-center gap-3">
-                              <div className={`h-3 w-3 rounded-full ${group.color}`} />
-                              <span className="text-sm font-medium">{group.name}</span>
+                            <div className="flex items-center gap-6 flex-1">
+                              {/* Group name with color indicator */}
+                              <div className="flex items-center gap-3 min-w-[200px]">
+                                <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                                <span className="text-sm font-medium">{group.name}</span>
+                              </div>
+
+                              {/* Connected users */}
+                              <div className="flex items-center gap-2 min-w-[120px]">
+                                <span className="text-xs text-muted-foreground">Connected:</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {group.count}/{group.count}
+                                </Badge>
+                              </div>
+
+                              {/* Created by */}
+                              <div className="flex items-center gap-2 min-w-[150px]">
+                                <span className="text-xs text-muted-foreground">Created by:</span>
+                                <span className="text-xs font-medium">
+                                  {group.creator ? group.creator.fullName : "System"}
+                                </span>
+                              </div>
+
+                              {/* Assignments dropdown placeholder */}
+                              <div className="flex items-center gap-2 min-w-[120px]">
+                                <span className="text-xs text-muted-foreground">Assignments:</span>
+                                <span className="text-xs">0 selected</span>
+                              </div>
+
+                              {/* Administered by */}
+                              <div className="flex items-center gap-2 min-w-[150px]">
+                                <span className="text-xs text-muted-foreground">Admin:</span>
+                                {group.administrator ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                                      <span className="text-xs font-medium">
+                                        {getInitials(group.administrator.fullName)}
+                                      </span>
+                                    </div>
+                                    <span className="text-xs font-medium">
+                                      {group.administrator.fullName}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs">Unassigned</span>
+                                )}
+                              </div>
                             </div>
+
+                            {/* Action buttons */}
                             <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="text-xs">
-                                {group.count} {group.count === 1 ? 'member' : 'members'}
-                              </Badge>
                               <Button
                                 variant="ghost"
                                 size="sm"

@@ -497,6 +497,8 @@ export const smartGroups = pgTable("smart_groups", {
   description: text("description"),
   category: text("category"), // discipline, general, program
   color: text("color").default("bg-blue-500"),
+  createdBy: varchar("created_by").references(() => users.id),
+  administeredBy: varchar("administered_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

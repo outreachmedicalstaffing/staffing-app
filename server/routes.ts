@@ -2341,22 +2341,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.smartGroups)
         .orderBy(schema.smartGroups.name);
 
-      // Get member counts for each group
-      const groupsWithCounts = await Promise.all(
+      // Get member counts and user details for each group
+      const groupsWithDetails = await Promise.all(
         groups.map(async (group) => {
-          const [result] = await storage.db
+          const [countResult] = await storage.db
             .select({ count: count() })
             .from(schema.smartGroupMembers)
             .where(eq(schema.smartGroupMembers.groupId, group.id));
 
+          // Get creator details
+          let creator = null;
+          if (group.createdBy) {
+            creator = await storage.getUser(group.createdBy);
+          }
+
+          // Get administrator details
+          let administrator = null;
+          if (group.administeredBy) {
+            administrator = await storage.getUser(group.administeredBy);
+          }
+
           return {
             ...group,
-            count: result.count,
+            count: countResult.count,
+            creator: creator ? {
+              id: creator.id,
+              fullName: creator.fullName,
+            } : null,
+            administrator: administrator ? {
+              id: administrator.id,
+              fullName: administrator.fullName,
+            } : null,
           };
         })
       );
 
-      res.json(groupsWithCounts);
+      res.json(groupsWithDetails);
     } catch (error) {
       console.error("Failed to list smart groups:", error);
       res.status(500).json({ error: "Failed to list smart groups" });
@@ -2656,6 +2676,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: groupData.description,
             category: groupData.category,
             color: groupData.color,
+            createdBy: userId,
+            administeredBy: userId,
           })
           .returning();
 
