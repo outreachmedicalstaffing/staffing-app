@@ -3108,26 +3108,18 @@ export default function Schedule() {
                 <div>
                   <Label>Start Time</Label>
                   <Input
-                    type="text"
-                    value={format(new Date(editingShift.startTime), "h:mma")}
+                    type="time"
+                    value={format(new Date(editingShift.startTime), "HH:mm")}
                     onChange={(e) => {
-                      // Update start time when user types
-                      const timeStr = e.target.value;
-                      try {
+                      const timeStr = e.target.value; // Format: "HH:mm"
+                      if (timeStr) {
                         const currentDate = new Date(editingShift.startTime);
-                        const parsedTime = parse(
-                          timeStr.toLowerCase(),
-                          "h:mma",
-                          currentDate,
-                        );
-                        if (!isNaN(parsedTime.getTime())) {
-                          setEditingShift({
-                            ...editingShift,
-                            startTime: parsedTime,
-                          });
-                        }
-                      } catch (error) {
-                        // Invalid time format, ignore
+                        const [hours, minutes] = timeStr.split(":").map(Number);
+                        currentDate.setHours(hours, minutes, 0, 0);
+                        setEditingShift({
+                          ...editingShift,
+                          startTime: currentDate,
+                        });
                       }
                     }}
                     data-testid="input-edit-start-time"
@@ -3136,26 +3128,18 @@ export default function Schedule() {
                 <div>
                   <Label>End Time</Label>
                   <Input
-                    type="text"
-                    value={format(new Date(editingShift.endTime), "h:mma")}
+                    type="time"
+                    value={format(new Date(editingShift.endTime), "HH:mm")}
                     onChange={(e) => {
-                      // Update end time when user types
-                      const timeStr = e.target.value;
-                      try {
+                      const timeStr = e.target.value; // Format: "HH:mm"
+                      if (timeStr) {
                         const currentDate = new Date(editingShift.endTime);
-                        const parsedTime = parse(
-                          timeStr.toLowerCase(),
-                          "h:mma",
-                          currentDate,
-                        );
-                        if (!isNaN(parsedTime.getTime())) {
-                          setEditingShift({
-                            ...editingShift,
-                            endTime: parsedTime,
-                          });
-                        }
-                      } catch (error) {
-                        // Invalid time format, ignore
+                        const [hours, minutes] = timeStr.split(":").map(Number);
+                        currentDate.setHours(hours, minutes, 0, 0);
+                        setEditingShift({
+                          ...editingShift,
+                          endTime: currentDate,
+                        });
                       }
                     }}
                     data-testid="input-edit-end-time"
