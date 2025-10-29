@@ -1,6 +1,6 @@
 import { StatCard } from "@/components/stat-card";
 import { ShiftCard } from "@/components/shift-card";
-import { Clock, Calendar, CheckCircle, AlertTriangle } from "lucide-react";
+import { Clock, Calendar, CheckCircle, AlertTriangle, MapPin, Paperclip } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -8,9 +8,14 @@ import type { User, TimeEntry, Shift, Document, Timesheet } from "@shared/schema
 import { format, isAfter, isBefore, startOfWeek, endOfWeek, differenceInDays, addDays } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
+  const [viewingShift, setViewingShift] = useState<Shift | null>(null);
 
   // Fetch current user
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -149,7 +154,7 @@ export default function Dashboard() {
                     location={shift.location || 'Unknown'}
                     status={shift.status as any}
                     assignedTo="You"
-                    onView={() => setLocation('/schedule')}
+                    onView={() => setViewingShift(shift)}
                   />
                 ))}
                 <Button 
@@ -216,6 +221,134 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Shift Details Dialog */}
+      <Dialog
+        open={!!viewingShift}
+        onOpenChange={(open) => !open && setViewingShift(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Shift Details</DialogTitle>
+          </DialogHeader>
+          {viewingShift && (
+            <div className="space-y-4">
+              {/* Shift Title */}
+              <div>
+                <Label className="text-muted-foreground">Shift Title</Label>
+                <p className="text-sm font-medium mt-1">{viewingShift.title || 'Untitled Shift'}</p>
+              </div>
+
+              {/* Job Name */}
+              {viewingShift.jobName && (
+                <div>
+                  <Label className="text-muted-foreground">Job</Label>
+                  <p className="text-sm font-medium mt-1">{viewingShift.jobName}</p>
+                </div>
+              )}
+
+              {/* Program */}
+              {(viewingShift as any).program && (
+                <div>
+                  <Label className="text-muted-foreground">Program</Label>
+                  <p className="text-sm font-medium mt-1">{(viewingShift as any).program}</p>
+                </div>
+              )}
+
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Date</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">
+                      {format(new Date(viewingShift.startTime), 'MMM d, yyyy')}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Time</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">
+                      {format(new Date(viewingShift.startTime), 'h:mm a')} - {format(new Date(viewingShift.endTime), 'h:mm a')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
+              {viewingShift.location && (
+                <div>
+                  <Label className="text-muted-foreground">Location</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">{viewingShift.location}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Status */}
+              <div>
+                <Label className="text-muted-foreground">Status</Label>
+                <div className="mt-1">
+                  <Badge variant={
+                    viewingShift.status === 'approved' ? 'default' :
+                    viewingShift.status === 'pending' ? 'secondary' :
+                    viewingShift.status === 'completed' ? 'default' :
+                    'outline'
+                  }>
+                    {viewingShift.status}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {viewingShift.notes && (
+                <div>
+                  <Label className="text-muted-foreground">Notes</Label>
+                  <div className="mt-1 p-3 bg-muted/30 rounded-md text-sm whitespace-pre-wrap">
+                    {viewingShift.notes}
+                  </div>
+                </div>
+              )}
+
+              {/* Attachments */}
+              {viewingShift.attachments && viewingShift.attachments.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Attachments</Label>
+                  <div className="space-y-2 mt-1">
+                    {viewingShift.attachments.map((filename, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="flex items-center gap-2 p-2 border rounded-md w-full text-left hover:bg-accent transition-colors"
+                        onClick={() => {
+                          window.open(`/api/files/${filename}`, "_blank");
+                        }}
+                      >
+                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1">{filename}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="default"
+                  onClick={() => setViewingShift(null)}
+                  data-testid="button-close-shift-details"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
