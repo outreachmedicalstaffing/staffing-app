@@ -34,6 +34,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface GroupMember {
+  id: string;
+  userId: string;
+  fullName: string;
+  role?: string;
+  addedAt: string;
+}
+
 interface SmartGroupType {
   id: string;
   name: string;
@@ -42,6 +50,7 @@ interface SmartGroupType {
   color: string;
   creator?: { id: string; fullName: string } | null;
   administrator?: { id: string; fullName: string } | null;
+  members?: GroupMember[];
 }
 
 interface GroupCategory {
@@ -65,11 +74,11 @@ export default function SmartGroups() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["discipline", "general", "program"]);
   const [editingGroup, setEditingGroup] = useState<{ categoryId: string; group: SmartGroupType } | null>(null);
-  const [deletingGroup, setDeletingGroup] = useState<{ categoryId: string; groupId: string; groupName: string } | null>(null);
   const [editFormData, setEditFormData] = useState({ name: "", count: 0, color: "" });
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupData, setNewGroupData] = useState({ name: "", categoryId: "", color: "bg-blue-500" });
-  const [pendingDeletions, setPendingDeletions] = useState<Set<string>>(new Set());
+  const [pendingMemberRemovals, setPendingMemberRemovals] = useState<Map<string, Set<string>>>(new Map());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   // Fetch smart groups from API
   const { data: smartGroups = [], isLoading, refetch } = useQuery<SmartGroupType[]>({
@@ -105,84 +114,121 @@ export default function SmartGroups() {
     },
   });
 
-  // Transform API data into category structure for UI, filtering out pending deletions
+  // Fetch members for a specific group
+  const fetchGroupMembers = async (groupId: string): Promise<GroupMember[]> => {
+    const res = await fetch(`/api/smart-groups/${groupId}`, {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.members || [];
+  };
+
+  // Toggle group expansion and fetch members if needed
+  const toggleGroupExpansion = async (groupId: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(groupId)) {
+      newExpanded.delete(groupId);
+    } else {
+      newExpanded.add(groupId);
+      // Fetch members if not already loaded
+      const group = smartGroups.find(g => g.id === groupId);
+      if (group && !group.members) {
+        const members = await fetchGroupMembers(groupId);
+        // Update the group with members
+        queryClient.setQueryData(["/api/smart-groups"], (old: SmartGroupType[] = []) =>
+          old.map(g => g.id === groupId ? { ...g, members } : g)
+        );
+      }
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  // Transform API data into category structure for UI
   const categories: GroupCategory[] = [
     {
       id: "discipline",
       name: "Groups by Discipline",
       icon: "🩺",
-      groups: smartGroups.filter(g => g.category === "discipline" && !pendingDeletions.has(g.id))
+      groups: smartGroups.filter(g => g.category === "discipline")
     },
     {
       id: "general",
       name: "General groups",
       icon: "👥",
-      groups: smartGroups.filter(g => g.category === "general" && !pendingDeletions.has(g.id))
+      groups: smartGroups.filter(g => g.category === "general")
     },
     {
       id: "program",
       name: "Groups by Program",
       icon: "📋",
-      groups: smartGroups.filter(g => g.category === "program" && !pendingDeletions.has(g.id))
+      groups: smartGroups.filter(g => g.category === "program")
     }
   ];
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (groupId: string) => {
-      console.log(`[Frontend] Deleting group with ID: ${groupId}`);
-      const res = await fetch(`/api/smart-groups/${groupId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to delete group");
-      }
-      return res.json();
-    },
-    onSuccess: (data, groupId) => {
-      console.log(`[Frontend] Successfully deleted group: ${groupId}`);
-      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
-      setDeletingGroup(null); // Close dialog after successful deletion
-      toast({
-        title: "Success",
-        description: "Group deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      console.error(`[Frontend] Failed to delete group:`, error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete group",
-        variant: "destructive",
-      });
-    },
-  });
+  // Handle removing a member from a group (marks for removal)
+  const handleRemoveMember = (groupId: string, memberId: string) => {
+    setPendingMemberRemovals(prev => {
+      const newMap = new Map(prev);
+      const groupRemovals = newMap.get(groupId) || new Set();
+      groupRemovals.add(memberId);
+      newMap.set(groupId, groupRemovals);
+      return newMap;
+    });
+  };
+
+  // Check if a member is pending removal
+  const isMemberPendingRemoval = (groupId: string, memberId: string): boolean => {
+    return pendingMemberRemovals.get(groupId)?.has(memberId) || false;
+  };
+
+  // Get visible members for a group (excluding pending removals)
+  const getVisibleMembers = (group: SmartGroupType): GroupMember[] => {
+    if (!group.members) return [];
+    const pendingRemovals = pendingMemberRemovals.get(group.id) || new Set();
+    return group.members.filter(member => !pendingRemovals.has(member.id));
+  };
+
+  // Calculate total pending removals across all groups
+  const getTotalPendingRemovals = (): number => {
+    let total = 0;
+    pendingMemberRemovals.forEach(set => {
+      total += set.size;
+    });
+    return total;
+  };
 
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { name: string; color: string } }) => {
+      console.log(`[Frontend] Updating group ${id} with data:`, data);
       const res = await fetch(`/api/smart-groups/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to update group");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to update group");
+      }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log(`[Frontend] Successfully updated group:`, data);
       queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+      setEditingGroup(null);
+      setEditFormData({ name: "", count: 0, color: "" });
       toast({
         title: "Success",
         description: "Group updated successfully",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error(`[Frontend] Failed to update group:`, error);
       toast({
         title: "Error",
-        description: "Failed to update group",
+        description: error.message || "Failed to update group",
         variant: "destructive",
       });
     },
@@ -247,21 +293,63 @@ export default function SmartGroups() {
         color: editFormData.color,
       },
     });
-
-    setEditingGroup(null);
-    setEditFormData({ name: "", count: 0, color: "" });
+    // Don't close dialog here - it will close in onSuccess callback
   };
 
-  const handleDeleteGroup = (categoryId: string, groupId: string, groupName: string) => {
-    setDeletingGroup({ categoryId, groupId, groupName });
+  const handleSaveChanges = async () => {
+    const totalRemovals = getTotalPendingRemovals();
+    if (totalRemovals === 0) return;
+
+    try {
+      // Remove all pending members from their groups
+      const removalPromises: Promise<Response>[] = [];
+
+      pendingMemberRemovals.forEach((memberIds, groupId) => {
+        memberIds.forEach(memberId => {
+          // Extract userId from member (need to find the member object)
+          const group = smartGroups.find(g => g.id === groupId);
+          const member = group?.members?.find(m => m.id === memberId);
+          if (member) {
+            removalPromises.push(
+              fetch(`/api/smart-groups/${groupId}/members/${member.userId}`, {
+                method: "DELETE",
+                credentials: "include",
+              })
+            );
+          }
+        });
+      });
+
+      const results = await Promise.all(removalPromises);
+      const failedRemovals = results.filter(res => !res.ok);
+
+      if (failedRemovals.length > 0) {
+        throw new Error(`Failed to remove ${failedRemovals.length} member(s)`);
+      }
+
+      // Clear pending removals and refresh
+      setPendingMemberRemovals(new Map());
+      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+
+      toast({
+        title: "Success",
+        description: `Successfully removed ${totalRemovals} member(s) from groups`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save changes",
+        variant: "destructive",
+      });
+    }
   };
 
-  const confirmDelete = () => {
-    if (!deletingGroup) return;
-
-    console.log(`[Frontend] Marking group for deletion: ${deletingGroup.groupName} (${deletingGroup.groupId})`);
-    setPendingDeletions(prev => new Set(prev).add(deletingGroup.groupId));
-    setDeletingGroup(null);
+  const handleCancelChanges = () => {
+    setPendingMemberRemovals(new Map());
+    toast({
+      title: "Cancelled",
+      description: "All pending changes have been discarded",
+    });
   };
 
   const handleAddGroup = () => {
@@ -280,50 +368,6 @@ export default function SmartGroups() {
 
     setAddingGroup(false);
     setNewGroupData({ name: "", categoryId: "", color: "bg-blue-500" });
-  };
-
-  const handleSaveChanges = async () => {
-    if (pendingDeletions.size === 0) return;
-
-    // Delete all pending groups
-    const deletionPromises = Array.from(pendingDeletions).map(groupId =>
-      fetch(`/api/smart-groups/${groupId}`, {
-        method: "DELETE",
-        credentials: "include",
-      })
-    );
-
-    try {
-      const results = await Promise.all(deletionPromises);
-      const failedDeletions = results.filter(res => !res.ok);
-
-      if (failedDeletions.length > 0) {
-        throw new Error(`Failed to delete ${failedDeletions.length} group(s)`);
-      }
-
-      // Clear pending deletions and refresh
-      setPendingDeletions(new Set());
-      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
-
-      toast({
-        title: "Success",
-        description: `Successfully deleted ${pendingDeletions.size} group(s)`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save changes",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCancelChanges = () => {
-    setPendingDeletions(new Set());
-    toast({
-      title: "Cancelled",
-      description: "All pending changes have been discarded",
-    });
   };
 
   const filteredCategories = categories.map(category => ({
@@ -424,98 +468,97 @@ export default function SmartGroups() {
                   <CollapsibleContent>
                     <div className="px-4 pb-4 pt-2">
                       <div className="space-y-2">
-                        {category.groups.map((group) => (
-                          <div
-                            key={group.id}
-                            className="flex items-center justify-between p-4 rounded-md border hover-elevate"
-                            data-testid={`group-${group.id}`}
-                          >
-                            <div className="flex items-center gap-6 flex-1">
-                              {/* Group name with color indicator - clickable */}
+                        {category.groups.map((group) => {
+                          const isGroupExpanded = expandedGroups.has(group.id);
+                          const visibleMembers = getVisibleMembers(group);
+
+                          return (
+                            <div
+                              key={group.id}
+                              className="rounded-md border"
+                              data-testid={`group-${group.id}`}
+                            >
+                              {/* Group Header - Click to expand/collapse members */}
                               <div
-                                className="flex items-center gap-3 min-w-[200px] cursor-pointer hover:opacity-70 transition-opacity"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditGroup(category.id, group);
-                                }}
+                                className="flex items-center justify-between p-4 cursor-pointer hover-elevate"
+                                onClick={() => toggleGroupExpansion(group.id)}
                               >
-                                <div className={`h-3 w-3 rounded-full ${group.color}`} />
-                                <span className="text-sm font-medium text-primary underline-offset-4 hover:underline">
-                                  {group.name}
-                                </span>
+                                <div className="flex items-center gap-4 flex-1">
+                                  {isGroupExpanded ? (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  )}
+
+                                  <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                                  <span className="text-sm font-medium">{group.name}</span>
+
+                                  <Badge variant="secondary" className="text-xs">
+                                    {visibleMembers.length} {visibleMembers.length === 1 ? 'member' : 'members'}
+                                  </Badge>
+                                </div>
+
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditGroup(category.id, group);
+                                  }}
+                                  className="text-xs"
+                                >
+                                  Edit Group
+                                </Button>
                               </div>
 
-                              {/* Connected users */}
-                              <div className="flex items-center gap-2 min-w-[120px]">
-                                <span className="text-xs text-muted-foreground">Connected:</span>
-                                <Badge variant="secondary" className="text-xs">
-                                  {group.count}/{group.count}
-                                </Badge>
-                              </div>
-
-                              {/* Created by */}
-                              <div className="flex items-center gap-2 min-w-[150px]">
-                                <span className="text-xs text-muted-foreground">Created by:</span>
-                                {group.creator ? (
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-                                      <span className="text-xs font-medium">
-                                        {getInitials(group.creator.fullName)}
-                                      </span>
+                              {/* Members List - Shown when expanded */}
+                              {isGroupExpanded && (
+                                <div className="border-t bg-muted/30">
+                                  {visibleMembers.length === 0 ? (
+                                    <div className="p-4 text-sm text-muted-foreground text-center">
+                                      No members in this group
                                     </div>
-                                    <span className="text-xs font-medium">
-                                      {group.creator.fullName}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs">System</span>
-                                )}
-                              </div>
+                                  ) : (
+                                    <div className="p-2 space-y-1">
+                                      {visibleMembers.map((member) => (
+                                        <div
+                                          key={member.id}
+                                          className="flex items-center justify-between p-3 rounded hover:bg-background transition-colors"
+                                          data-testid={`member-${member.id}`}
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                                              <span className="text-xs font-medium">
+                                                {getInitials(member.fullName)}
+                                              </span>
+                                            </div>
+                                            <div>
+                                              <div className="text-sm font-medium">{member.fullName}</div>
+                                              {member.role && (
+                                                <div className="text-xs text-muted-foreground">{member.role}</div>
+                                              )}
+                                            </div>
+                                          </div>
 
-                              {/* Assignments dropdown placeholder */}
-                              <div className="flex items-center gap-2 min-w-[120px]">
-                                <span className="text-xs text-muted-foreground">Assignments:</span>
-                                <span className="text-xs">0 selected</span>
-                              </div>
-
-                              {/* Administered by */}
-                              <div className="flex items-center gap-2 min-w-[150px]">
-                                <span className="text-xs text-muted-foreground">Admin:</span>
-                                {group.administrator ? (
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-                                      <span className="text-xs font-medium">
-                                        {getInitials(group.administrator.fullName)}
-                                      </span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() => handleRemoveMember(group.id, member.id)}
+                                            data-testid={`remove-member-${member.id}`}
+                                            title="Remove from group"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      ))}
                                     </div>
-                                    <span className="text-xs font-medium">
-                                      {group.administrator.fullName}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs">Unassigned</span>
-                                )}
-                              </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-
-                            {/* Action buttons */}
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteGroup(category.id, group.id, group.name);
-                                }}
-                                data-testid={`delete-group-${group.id}`}
-                                title="Delete group"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </CollapsibleContent>
@@ -544,32 +587,34 @@ export default function SmartGroups() {
         )}
       </Card>
 
-      {/* Save/Cancel buttons - shown when there are pending changes */}
-      {pendingDeletions.size > 0 && (
-        <Card className="p-4 bg-muted/50 border-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">
-                {pendingDeletions.size} group{pendingDeletions.size !== 1 ? 's' : ''} pending deletion
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleCancelChanges}
-                data-testid="button-cancel-changes"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveChanges}
-                data-testid="button-save-changes"
-              >
-                Save Changes
-              </Button>
+      {/* Save/Cancel buttons - sticky at bottom when there are pending changes */}
+      {getTotalPendingRemovals() > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t-2 border-primary shadow-lg">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between max-w-7xl mx-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {getTotalPendingRemovals()} member{getTotalPendingRemovals() !== 1 ? 's' : ''} pending removal from groups
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCancelChanges}
+                  data-testid="button-cancel-changes"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveChanges}
+                  data-testid="button-save-changes"
+                >
+                  Save Changes
+                </Button>
+              </div>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Edit Group Dialog */}
@@ -606,11 +651,18 @@ export default function SmartGroups() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingGroup(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setEditingGroup(null)}
+              disabled={updateMutation.isPending}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit}>
-              Save Changes
+            <Button
+              onClick={handleSaveEdit}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -675,30 +727,6 @@ export default function SmartGroups() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deletingGroup !== null} onOpenChange={(open) => !open && !deleteMutation.isPending && setDeletingGroup(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Group</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{deletingGroup?.groupName}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingGroup(null)} disabled={deleteMutation.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

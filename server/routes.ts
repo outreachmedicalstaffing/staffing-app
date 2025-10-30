@@ -2400,9 +2400,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get members
       const members = await storage.db
         .select({
+          id: schema.smartGroupMembers.id,
           userId: schema.smartGroupMembers.userId,
-          userName: schema.users.fullName,
-          userRole: schema.users.role,
+          fullName: schema.users.fullName,
+          role: schema.users.role,
           addedAt: schema.smartGroupMembers.addedAt,
         })
         .from(schema.smartGroupMembers)
@@ -2462,6 +2463,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const groupId = req.params.id;
         const userId = req.session.userId!;
 
+        console.log(`[Update Smart Group] Updating group ${groupId} with data:`, req.body);
+
+        // Check if group exists first
+        const [existingGroup] = await storage.db
+          .select()
+          .from(schema.smartGroups)
+          .where(eq(schema.smartGroups.id, groupId));
+
+        if (!existingGroup) {
+          console.log(`[Update Smart Group] Group not found: ${groupId}`);
+          return res.status(404).json({ error: "Group not found" });
+        }
+
+        console.log(`[Update Smart Group] Found group: ${existingGroup.name}`);
+
         const [updated] = await storage.db
           .update(schema.smartGroups)
           .set({
@@ -2471,9 +2487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(schema.smartGroups.id, groupId))
           .returning();
 
-        if (!updated) {
-          return res.status(404).json({ error: "Group not found" });
-        }
+        console.log(`[Update Smart Group] Successfully updated group:`, updated);
 
         await logAudit(
           userId,
@@ -2488,7 +2502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json(updated);
       } catch (error: any) {
-        console.error("Failed to update smart group:", error);
+        console.error("[Update Smart Group] Error:", error);
         if (error.errors) {
           return res.status(400).json({ error: error.errors });
         }
