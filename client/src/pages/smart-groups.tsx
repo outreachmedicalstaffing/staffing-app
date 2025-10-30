@@ -79,6 +79,7 @@ export default function SmartGroups() {
   const [newGroupData, setNewGroupData] = useState({ name: "", categoryId: "", color: "bg-blue-500" });
   const [pendingMemberRemovals, setPendingMemberRemovals] = useState<Map<string, Set<string>>>(new Map());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [pendingGroupDeletions, setPendingGroupDeletions] = useState<Set<string>>(new Set());
 
   // Fetch smart groups from API
   const { data: smartGroups = [], isLoading, refetch } = useQuery<SmartGroupType[]>({
@@ -144,25 +145,25 @@ export default function SmartGroups() {
     setExpandedGroups(newExpanded);
   };
 
-  // Transform API data into category structure for UI
+  // Transform API data into category structure for UI, filtering out pending deletions
   const categories: GroupCategory[] = [
     {
       id: "discipline",
       name: "Groups by Discipline",
       icon: "🩺",
-      groups: smartGroups.filter(g => g.category === "discipline")
+      groups: smartGroups.filter(g => g.category === "discipline" && !pendingGroupDeletions.has(g.id))
     },
     {
       id: "general",
       name: "General groups",
       icon: "👥",
-      groups: smartGroups.filter(g => g.category === "general")
+      groups: smartGroups.filter(g => g.category === "general" && !pendingGroupDeletions.has(g.id))
     },
     {
       id: "program",
       name: "Groups by Program",
       icon: "📋",
-      groups: smartGroups.filter(g => g.category === "program")
+      groups: smartGroups.filter(g => g.category === "program" && !pendingGroupDeletions.has(g.id))
     }
   ];
 
@@ -352,6 +353,56 @@ export default function SmartGroups() {
     });
   };
 
+  // Handle marking a group for deletion
+  const handleMarkGroupForDeletion = (groupId: string) => {
+    setPendingGroupDeletions(prev => new Set(prev).add(groupId));
+  };
+
+  // Save group deletions - permanently delete groups from database
+  const handleSaveGroupDeletions = async () => {
+    if (pendingGroupDeletions.size === 0) return;
+
+    try {
+      const deletionPromises = Array.from(pendingGroupDeletions).map(groupId =>
+        fetch(`/api/smart-groups/${groupId}`, {
+          method: "DELETE",
+          credentials: "include",
+        })
+      );
+
+      const results = await Promise.all(deletionPromises);
+      const failedDeletions = results.filter(res => !res.ok);
+
+      if (failedDeletions.length > 0) {
+        throw new Error(`Failed to delete ${failedDeletions.length} group(s)`);
+      }
+
+      // Clear pending deletions and refresh
+      setPendingGroupDeletions(new Set());
+      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${pendingGroupDeletions.size} group(s)`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete groups",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Cancel group deletions - restore all marked groups
+  const handleCancelGroupDeletions = () => {
+    setPendingGroupDeletions(new Set());
+    toast({
+      title: "Cancelled",
+      description: "Group deletions cancelled",
+    });
+  };
+
   const handleAddGroup = () => {
     setAddingGroup(true);
     setNewGroupData({ name: "", categoryId: "", color: "bg-blue-500" });
@@ -498,17 +549,32 @@ export default function SmartGroups() {
                                   </Badge>
                                 </div>
 
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditGroup(category.id, group);
-                                  }}
-                                  className="text-xs"
-                                >
-                                  Edit Group
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditGroup(category.id, group);
+                                    }}
+                                    className="text-xs"
+                                  >
+                                    Edit Group
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMarkGroupForDeletion(group.id);
+                                    }}
+                                    data-testid={`delete-group-${group.id}`}
+                                    title="Delete group"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
 
                               {/* Members List - Shown when expanded */}
@@ -610,6 +676,37 @@ export default function SmartGroups() {
                   data-testid="button-save-changes"
                 >
                   Save Changes
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save/Cancel buttons for group deletions - sticky at bottom */}
+      {pendingGroupDeletions.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t-2 border-destructive shadow-lg">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between max-w-7xl mx-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {pendingGroupDeletions.size} group{pendingGroupDeletions.size !== 1 ? 's' : ''} marked for deletion
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCancelGroupDeletions}
+                  data-testid="button-cancel-group-deletions"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleSaveGroupDeletions}
+                  data-testid="button-save-group-deletions"
+                >
+                  Delete Groups
                 </Button>
               </div>
             </div>
