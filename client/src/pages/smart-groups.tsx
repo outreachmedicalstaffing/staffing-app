@@ -69,6 +69,7 @@ export default function SmartGroups() {
   const [editFormData, setEditFormData] = useState({ name: "", count: 0, color: "" });
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupData, setNewGroupData] = useState({ name: "", categoryId: "", color: "bg-blue-500" });
+  const [pendingDeletions, setPendingDeletions] = useState<Set<string>>(new Set());
 
   // Fetch smart groups from API
   const { data: smartGroups = [], isLoading, refetch } = useQuery<SmartGroupType[]>({
@@ -104,25 +105,25 @@ export default function SmartGroups() {
     },
   });
 
-  // Transform API data into category structure for UI
+  // Transform API data into category structure for UI, filtering out pending deletions
   const categories: GroupCategory[] = [
     {
       id: "discipline",
       name: "Groups by Discipline",
       icon: "🩺",
-      groups: smartGroups.filter(g => g.category === "discipline")
+      groups: smartGroups.filter(g => g.category === "discipline" && !pendingDeletions.has(g.id))
     },
     {
       id: "general",
       name: "General groups",
       icon: "👥",
-      groups: smartGroups.filter(g => g.category === "general")
+      groups: smartGroups.filter(g => g.category === "general" && !pendingDeletions.has(g.id))
     },
     {
       id: "program",
       name: "Groups by Program",
       icon: "📋",
-      groups: smartGroups.filter(g => g.category === "program")
+      groups: smartGroups.filter(g => g.category === "program" && !pendingDeletions.has(g.id))
     }
   ];
 
@@ -258,9 +259,9 @@ export default function SmartGroups() {
   const confirmDelete = () => {
     if (!deletingGroup) return;
 
-    console.log(`[Frontend] Confirming delete for group: ${deletingGroup.groupName} (${deletingGroup.groupId})`);
-    deleteMutation.mutate(deletingGroup.groupId);
-    // Dialog will close automatically on success via onSuccess callback
+    console.log(`[Frontend] Marking group for deletion: ${deletingGroup.groupName} (${deletingGroup.groupId})`);
+    setPendingDeletions(prev => new Set(prev).add(deletingGroup.groupId));
+    setDeletingGroup(null);
   };
 
   const handleAddGroup = () => {
@@ -279,6 +280,50 @@ export default function SmartGroups() {
 
     setAddingGroup(false);
     setNewGroupData({ name: "", categoryId: "", color: "bg-blue-500" });
+  };
+
+  const handleSaveChanges = async () => {
+    if (pendingDeletions.size === 0) return;
+
+    // Delete all pending groups
+    const deletionPromises = Array.from(pendingDeletions).map(groupId =>
+      fetch(`/api/smart-groups/${groupId}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+    );
+
+    try {
+      const results = await Promise.all(deletionPromises);
+      const failedDeletions = results.filter(res => !res.ok);
+
+      if (failedDeletions.length > 0) {
+        throw new Error(`Failed to delete ${failedDeletions.length} group(s)`);
+      }
+
+      // Clear pending deletions and refresh
+      setPendingDeletions(new Set());
+      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${pendingDeletions.size} group(s)`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save changes",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelChanges = () => {
+    setPendingDeletions(new Set());
+    toast({
+      title: "Cancelled",
+      description: "All pending changes have been discarded",
+    });
   };
 
   const filteredCategories = categories.map(category => ({
@@ -498,6 +543,34 @@ export default function SmartGroups() {
           </div>
         )}
       </Card>
+
+      {/* Save/Cancel buttons - shown when there are pending changes */}
+      {pendingDeletions.size > 0 && (
+        <Card className="p-4 bg-muted/50 border-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {pendingDeletions.size} group{pendingDeletions.size !== 1 ? 's' : ''} pending deletion
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCancelChanges}
+                data-testid="button-cancel-changes"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveChanges}
+                data-testid="button-save-changes"
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Edit Group Dialog */}
       <Dialog open={editingGroup !== null} onOpenChange={(open) => !open && setEditingGroup(null)}>
