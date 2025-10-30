@@ -178,6 +178,8 @@ export interface IStorage {
 }
 
 export class DbStorage implements IStorage {
+  public db = db;
+
   // Users
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id));
