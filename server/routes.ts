@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import { z } from "zod";
+import { eq, count, desc } from "drizzle-orm";
+import * as schema from "@shared/schema";
 import {
   insertUserSchema,
   insertTimeEntrySchema,
