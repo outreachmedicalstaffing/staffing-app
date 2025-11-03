@@ -42,7 +42,7 @@ interface SmartGroup {
   categoryName: string;
   categoryIcon: string;
   count: number;
-  color: string;
+  color: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +52,65 @@ interface GroupCategory {
   name: string;
   icon: string;
   groups: SmartGroup[];
+}
+
+// Convert Tailwind bg-color class to inline style
+function getBgColorStyle(colorClass: string | null | undefined): React.CSSProperties {
+  // If no color class provided, default to blue
+  if (!colorClass || colorClass.trim() === '') {
+    return { backgroundColor: '#3b82f6' }; // blue-500
+  }
+
+  // Map common Tailwind colors to their CSS values
+  const colorMap: Record<string, string> = {
+    'bg-red-500': '#ef4444',
+    'bg-red-600': '#dc2626',
+    'bg-orange-500': '#f97316',
+    'bg-orange-600': '#ea580c',
+    'bg-amber-500': '#f59e0b',
+    'bg-amber-600': '#d97706',
+    'bg-yellow-500': '#eab308',
+    'bg-yellow-600': '#ca8a04',
+    'bg-lime-500': '#84cc16',
+    'bg-lime-600': '#65a30d',
+    'bg-green-500': '#22c55e',
+    'bg-green-600': '#16a34a',
+    'bg-emerald-500': '#10b981',
+    'bg-emerald-600': '#059669',
+    'bg-teal-500': '#14b8a6',
+    'bg-teal-600': '#0d9488',
+    'bg-cyan-500': '#06b6d4',
+    'bg-cyan-600': '#0891b2',
+    'bg-sky-500': '#0ea5e9',
+    'bg-sky-600': '#0284c7',
+    'bg-blue-500': '#3b82f6',
+    'bg-blue-600': '#2563eb',
+    'bg-indigo-500': '#6366f1',
+    'bg-indigo-600': '#4f46e5',
+    'bg-violet-500': '#8b5cf6',
+    'bg-violet-600': '#7c3aed',
+    'bg-purple-500': '#a855f7',
+    'bg-purple-600': '#9333ea',
+    'bg-fuchsia-500': '#d946ef',
+    'bg-fuchsia-600': '#c026d3',
+    'bg-pink-500': '#ec4899',
+    'bg-pink-600': '#db2777',
+    'bg-rose-500': '#f43f5e',
+    'bg-rose-600': '#e11d48',
+    'bg-slate-500': '#64748b',
+    'bg-slate-600': '#475569',
+    'bg-gray-500': '#6b7280',
+    'bg-gray-600': '#4b5563',
+    'bg-zinc-500': '#71717a',
+    'bg-zinc-600': '#52525b',
+    'bg-neutral-500': '#737373',
+    'bg-neutral-600': '#525252',
+    'bg-stone-500': '#78716c',
+    'bg-stone-600': '#57534e',
+  };
+
+  const color = colorMap[colorClass] || colorMap['bg-blue-500'];
+  return { backgroundColor: color };
 }
 
 export default function SmartGroups() {
@@ -302,7 +361,11 @@ export default function SmartGroups() {
                             data-testid={`group-${group.id}`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`h-3 w-3 rounded-full ${group.color}`} />
+                              <div
+                                className="h-3 w-3 rounded-full flex-shrink-0"
+                                style={getBgColorStyle(group.color)}
+                                title={group.color || 'No color set'}
+                              />
                               <span className="text-sm font-medium">{group.name}</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -390,7 +453,10 @@ export default function SmartGroups() {
                 placeholder="e.g., bg-blue-500"
               />
               <div className="flex items-center gap-2 mt-2">
-                <div className={`h-6 w-6 rounded-full ${editFormData.color}`} />
+                <div
+                  className="h-6 w-6 rounded-full"
+                  style={getBgColorStyle(editFormData.color)}
+                />
                 <span className="text-xs text-muted-foreground">Preview</span>
               </div>
             </div>
@@ -450,7 +516,10 @@ export default function SmartGroups() {
                 placeholder="e.g., bg-blue-500"
               />
               <div className="flex items-center gap-2 mt-2">
-                <div className={`h-6 w-6 rounded-full ${newGroupData.color}`} />
+                <div
+                  className="h-6 w-6 rounded-full"
+                  style={getBgColorStyle(newGroupData.color)}
+                />
                 <span className="text-xs text-muted-foreground">Preview</span>
               </div>
             </div>
