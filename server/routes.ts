@@ -40,7 +40,14 @@ function requireRole(...allowedRoles: string[]) {
     }
 
     const user = await storage.getUser(req.session.userId);
+
+    // Debug logging
+    console.log("[requireRole] User role:", user?.role);
+    console.log("[requireRole] Allowed roles:", allowedRoles);
+    console.log("[requireRole] Role check passed:", user && allowedRoles.includes(user.role));
+
     if (!user || !allowedRoles.includes(user.role)) {
+      console.log("[requireRole] Access denied - returning 403");
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -2480,12 +2487,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log(`[Update Smart Group] Found group: ${existingGroup.name}`);
 
+        // Ensure color has a value, default to bg-blue-500 if empty
+        const updateData = {
+          ...req.body,
+          updatedAt: new Date(),
+        };
+
+        if ('color' in updateData && (!updateData.color || updateData.color.trim() === '')) {
+          updateData.color = 'bg-blue-500';
+        }
+
         const [updated] = await storage.db
           .update(schema.smartGroups)
-          .set({
-            ...req.body,
-            updatedAt: new Date(),
-          })
+          .set(updateData)
           .where(eq(schema.smartGroups.id, groupId))
           .returning();
 
@@ -2684,6 +2698,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
 
       const createdGroups = [];
+
+      // Get all active users once for efficiency
+      const allUsers = await storage.db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.status, "active"));
+
       for (const groupData of initialGroups) {
         const [group] = await storage.db
           .insert(schema.smartGroups)
@@ -2698,6 +2719,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .returning();
 
         createdGroups.push(group);
+
+        // Auto-populate group with matching users based on criteria
+        let matchingUsers: typeof allUsers = [];
+
+        if (groupData.category === "discipline") {
+          // Match by role/title
+          if (groupData.name.includes("RN") || groupData.name.includes("Registered Nurses")) {
+            matchingUsers = allUsers.filter(u => u.role === "RN");
+          } else if (groupData.name.includes("LPN") || groupData.name.includes("Licensed Practical Nurses")) {
+            matchingUsers = allUsers.filter(u => u.role === "LPN");
+          } else if (groupData.name.includes("CNA") || groupData.name.includes("Certified Nursing Assistants")) {
+            matchingUsers = allUsers.filter(u => u.role === "CNA");
+          } else if (groupData.name.includes("Medical Assistant")) {
+            matchingUsers = allUsers.filter(u => u.role === "Medical Assistant");
+          }
+        } else if (groupData.category === "program") {
+          // Match by program in jobRates
+          const programName = groupData.name;
+          matchingUsers = allUsers.filter(u => {
+            const jobRates = u.jobRates as Record<string, string> | null;
+            return jobRates && Object.keys(jobRates).includes(programName);
+          });
+        } else if (groupData.category === "general") {
+          // General groups
+          if (groupData.name === "All users group") {
+            matchingUsers = allUsers;
+          } else if (groupData.name === "All admins group") {
+            matchingUsers = allUsers.filter(u => u.role === "Admin" || u.role === "Owner");
+          }
+        }
+
+        // Insert matching users into smartGroupMembers
+        if (matchingUsers.length > 0) {
+          await storage.db
+            .insert(schema.smartGroupMembers)
+            .values(
+              matchingUsers.map(user => ({
+                groupId: group.id,
+                userId: user.id,
+                addedBy: userId,
+              }))
+            );
+        }
 
         await logAudit(
           userId,
@@ -2719,6 +2783,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to seed smart groups:", error);
       res.status(500).json({ error: "Failed to seed smart groups" });
+    }
+  });
+
+  // Fix groups with missing colors (Owner only)
+  app.post("/api/smart-groups/fix-colors", requireRole("Owner"), async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+
+      // Get all groups
+      const allGroups = await storage.db
+        .select()
+        .from(schema.smartGroups);
+
+      // Find groups with null or empty colors
+      const groupsWithoutColor = allGroups.filter(
+        g => !g.color || g.color.trim() === ""
+      );
+
+      if (groupsWithoutColor.length === 0) {
+        return res.json({
+          message: "All groups have color values",
+          fixed: 0
+        });
+      }
+
+      // Update groups with missing colors
+      const updated = [];
+      for (const group of groupsWithoutColor) {
+        const [updatedGroup] = await storage.db
+          .update(schema.smartGroups)
+          .set({ color: "bg-blue-500", updatedAt: new Date() })
+          .where(eq(schema.smartGroups.id, group.id))
+          .returning();
+
+        updated.push(updatedGroup);
+
+        await logAudit(
+          userId,
+          "update",
+          "smart_group",
+          group.id,
+          false,
+          ["color"],
+          {},
+          req.ip
+        );
+      }
+
+      res.json({
+        message: `Fixed ${updated.length} group(s) with missing colors`,
+        fixed: updated.length,
+        groups: updated
+      });
+    } catch (error) {
+      console.error("Failed to fix group colors:", error);
+      res.status(500).json({ error: "Failed to fix group colors" });
+    }
+  });
+
+  // Sync smart group memberships based on user criteria (Owner/Admin only)
+  app.post("/api/smart-groups/sync", requireRole("Owner", "Admin"), async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+
+      // Get all groups and users
+      const allGroups = await storage.db
+        .select()
+        .from(schema.smartGroups);
+
+      const allUsers = await storage.db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.status, "active"));
+
+      let totalSynced = 0;
+
+      for (const group of allGroups) {
+        let matchingUsers: typeof allUsers = [];
+
+        if (group.category === "discipline") {
+          // Match by role/title
+          if (group.name.includes("RN") || group.name.includes("Registered Nurses")) {
+            matchingUsers = allUsers.filter(u => u.role === "RN");
+          } else if (group.name.includes("LPN") || group.name.includes("Licensed Practical Nurses")) {
+            matchingUsers = allUsers.filter(u => u.role === "LPN");
+          } else if (group.name.includes("CNA") || group.name.includes("Certified Nursing Assistants")) {
+            matchingUsers = allUsers.filter(u => u.role === "CNA");
+          } else if (group.name.includes("Medical Assistant")) {
+            matchingUsers = allUsers.filter(u => u.role === "Medical Assistant");
+          }
+        } else if (group.category === "program") {
+          // Match by program in jobRates
+          const programName = group.name;
+          matchingUsers = allUsers.filter(u => {
+            const jobRates = u.jobRates as Record<string, string> | null;
+            return jobRates && Object.keys(jobRates).includes(programName);
+          });
+        } else if (group.category === "general") {
+          // General groups
+          if (group.name === "All users group") {
+            matchingUsers = allUsers;
+          } else if (group.name === "All admins group") {
+            matchingUsers = allUsers.filter(u => u.role === "Admin" || u.role === "Owner");
+          }
+        }
+
+        // Clear existing members
+        await storage.db
+          .delete(schema.smartGroupMembers)
+          .where(eq(schema.smartGroupMembers.groupId, group.id));
+
+        // Insert matching users
+        if (matchingUsers.length > 0) {
+          await storage.db
+            .insert(schema.smartGroupMembers)
+            .values(
+              matchingUsers.map(user => ({
+                groupId: group.id,
+                userId: user.id,
+                addedBy: userId,
+              }))
+            );
+        }
+
+        totalSynced += matchingUsers.length;
+      }
+
+      res.json({
+        message: "Smart groups synced successfully",
+        groupsProcessed: allGroups.length,
+        totalMembers: totalSynced
+      });
+    } catch (error) {
+      console.error("Failed to sync smart groups:", error);
+      res.status(500).json({ error: "Failed to sync smart groups" });
     }
   });
 
