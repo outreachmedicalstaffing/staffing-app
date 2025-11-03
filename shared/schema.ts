@@ -494,11 +494,11 @@ export const smartGroups = pgTable("smart_groups", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  categoryId: text("category_id").notNull(), // discipline, general, program
-  categoryName: text("category_name").notNull(),
-  categoryIcon: text("category_icon").notNull(),
-  count: integer("count").notNull().default(0),
-  color: text("color").notNull().default("bg-blue-500"),
+  description: text("description"),
+  category: text("category"), // discipline, general, program
+  color: text("color").default("bg-blue-500"),
+  createdBy: varchar("created_by").references(() => users.id),
+  administeredBy: varchar("administered_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
