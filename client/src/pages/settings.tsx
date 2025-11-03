@@ -44,8 +44,6 @@ export default function Settings() {
   const [holidayRateType, setHolidayRateType] = useState<"additional" | "custom">("additional");
   const [holidayAdditionalRate, setHolidayAdditionalRate] = useState("0.5");
   const [holidayCustomRate, setHolidayCustomRate] = useState("1.5");
-  const [payrollPeriod, setPayrollPeriod] = useState("biweekly");
-  const [autoClockout, setAutoClockout] = useState("14");
   const [isSaving, setIsSaving] = useState(false);
 
   // Load pay rules from the database
@@ -56,11 +54,6 @@ export default function Settings() {
   // Load holidays from the database
   const { data: holidaysData } = useQuery({
     queryKey: ['/api/settings/holidays'],
-  });
-
-  // Load payroll config from the database
-  const { data: payrollConfigData } = useQuery({
-    queryKey: ['/api/settings/payroll_config'],
   });
 
   // Update state when data is loaded
@@ -79,14 +72,6 @@ export default function Settings() {
       setHolidays(holidaysData.value as Holiday[]);
     }
   }, [holidaysData]);
-
-  useEffect(() => {
-    if (payrollConfigData?.value) {
-      const config = payrollConfigData.value as { payrollPeriod?: string; autoClockout?: string };
-      if (config.payrollPeriod) setPayrollPeriod(config.payrollPeriod);
-      if (config.autoClockout) setAutoClockout(config.autoClockout);
-    }
-  }, [payrollConfigData]);
 
   const addHoliday = () => {
     const newHoliday: Holiday = {
@@ -109,7 +94,7 @@ export default function Settings() {
     setIsSaving(true);
     try {
       // Save pay rules
-      const payRulesResponse = await fetch('/api/settings/pay_rules', {
+      await fetch('/api/settings/pay_rules', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,13 +108,8 @@ export default function Settings() {
         credentials: 'include',
       });
 
-      if (!payRulesResponse.ok) {
-        const errorData = await payRulesResponse.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to save pay rules');
-      }
-
       // Save holidays
-      const holidaysResponse = await fetch('/api/settings/holidays', {
+      await fetch('/api/settings/holidays', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -138,33 +118,9 @@ export default function Settings() {
         credentials: 'include',
       });
 
-      if (!holidaysResponse.ok) {
-        const errorData = await holidaysResponse.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to save holidays');
-      }
-
-      // Save payroll config
-      const payrollConfigResponse = await fetch('/api/settings/payroll_config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          value: {
-            payrollPeriod,
-            autoClockout,
-          },
-        }),
-        credentials: 'include',
-      });
-
-      if (!payrollConfigResponse.ok) {
-        const errorData = await payrollConfigResponse.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to save payroll config');
-      }
-
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/settings/pay_rules'] });
       queryClient.invalidateQueries({ queryKey: ['/api/settings/holidays'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/settings/payroll_config'] });
 
       toast({
         title: "Settings saved",
@@ -174,7 +130,7 @@ export default function Settings() {
       console.error('Failed to save settings:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save settings. Please try again.",
+        description: "Failed to save settings. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -334,7 +290,7 @@ export default function Settings() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="payroll-period">Payroll Period</Label>
-                <Select value={payrollPeriod} onValueChange={setPayrollPeriod}>
+                <Select defaultValue="biweekly">
                   <SelectTrigger id="payroll-period" data-testid="select-payroll-period">
                     <SelectValue />
                   </SelectTrigger>
@@ -352,8 +308,7 @@ export default function Settings() {
                 <Input
                   id="auto-clockout"
                   type="number"
-                  value={autoClockout}
-                  onChange={(e) => setAutoClockout(e.target.value)}
+                  defaultValue="14"
                   data-testid="input-auto-clockout"
                 />
               </div>

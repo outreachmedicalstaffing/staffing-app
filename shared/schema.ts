@@ -488,56 +488,6 @@ export const insertUpdateCommentSchema = createInsertSchema(
 export type InsertUpdateComment = z.infer<typeof insertUpdateCommentSchema>;
 export type UpdateComment = typeof updateComments.$inferSelect;
 
-// Smart Groups system
-export const smartGroups = pgTable("smart_groups", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  category: text("category"), // discipline, general, program
-  color: text("color").default("bg-blue-500"),
-  createdBy: varchar("created_by").references(() => users.id),
-  administeredBy: varchar("administered_by").references(() => users.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-export const insertSmartGroupSchema = createInsertSchema(smartGroups).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type InsertSmartGroup = z.infer<typeof insertSmartGroupSchema>;
-export type SmartGroup = typeof smartGroups.$inferSelect;
-
-// Smart Group Members - junction table
-export const smartGroupMembers = pgTable("smart_group_members", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  groupId: varchar("group_id")
-    .notNull()
-    .references(() => smartGroups.id, { onDelete: "cascade" }),
-  userId: varchar("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  addedAt: timestamp("added_at").notNull().defaultNow(),
-});
-
-export const insertSmartGroupMemberSchema = createInsertSchema(
-  smartGroupMembers,
-).omit({
-  id: true,
-  addedAt: true,
-});
-
-export type InsertSmartGroupMember = z.infer<
-  typeof insertSmartGroupMemberSchema
->;
-export type SmartGroupMember = typeof smartGroupMembers.$inferSelect;
-
 // Audit logs for HIPAA compliance - comprehensive tracking
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id")
@@ -583,3 +533,27 @@ export const insertSettingSchema = createInsertSchema(settings).omit({
 
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type Setting = typeof settings.$inferSelect;
+
+// Smart Groups for organizing users
+export const smartGroups = pgTable("smart_groups", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  categoryId: text("category_id").notNull(), // discipline, general, program
+  categoryName: text("category_name").notNull(),
+  categoryIcon: text("category_icon").notNull(),
+  count: integer("count").notNull().default(0),
+  color: text("color").notNull().default("bg-blue-500"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertSmartGroupSchema = createInsertSchema(smartGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSmartGroup = z.infer<typeof insertSmartGroupSchema>;
+export type SmartGroup = typeof smartGroups.$inferSelect;
