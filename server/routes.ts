@@ -2808,12 +2808,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Color mapping for groups based on name and category
+      const colorMap: Record<string, string> = {
+        // Discipline groups
+        "Registered Nurses (RN)": "bg-blue-500",
+        "Licensed Practical Nurses (LPN)": "bg-purple-500",
+        "Certified Nursing Assistants (CNA)": "bg-green-500",
+        "Medical Assistant": "bg-orange-500",
+
+        // General groups
+        "All users group": "bg-teal-500",
+        "All admins group": "bg-cyan-500",
+
+        // Program groups
+        "Vitas Nature Coast": "bg-teal-600",
+        "Vitas Citrus": "bg-cyan-600",
+        "Vitas Jacksonville": "bg-purple-600",
+        "Vitas St. Johns": "bg-pink-600",
+        "Vitas VHVP": "bg-pink-500",
+        "Vitas Central Florida": "bg-indigo-500",
+        "Vitas West Jacksonville": "bg-red-500",
+        "Vitas Brevard": "bg-violet-500",
+        "Advent/Health IPU": "bg-yellow-500",
+        "Haven Hospice": "bg-emerald-500",
+        "Gentiva Palm Coast": "bg-fuchsia-500",
+        "Gentiva Daytona": "bg-rose-500",
+        "Gentiva DeLand": "bg-sky-500",
+        "Gentiva Orlando": "bg-lime-500",
+        "Gentiva Kissimmee": "bg-amber-500",
+      };
+
       // Update groups with missing colors
       const updated = [];
       for (const group of groupsWithoutColor) {
+        // Get color from map or default to bg-blue-500
+        const color = colorMap[group.name] || "bg-blue-500";
+
         const [updatedGroup] = await storage.db
           .update(schema.smartGroups)
-          .set({ color: "bg-blue-500", updatedAt: new Date() })
+          .set({ color, updatedAt: new Date() })
           .where(eq(schema.smartGroups.id, group.id))
           .returning();
 
