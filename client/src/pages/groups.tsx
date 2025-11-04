@@ -1,20 +1,37 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Filter, FileDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import type { User } from "@shared/schema";
 
 interface GroupData {
   name: string;
   memberCount: number;
   members: User[];
+  createdBy?: User;
+  administeredBy?: User;
+  assignments?: number;
+}
+
+type CategoryType = "discipline" | "general" | "program";
+
+interface Category {
+  id: CategoryType;
+  name: string;
+  dotColor: string;
+  groups: GroupData[];
 }
 
 export default function Groups() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<CategoryType>>(
+    new Set(["discipline", "general", "program"])
+  );
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -35,19 +52,104 @@ export default function Groups() {
       }
     });
 
-    // Convert map to array and sort by group name
+    // Convert map to array and add metadata
     return Array.from(groupMap.entries())
       .map(([name, members]) => ({
         name,
         memberCount: members.length,
         members,
+        // Mock data for demonstration - replace with real data when available
+        createdBy: users[0],
+        administeredBy: users[0],
+        assignments: Math.floor(Math.random() * 5),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [users]);
 
-  const filteredGroups = groups.filter(group =>
-    group.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Categorize groups based on their names
+  const categories = useMemo((): Category[] => {
+    const disciplineGroups: GroupData[] = [];
+    const generalGroups: GroupData[] = [];
+    const programGroups: GroupData[] = [];
+
+    groups.forEach(group => {
+      const nameLower = group.name.toLowerCase();
+
+      // Categorization logic - adjust based on your actual group naming conventions
+      if (nameLower.includes('discipline') || nameLower.includes('dept') || nameLower.includes('department')) {
+        disciplineGroups.push(group);
+      } else if (nameLower.includes('program') || nameLower.includes('project')) {
+        programGroups.push(group);
+      } else {
+        generalGroups.push(group);
+      }
+    });
+
+    return [
+      {
+        id: "discipline",
+        name: "Groups by Discipline",
+        dotColor: "bg-blue-500",
+        groups: disciplineGroups,
+      },
+      {
+        id: "general",
+        name: "General groups",
+        dotColor: "bg-green-500",
+        groups: generalGroups,
+      },
+      {
+        id: "program",
+        name: "Groups by Program",
+        dotColor: "bg-purple-500",
+        groups: programGroups,
+      },
+    ];
+  }, [groups]);
+
+  const toggleCategory = (categoryId: CategoryType) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(categoryId)) {
+      newExpanded.delete(categoryId);
+    } else {
+      newExpanded.add(categoryId);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  const toggleGroupSelection = (groupName: string) => {
+    const newSelected = new Set(selectedGroups);
+    if (newSelected.has(groupName)) {
+      newSelected.delete(groupName);
+    } else {
+      newSelected.add(groupName);
+    }
+    setSelectedGroups(newSelected);
+  };
+
+  const toggleCategorySelection = (category: Category) => {
+    const allSelected = category.groups.every(g => selectedGroups.has(g.name));
+    const newSelected = new Set(selectedGroups);
+
+    category.groups.forEach(group => {
+      if (allSelected) {
+        newSelected.delete(group.name);
+      } else {
+        newSelected.add(group.name);
+      }
+    });
+
+    setSelectedGroups(newSelected);
+  };
+
+  const getInitials = (user?: User) => {
+    if (!user) return "?";
+    const names = user.fullName?.split(" ") || [];
+    if (names.length >= 2) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return user.fullName?.[0]?.toUpperCase() || "?";
+  };
 
   return (
     <div className="space-y-6">
@@ -59,66 +161,129 @@ export default function Groups() {
       {/* Main Content */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-            <Button variant="outline" size="sm" data-testid="button-filter">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search groups"
-                  className="pl-9 w-64"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  data-testid="input-search-groups"
-                />
-              </div>
-              <Button variant="outline" size="sm" data-testid="button-export">
-                <FileDown className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+          {isLoading ? (
+            <div className="text-center text-muted-foreground py-8">
+              Loading groups...
             </div>
-          </div>
-
-          {/* Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Group Name</TableHead>
-                  <TableHead>Members</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
-                      Loading groups...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredGroups.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
-                      {searchQuery ? 'No groups found matching your search' : 'No groups found'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredGroups.map((group) => (
-                    <TableRow
-                      key={group.name}
-                      data-testid={`row-group-${group.name.toLowerCase().replace(/\s+/g, '-')}`}
-                      className="cursor-pointer hover-elevate"
+          ) : (
+            <div className="space-y-6">
+              {categories.map((category) => (
+                <div key={category.id} className="space-y-3">
+                  {/* Category Header */}
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => toggleCategory(category.id)}
+                      className="flex items-center gap-2 hover:opacity-70 transition-opacity"
                     >
-                      <TableCell className="font-medium">{group.name}</TableCell>
-                      <TableCell className="text-sm">{group.memberCount}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                      {expandedCategories.has(category.id) ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                      <div className={`w-2 h-2 rounded-full ${category.dotColor}`} />
+                      <span className="font-medium">{category.name}</span>
+                    </button>
+                    <Badge variant="secondary" className="rounded-full">
+                      {category.groups.length}
+                    </Badge>
+                  </div>
+
+                  {/* Category Table */}
+                  {expandedCategories.has(category.id) && (
+                    <>
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-12">
+                                <Checkbox
+                                  checked={
+                                    category.groups.length > 0 &&
+                                    category.groups.every(g => selectedGroups.has(g.name))
+                                  }
+                                  onCheckedChange={() => toggleCategorySelection(category)}
+                                />
+                              </TableHead>
+                              <TableHead>Group name</TableHead>
+                              <TableHead>Connected</TableHead>
+                              <TableHead>Created by</TableHead>
+                              <TableHead>Assignments</TableHead>
+                              <TableHead>Administered by</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {category.groups.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                  No groups in this category
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              category.groups.map((group) => (
+                                <TableRow
+                                  key={group.name}
+                                  data-testid={`row-group-${group.name.toLowerCase().replace(/\s+/g, '-')}`}
+                                  className="hover-elevate"
+                                >
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={selectedGroups.has(group.name)}
+                                      onCheckedChange={() => toggleGroupSelection(group.name)}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="font-medium">{group.name}</TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {group.memberCount} / {group.memberCount}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={group.createdBy?.profilePicture} />
+                                        <AvatarFallback className="text-xs">
+                                          {getInitials(group.createdBy)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm">
+                                        {group.createdBy?.fullName || "Unknown"}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <select className="text-sm border rounded px-2 py-1 bg-background">
+                                      <option>{group.assignments || 0} selected</option>
+                                    </select>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={group.administeredBy?.profilePicture} />
+                                        <AvatarFallback className="text-xs">
+                                          {getInitials(group.administeredBy)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm">
+                                        {group.administeredBy?.fullName || "Unknown"}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Add Group Button */}
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Group
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
