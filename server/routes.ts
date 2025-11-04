@@ -2756,8 +2756,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.ip,
       );
       res.json(groups);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to list groups" });
+    } catch (error: any) {
+      console.error("Error listing groups:", error);
+
+      // Check if it's a database table doesn't exist error
+      if (error.code === '42P01') {
+        return res.status(500).json({
+          error: "Groups table does not exist. Please run database migrations. See migrations/README.md for instructions.",
+          details: "Table 'groups' not found in database"
+        });
+      }
+
+      res.status(500).json({
+        error: "Failed to list groups",
+        details: error.message
+      });
     }
   });
 
@@ -2785,11 +2798,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.ip,
         );
         res.json(group);
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Error creating group:", error);
+
         if (error instanceof z.ZodError) {
           return res.status(400).json({ error: error.errors });
         }
-        res.status(500).json({ error: "Failed to create group" });
+
+        // Check if it's a database table doesn't exist error
+        if (error.code === '42P01') {
+          return res.status(500).json({
+            error: "Groups table does not exist. Please run database migrations. See migrations/README.md for instructions.",
+            details: "Table 'groups' not found in database"
+          });
+        }
+
+        res.status(500).json({
+          error: "Failed to create group",
+          details: error.message
+        });
       }
     },
   );
