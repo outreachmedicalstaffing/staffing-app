@@ -18,6 +18,7 @@ import {
   insertSettingSchema,
   insertScheduleSchema,
   insertShiftTemplateSchema,
+  insertGroupSchema,
 } from "@shared/schema";
 import "./types"; // Import session and request type augmentations
 import { upload } from "./upload";
@@ -2734,6 +2735,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(logs);
       } catch (error) {
         res.status(500).json({ error: "Failed to list audit logs" });
+      }
+    },
+  );
+
+  // ===== Group Routes =====
+
+  // List all groups
+  app.get("/api/groups", requireAuth, async (req, res) => {
+    try {
+      const groups = await storage.listGroups();
+      await logAudit(
+        req.session.userId,
+        "view",
+        "groups",
+        undefined,
+        false,
+        [],
+        {},
+        req.ip,
+      );
+      res.json(groups);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to list groups" });
+    }
+  });
+
+  // Create group
+  app.post(
+    "/api/groups",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const data = insertGroupSchema.parse({
+          ...req.body,
+          createdBy: req.session.userId!,
+          administeredBy: req.body.administeredBy || req.session.userId!,
+        });
+
+        const group = await storage.createGroup(data);
+        await logAudit(
+          req.session.userId,
+          "create",
+          "group",
+          group.id,
+          false,
+          [],
+          { name: group.name, category: group.category },
+          req.ip,
+        );
+        res.json(group);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ error: error.errors });
+        }
+        res.status(500).json({ error: "Failed to create group" });
+      }
+    },
+  );
+
+  // Update group
+  app.patch(
+    "/api/groups/:id",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const updateSchema = insertGroupSchema.partial();
+        const data = updateSchema.parse(req.body);
+
+        const group = await storage.updateGroup(req.params.id, data);
+        if (!group) {
+          return res.status(404).json({ error: "Group not found" });
+        }
+
+        await logAudit(
+          req.session.userId,
+          "update",
+          "group",
+          group.id,
+          false,
+          [],
+          { changes: data },
+          req.ip,
+        );
+        res.json(group);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ error: error.errors });
+        }
+        res.status(500).json({ error: "Failed to update group" });
+      }
+    },
+  );
+
+  // Delete group
+  app.delete(
+    "/api/groups/:id",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const success = await storage.deleteGroup(req.params.id);
+        if (!success) {
+          return res.status(404).json({ error: "Group not found" });
+        }
+
+        await logAudit(
+          req.session.userId,
+          "delete",
+          "group",
+          req.params.id,
+          false,
+          [],
+          {},
+          req.ip,
+        );
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ error: "Failed to delete group" });
       }
     },
   );

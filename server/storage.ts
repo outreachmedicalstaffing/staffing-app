@@ -13,6 +13,7 @@ import {
   knowledgeArticles,
   auditLogs,
   settings,
+  groups,
   type User,
   type InsertUser,
   type TimeEntry,
@@ -37,6 +38,8 @@ import {
   type InsertAuditLog,
   type Setting,
   type InsertSetting,
+  type Group,
+  type InsertGroup,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -175,6 +178,16 @@ export interface IStorage {
   getSetting(key: string): Promise<Setting | undefined>;
   setSetting(setting: InsertSetting): Promise<Setting>;
   listSettings(): Promise<Setting[]>;
+
+  // Groups
+  getGroup(id: string): Promise<Group | undefined>;
+  createGroup(group: InsertGroup): Promise<Group>;
+  updateGroup(
+    id: string,
+    group: Partial<InsertGroup>,
+  ): Promise<Group | undefined>;
+  deleteGroup(id: string): Promise<boolean>;
+  listGroups(): Promise<Group[]>;
 
 }
 
@@ -732,6 +745,50 @@ export class DbStorage implements IStorage {
 
   async listSettings(): Promise<Setting[]> {
     return await db.select().from(settings);
+  }
+
+  // Groups
+  async getGroup(id: string): Promise<Group | undefined> {
+    const result = await db
+      .select()
+      .from(groups)
+      .where(eq(groups.id, id));
+    return result[0];
+  }
+
+  async createGroup(group: InsertGroup): Promise<Group> {
+    const result = await db.insert(groups).values(group).returning();
+    return result[0];
+  }
+
+  async updateGroup(
+    id: string,
+    group: Partial<InsertGroup>,
+  ): Promise<Group | undefined> {
+    const updateData: Partial<InsertGroup> & { updatedAt: Date } = {
+      ...group,
+      updatedAt: new Date(),
+    };
+
+    const result = await db
+      .update(groups)
+      .set(updateData)
+      .where(eq(groups.id, id))
+      .returning();
+
+    return result[0];
+  }
+
+  async deleteGroup(id: string): Promise<boolean> {
+    const result = await db
+      .delete(groups)
+      .where(eq(groups.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async listGroups(): Promise<Group[]> {
+    return await db.select().from(groups);
   }
 }
 

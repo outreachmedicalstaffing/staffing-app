@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,13 +13,21 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { User } from "@shared/schema";
 
-interface GroupData {
+interface Group {
+  id: string;
   name: string;
+  category: string;
+  createdBy: string;
+  administeredBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface GroupWithDetails extends Group {
   memberCount: number;
-  members: User[];
-  createdBy?: User;
-  administeredBy?: User;
-  assignments?: number;
+  createdByUser?: User;
+  administeredByUser?: User;
+  assignments: number;
 }
 
 type CategoryType = "discipline" | "general" | "program";
@@ -28,10 +36,11 @@ interface Category {
   id: CategoryType;
   name: string;
   dotColor: string;
-  groups: GroupData[];
+  groups: GroupWithDetails[];
 }
 
 export default function Groups() {
+  const queryClient = useQueryClient();
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<CategoryType>>(
     new Set(["discipline", "general", "program"])
@@ -40,52 +49,81 @@ export default function Groups() {
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("general");
 
-  const { data: users = [], isLoading } = useQuery<User[]>({
+  const { data: groups = [], isLoading: isLoadingGroups } = useQuery<Group[]>({
+    queryKey: ['/api/groups'],
+  });
+
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
 
-  // Extract unique groups and count members
-  const groups = useMemo(() => {
-    const groupMap = new Map<string, User[]>();
+  const createGroupMutation = useMutation({
+    mutationFn: async (data: { name: string; category: string }) => {
+      const response = await fetch('/api/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
 
-    users.forEach(user => {
-      if (user.groups && Array.isArray(user.groups)) {
-        user.groups.forEach(groupName => {
-          if (!groupMap.has(groupName)) {
-            groupMap.set(groupName, []);
-          }
-          groupMap.get(groupName)!.push(user);
-        });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create group');
       }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate and refetch groups
+      queryClient.invalidateQueries({ queryKey: ['/api/groups'] });
+
+      // Reset form and close modal
+      setNewGroupName("");
+      setSelectedCategory("general");
+      setIsAddGroupModalOpen(false);
+    },
+    onError: (error: Error) => {
+      console.error('Failed to create group:', error);
+      alert(error.message || 'Failed to create group');
+    },
+  });
+
+  const isLoading = isLoadingGroups || isLoadingUsers;
+
+  // Enrich groups with user details and member counts
+  const groupsWithDetails = useMemo((): GroupWithDetails[] => {
+    return groups.map(group => {
+      // Count members in this group
+      const memberCount = users.filter(user =>
+        user.groups && Array.isArray(user.groups) && user.groups.includes(group.name)
+      ).length;
+
+      // Find user details
+      const createdByUser = users.find(u => u.id === group.createdBy);
+      const administeredByUser = users.find(u => u.id === group.administeredBy);
+
+      return {
+        ...group,
+        memberCount,
+        createdByUser,
+        administeredByUser,
+        assignments: 0, // TODO: Implement assignments when available
+      };
     });
+  }, [groups, users]);
 
-    // Convert map to array and add metadata
-    return Array.from(groupMap.entries())
-      .map(([name, members]) => ({
-        name,
-        memberCount: members.length,
-        members,
-        // Mock data for demonstration - replace with real data when available
-        createdBy: users[0],
-        administeredBy: users[0],
-        assignments: Math.floor(Math.random() * 5),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [users]);
-
-  // Categorize groups based on their names
+  // Categorize groups
   const categories = useMemo((): Category[] => {
-    const disciplineGroups: GroupData[] = [];
-    const generalGroups: GroupData[] = [];
-    const programGroups: GroupData[] = [];
+    const disciplineGroups: GroupWithDetails[] = [];
+    const generalGroups: GroupWithDetails[] = [];
+    const programGroups: GroupWithDetails[] = [];
 
-    groups.forEach(group => {
-      const nameLower = group.name.toLowerCase();
-
-      // Categorization logic - adjust based on your actual group naming conventions
-      if (nameLower.includes('discipline') || nameLower.includes('dept') || nameLower.includes('department')) {
+    groupsWithDetails.forEach(group => {
+      if (group.category === 'discipline') {
         disciplineGroups.push(group);
-      } else if (nameLower.includes('program') || nameLower.includes('project')) {
+      } else if (group.category === 'program') {
         programGroups.push(group);
       } else {
         generalGroups.push(group);
@@ -112,7 +150,7 @@ export default function Groups() {
         groups: programGroups,
       },
     ];
-  }, [groups]);
+  }, [groupsWithDetails]);
 
   const toggleCategory = (categoryId: CategoryType) => {
     const newExpanded = new Set(expandedCategories);
@@ -124,25 +162,25 @@ export default function Groups() {
     setExpandedCategories(newExpanded);
   };
 
-  const toggleGroupSelection = (groupName: string) => {
+  const toggleGroupSelection = (groupId: string) => {
     const newSelected = new Set(selectedGroups);
-    if (newSelected.has(groupName)) {
-      newSelected.delete(groupName);
+    if (newSelected.has(groupId)) {
+      newSelected.delete(groupId);
     } else {
-      newSelected.add(groupName);
+      newSelected.add(groupId);
     }
     setSelectedGroups(newSelected);
   };
 
   const toggleCategorySelection = (category: Category) => {
-    const allSelected = category.groups.every(g => selectedGroups.has(g.name));
+    const allSelected = category.groups.every(g => selectedGroups.has(g.id));
     const newSelected = new Set(selectedGroups);
 
     category.groups.forEach(group => {
       if (allSelected) {
-        newSelected.delete(group.name);
+        newSelected.delete(group.id);
       } else {
-        newSelected.add(group.name);
+        newSelected.add(group.id);
       }
     });
 
@@ -159,13 +197,12 @@ export default function Groups() {
   };
 
   const handleAddGroup = () => {
-    // TODO: Implement API call to save the group
-    console.log("Adding group:", { name: newGroupName, category: selectedCategory });
+    if (!newGroupName.trim()) return;
 
-    // Reset form and close modal
-    setNewGroupName("");
-    setSelectedCategory("general");
-    setIsAddGroupModalOpen(false);
+    createGroupMutation.mutate({
+      name: newGroupName.trim(),
+      category: selectedCategory,
+    });
   };
 
   return (
@@ -220,7 +257,7 @@ export default function Groups() {
                                 <Checkbox
                                   checked={
                                     category.groups.length > 0 &&
-                                    category.groups.every(g => selectedGroups.has(g.name))
+                                    category.groups.every(g => selectedGroups.has(g.id))
                                   }
                                   onCheckedChange={() => toggleCategorySelection(category)}
                                 />
@@ -242,14 +279,14 @@ export default function Groups() {
                             ) : (
                               category.groups.map((group) => (
                                 <TableRow
-                                  key={group.name}
+                                  key={group.id}
                                   data-testid={`row-group-${group.name.toLowerCase().replace(/\s+/g, '-')}`}
                                   className="hover-elevate"
                                 >
                                   <TableCell>
                                     <Checkbox
-                                      checked={selectedGroups.has(group.name)}
-                                      onCheckedChange={() => toggleGroupSelection(group.name)}
+                                      checked={selectedGroups.has(group.id)}
+                                      onCheckedChange={() => toggleGroupSelection(group.id)}
                                     />
                                   </TableCell>
                                   <TableCell className="font-medium">{group.name}</TableCell>
@@ -259,31 +296,31 @@ export default function Groups() {
                                   <TableCell>
                                     <div className="flex items-center gap-2">
                                       <Avatar className="h-6 w-6">
-                                        <AvatarImage src={group.createdBy?.profilePicture} />
+                                        <AvatarImage src={(group.createdByUser as any)?.profilePicture} />
                                         <AvatarFallback className="text-xs">
-                                          {getInitials(group.createdBy)}
+                                          {getInitials(group.createdByUser)}
                                         </AvatarFallback>
                                       </Avatar>
                                       <span className="text-sm">
-                                        {group.createdBy?.fullName || "Unknown"}
+                                        {group.createdByUser?.fullName || "Unknown"}
                                       </span>
                                     </div>
                                   </TableCell>
                                   <TableCell>
                                     <select className="text-sm border rounded px-2 py-1 bg-background">
-                                      <option>{group.assignments || 0} selected</option>
+                                      <option>{group.assignments} selected</option>
                                     </select>
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-2">
                                       <Avatar className="h-6 w-6">
-                                        <AvatarImage src={group.administeredBy?.profilePicture} />
+                                        <AvatarImage src={(group.administeredByUser as any)?.profilePicture} />
                                         <AvatarFallback className="text-xs">
-                                          {getInitials(group.administeredBy)}
+                                          {getInitials(group.administeredByUser)}
                                         </AvatarFallback>
                                       </Avatar>
                                       <span className="text-sm">
-                                        {group.administeredBy?.fullName || "Unknown"}
+                                        {group.administeredByUser?.fullName || "Unknown"}
                                       </span>
                                     </div>
                                   </TableCell>
@@ -333,11 +370,18 @@ export default function Groups() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddGroupModalOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsAddGroupModalOpen(false)}
+              disabled={createGroupMutation.isPending}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddGroup} disabled={!newGroupName.trim()}>
-              Add Group
+            <Button
+              onClick={handleAddGroup}
+              disabled={!newGroupName.trim() || createGroupMutation.isPending}
+            >
+              {createGroupMutation.isPending ? "Adding..." : "Add Group"}
             </Button>
           </DialogFooter>
         </DialogContent>
