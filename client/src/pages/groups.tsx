@@ -103,10 +103,13 @@ export default function Groups() {
                (group.name.match(/\(([^)]+)\)/)?.[1]?.toLowerCase() === userRole);
       }).length;
     } else if (group.category === 'program') {
-      // For program groups, count users whose groups array includes this group name
+      // For program groups, count users who have this program in their jobRates
+      // Users can have multiple programs (e.g., Bryant has both "Vitas Central Florida" and "Haven")
       return users.filter(user => {
-        if (!user.groups || !Array.isArray(user.groups)) return false;
-        return user.groups.includes(group.name);
+        // Check if user has jobRates and if the program exists as a key
+        if (!user.jobRates || typeof user.jobRates !== 'object') return false;
+        const jobRatesObj = user.jobRates as Record<string, any>;
+        return Object.keys(jobRatesObj).includes(group.name);
       }).length;
     } else {
       // For general groups, use memberIds array
