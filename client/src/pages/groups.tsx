@@ -2,10 +2,20 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,9 +64,11 @@ export default function Groups() {
   const [expandedCategories, setExpandedCategories] = useState<Set<CategoryType>>(
     new Set(["discipline", "general", "program"])
   );
-  const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [groupName, setGroupName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("general");
+  const [deleteConfirmGroup, setDeleteConfirmGroup] = useState<Group | null>(null);
 
   // Load groups from localStorage on mount
   useEffect(() => {
@@ -137,26 +149,72 @@ export default function Groups() {
     setSelectedGroups(newSelected);
   };
 
-  const handleAddGroup = () => {
-    if (!newGroupName.trim()) return;
+  const openAddGroupModal = () => {
+    setEditingGroup(null);
+    setGroupName("");
+    setSelectedCategory("general");
+    setIsModalOpen(true);
+  };
 
-    const newGroup: Group = {
-      id: crypto.randomUUID(),
-      name: newGroupName.trim(),
-      category: selectedCategory,
-      memberIds: [],
-      assignmentIds: [],
-      createdAt: new Date().toISOString(),
-    };
+  const openEditGroupModal = (group: Group) => {
+    setEditingGroup(group);
+    setGroupName(group.name);
+    setSelectedCategory(group.category as CategoryType);
+    setIsModalOpen(true);
+  };
 
-    const updatedGroups = [...groups, newGroup];
+  const handleSaveGroup = () => {
+    if (!groupName.trim()) return;
+
+    if (editingGroup) {
+      // Edit existing group
+      const updatedGroups = groups.map(g =>
+        g.id === editingGroup.id
+          ? { ...g, name: groupName.trim(), category: selectedCategory }
+          : g
+      );
+      setGroups(updatedGroups);
+      saveGroupsToStorage(updatedGroups);
+    } else {
+      // Add new group
+      const newGroup: Group = {
+        id: crypto.randomUUID(),
+        name: groupName.trim(),
+        category: selectedCategory,
+        memberIds: [],
+        assignmentIds: [],
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedGroups = [...groups, newGroup];
+      setGroups(updatedGroups);
+      saveGroupsToStorage(updatedGroups);
+    }
+
+    // Reset and close modal
+    setGroupName("");
+    setSelectedCategory("general");
+    setEditingGroup(null);
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteGroup = (group: Group) => {
+    setDeleteConfirmGroup(group);
+  };
+
+  const confirmDeleteGroup = () => {
+    if (!deleteConfirmGroup) return;
+
+    const updatedGroups = groups.filter(g => g.id !== deleteConfirmGroup.id);
     setGroups(updatedGroups);
     saveGroupsToStorage(updatedGroups);
 
-    // Reset form and close modal
-    setNewGroupName("");
-    setSelectedCategory("general");
-    setIsAddGroupModalOpen(false);
+    // Remove from selected groups if it was selected
+    const newSelected = new Set(selectedGroups);
+    newSelected.delete(deleteConfirmGroup.id);
+    setSelectedGroups(newSelected);
+
+    setDeleteConfirmGroup(null);
   };
 
   return (
@@ -164,7 +222,7 @@ export default function Groups() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-2xl font-semibold" data-testid="heading-groups">Groups</h1>
-        <Button onClick={() => setIsAddGroupModalOpen(true)} size="sm">
+        <Button onClick={openAddGroupModal} size="sm">
           <Plus className="h-4 w-4 mr-2" />
           Add Group
         </Button>
@@ -214,12 +272,13 @@ export default function Groups() {
                             <TableHead>Group name</TableHead>
                             <TableHead>Members</TableHead>
                             <TableHead>Assignments</TableHead>
+                            <TableHead className="w-24">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {category.groups.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                                 No groups in this category
                               </TableCell>
                             </TableRow>
@@ -243,6 +302,28 @@ export default function Groups() {
                                 <TableCell className="text-sm text-muted-foreground">
                                   {group.assignmentIds?.length || 0}
                                 </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => openEditGroupModal(group)}
+                                      className="h-8 w-8"
+                                      title="Edit group"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDeleteGroup(group)}
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      title="Delete group"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
                               </TableRow>
                             ))
                           )}
@@ -257,11 +338,11 @@ export default function Groups() {
         </CardContent>
       </Card>
 
-      {/* Add Group Modal */}
-      <Dialog open={isAddGroupModalOpen} onOpenChange={setIsAddGroupModalOpen}>
+      {/* Add/Edit Group Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Group</DialogTitle>
+            <DialogTitle>{editingGroup ? "Edit Group" : "Add Group"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -269,11 +350,11 @@ export default function Groups() {
               <Input
                 id="groupName"
                 placeholder="Enter group name"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newGroupName.trim()) {
-                    handleAddGroup();
+                  if (e.key === 'Enter' && groupName.trim()) {
+                    handleSaveGroup();
                   }
                 }}
               />
@@ -295,19 +376,42 @@ export default function Groups() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsAddGroupModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingGroup(null);
+                setGroupName("");
+                setSelectedCategory("general");
+              }}
             >
               Cancel
             </Button>
             <Button
-              onClick={handleAddGroup}
-              disabled={!newGroupName.trim()}
+              onClick={handleSaveGroup}
+              disabled={!groupName.trim()}
             >
-              Add Group
+              {editingGroup ? "Save Changes" : "Add Group"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmGroup} onOpenChange={(open) => !open && setDeleteConfirmGroup(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteConfirmGroup?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteGroup} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
