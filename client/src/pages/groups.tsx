@@ -105,12 +105,30 @@ export default function Groups() {
     } else if (group.category === 'program') {
       // For program groups, count users who have this program in their jobRates
       // Users can have multiple programs (e.g., Bryant has both "Vitas Central Florida" and "Haven")
-      return users.filter(user => {
+
+      // Debug logging
+      console.log(`\n=== Counting members for program: "${group.name}" ===`);
+
+      const matchingUsers = users.filter(user => {
         // Check if user has jobRates and if the program exists as a key
-        if (!user.jobRates || typeof user.jobRates !== 'object') return false;
+        if (!user.jobRates || typeof user.jobRates !== 'object') {
+          console.log(`${user.fullName}: No jobRates or not an object`);
+          return false;
+        }
+
         const jobRatesObj = user.jobRates as Record<string, any>;
-        return Object.keys(jobRatesObj).includes(group.name);
-      }).length;
+        const programs = Object.keys(jobRatesObj);
+        const hasProgram = programs.includes(group.name);
+
+        console.log(`${user.fullName}: Programs:`, programs, `| Has "${group.name}":`, hasProgram);
+
+        return hasProgram;
+      });
+
+      console.log(`Total members for "${group.name}":`, matchingUsers.length);
+      console.log('Matching users:', matchingUsers.map(u => u.fullName));
+
+      return matchingUsers.length;
     } else {
       // For general groups, use memberIds array
       return group.memberIds?.length || 0;
