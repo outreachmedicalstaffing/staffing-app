@@ -2348,49 +2348,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List smart groups with member counts
   app.get("/api/smart-groups", requireAuth, async (req, res) => {
     try {
+      console.log('[GET /api/smart-groups] Fetching smart groups...');
+
       const groups = await storage.db
         .select()
         .from(schema.smartGroups)
         .orderBy(schema.smartGroups.name);
 
+      console.log(`[GET /api/smart-groups] Found ${groups.length} groups`);
+
       // Get member counts and user details for each group
       const groupsWithDetails = await Promise.all(
         groups.map(async (group) => {
-          const [countResult] = await storage.db
-            .select({ count: count() })
-            .from(schema.smartGroupMembers)
-            .where(eq(schema.smartGroupMembers.groupId, group.id));
+          try {
+            console.log(`[GET /api/smart-groups] Processing group ${group.id} (${group.name})`);
 
-          // Get creator details
-          let creator = null;
-          if (group.createdBy) {
-            creator = await storage.getUser(group.createdBy);
+            const [countResult] = await storage.db
+              .select({ count: count() })
+              .from(schema.smartGroupMembers)
+              .where(eq(schema.smartGroupMembers.groupId, group.id));
+
+            console.log(`[GET /api/smart-groups] Group ${group.id} has ${countResult?.count || 0} members`);
+
+            return {
+              ...group,
+              count: countResult?.count || 0,
+            };
+          } catch (groupError) {
+            console.error(`[GET /api/smart-groups] Error processing group ${group.id}:`, groupError);
+            // Return group with minimal data if processing fails
+            return {
+              ...group,
+              count: 0,
+            };
           }
-
-          // Get administrator details
-          let administrator = null;
-          if (group.administeredBy) {
-            administrator = await storage.getUser(group.administeredBy);
-          }
-
-          return {
-            ...group,
-            count: countResult.count,
-            creator: creator ? {
-              id: creator.id,
-              fullName: creator.fullName,
-            } : null,
-            administrator: administrator ? {
-              id: administrator.id,
-              fullName: administrator.fullName,
-            } : null,
-          };
         })
       );
 
+      console.log(`[GET /api/smart-groups] Returning ${groupsWithDetails.length} groups with details`);
       res.json(groupsWithDetails);
     } catch (error) {
-      console.error("Failed to list smart groups:", error);
+      console.error("[GET /api/smart-groups] Failed to list smart groups:", error);
+      console.error("[GET /api/smart-groups] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       res.status(500).json({ error: "Failed to list smart groups" });
     }
   });
