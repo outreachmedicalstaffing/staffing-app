@@ -94,7 +94,7 @@ export default function Settings() {
     setIsSaving(true);
     try {
       // Save pay rules
-      await fetch('/api/settings/pay_rules', {
+      const payRulesResponse = await fetch('/api/settings/pay_rules', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,8 +108,13 @@ export default function Settings() {
         credentials: 'include',
       });
 
+      if (!payRulesResponse.ok) {
+        const errorData = await payRulesResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to save pay rules: ${payRulesResponse.status} ${payRulesResponse.statusText}`);
+      }
+
       // Save holidays
-      await fetch('/api/settings/holidays', {
+      const holidaysResponse = await fetch('/api/settings/holidays', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -118,19 +123,25 @@ export default function Settings() {
         credentials: 'include',
       });
 
+      if (!holidaysResponse.ok) {
+        const errorData = await holidaysResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to save holidays: ${holidaysResponse.status} ${holidaysResponse.statusText}`);
+      }
+
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/settings/pay_rules'] });
       queryClient.invalidateQueries({ queryKey: ['/api/settings/holidays'] });
 
       toast({
         title: "Settings saved",
-        description: "Your settings have been saved successfully.",
+        description: "Your payroll settings have been saved successfully.",
       });
     } catch (error) {
       console.error('Failed to save settings:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save settings. Please try again.";
       toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
+        title: "Error saving settings",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
