@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import ConnectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
+import { initializeDatabase } from "./db-init";
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -56,6 +57,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize database tables before starting the server
+  await initializeDatabase();
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
