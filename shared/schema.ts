@@ -532,29 +532,3 @@ export const insertSettingSchema = createInsertSchema(settings).omit({
 
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type Setting = typeof settings.$inferSelect;
-
-// Groups table for managing user groups
-export const groups = pgTable("groups", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
-  category: text("category").notNull(), // discipline, general, program
-  memberIds: text("member_ids")
-    .array()
-    .default(sql`ARRAY[]::text[]`),
-  assignmentIds: text("assignment_ids")
-    .array()
-    .default(sql`ARRAY[]::text[]`),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-export const insertGroupSchema = createInsertSchema(groups).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type InsertGroup = z.infer<typeof insertGroupSchema>;
-export type Group = typeof groups.$inferSelect;
