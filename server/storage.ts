@@ -13,7 +13,6 @@ import {
   knowledgeArticles,
   auditLogs,
   settings,
-  smartGroups,
   type User,
   type InsertUser,
   type TimeEntry,
@@ -38,8 +37,6 @@ import {
   type InsertAuditLog,
   type Setting,
   type InsertSetting,
-  type SmartGroup,
-  type InsertSmartGroup,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -179,15 +176,6 @@ export interface IStorage {
   setSetting(setting: InsertSetting): Promise<Setting>;
   listSettings(): Promise<Setting[]>;
 
-  // Smart Groups
-  getSmartGroup(id: string): Promise<SmartGroup | undefined>;
-  createSmartGroup(group: InsertSmartGroup): Promise<SmartGroup>;
-  updateSmartGroup(
-    id: string,
-    group: Partial<InsertSmartGroup>,
-  ): Promise<SmartGroup | undefined>;
-  deleteSmartGroup(id: string): Promise<boolean>;
-  listSmartGroups(categoryId?: string): Promise<SmartGroup[]>;
 }
 
 export class DbStorage implements IStorage {
@@ -744,55 +732,6 @@ export class DbStorage implements IStorage {
 
   async listSettings(): Promise<Setting[]> {
     return await db.select().from(settings);
-  }
-
-  // Smart Groups
-  async getSmartGroup(id: string): Promise<SmartGroup | undefined> {
-    const result = await db
-      .select()
-      .from(smartGroups)
-      .where(eq(smartGroups.id, id));
-    return result[0];
-  }
-
-  async createSmartGroup(group: InsertSmartGroup): Promise<SmartGroup> {
-    const result = await db.insert(smartGroups).values(group).returning();
-    return result[0];
-  }
-
-  async updateSmartGroup(
-    id: string,
-    group: Partial<InsertSmartGroup>,
-  ): Promise<SmartGroup | undefined> {
-    const updateData = {
-      ...group,
-      updatedAt: new Date(),
-    };
-
-    const result = await db
-      .update(smartGroups)
-      .set(updateData)
-      .where(eq(smartGroups.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteSmartGroup(id: string): Promise<boolean> {
-    const result = await db
-      .delete(smartGroups)
-      .where(eq(smartGroups.id, id))
-      .returning();
-    return result.length > 0;
-  }
-
-  async listSmartGroups(categoryId?: string): Promise<SmartGroup[]> {
-    let query = db.select().from(smartGroups);
-
-    if (categoryId) {
-      query = query.where(eq(smartGroups.categoryId, categoryId)) as any;
-    }
-
-    return await query.orderBy(smartGroups.categoryId, smartGroups.name);
   }
 }
 

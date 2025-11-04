@@ -37,7 +37,6 @@ const menuItems = [
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
   { title: "Updates", url: "/updates", icon: Bell },
   { title: "Users", url: "/users", icon: Users },
-  { title: "Smart Groups", url: "/smart-groups", icon: FolderTree },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

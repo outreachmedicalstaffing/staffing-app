@@ -402,9 +402,8 @@ export const updates = pgTable("updates", {
   createdBy: varchar("created_by")
     .notNull()
     .references(() => users.id),
-  visibility: text("visibility").notNull().default("all"), // all, specific_users, specific_groups
+  visibility: text("visibility").notNull().default("all"), // all, specific_users
   targetUserIds: text("target_user_ids").array(), // For specific users
-  targetGroups: text("target_groups").array(), // For specific groups (e.g., ["RN", "Admin"])
   status: text("status").notNull().default("draft"), // draft, published, archived
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -533,27 +532,3 @@ export const insertSettingSchema = createInsertSchema(settings).omit({
 
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type Setting = typeof settings.$inferSelect;
-
-// Smart Groups for organizing users
-export const smartGroups = pgTable("smart_groups", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  categoryId: text("category_id").notNull(), // discipline, general, program
-  categoryName: text("category_name").notNull(),
-  categoryIcon: text("category_icon").notNull(),
-  count: integer("count").notNull().default(0),
-  color: text("color").notNull().default("bg-blue-500"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-export const insertSmartGroupSchema = createInsertSchema(smartGroups).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type InsertSmartGroup = z.infer<typeof insertSmartGroupSchema>;
-export type SmartGroup = typeof smartGroups.$inferSelect;

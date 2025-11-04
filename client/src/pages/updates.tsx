@@ -66,7 +66,6 @@ interface Update {
   createdBy: string;
   visibility: string;
   targetUserIds: string[] | null;
-  targetGroups: string[] | null;
   status: string;
   createdAt: string;
   viewCount: number;
@@ -83,11 +82,6 @@ interface Comment {
   userName: string;
 }
 
-interface SmartGroup {
-  id: string;
-  name: string;
-}
-
 export default function Updates() {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -95,7 +89,6 @@ export default function Updates() {
   const [selectedUpdate, setSelectedUpdate] = useState<Update | null>(null);
   const [newComment, setNewComment] = useState("");
   const [openUserSelect, setOpenUserSelect] = useState(false);
-  const [openGroupSelect, setOpenGroupSelect] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -103,7 +96,6 @@ export default function Updates() {
     publishDate: new Date().toISOString().split("T")[0],
     visibility: "all",
     targetUserIds: [] as string[],
-    targetGroups: [] as string[],
     status: "published",
   });
 
@@ -119,12 +111,6 @@ export default function Updates() {
   // Fetch users for targeting
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
-    enabled: isAdmin,
-  });
-
-  // Fetch smart groups for targeting
-  const { data: smartGroups = [] } = useQuery<SmartGroup[]>({
-    queryKey: ["/api/smart-groups"],
     enabled: isAdmin,
   });
 
@@ -233,7 +219,6 @@ export default function Updates() {
       publishDate: new Date().toISOString().split("T")[0],
       visibility: "all",
       targetUserIds: [],
-      targetGroups: [],
       status: "published",
     });
   };
@@ -471,9 +456,6 @@ export default function Updates() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="specific_groups">
-                    Specific Groups
-                  </SelectItem>
                   <SelectItem value="specific_users">
                     Specific Users
                   </SelectItem>
@@ -539,72 +521,6 @@ export default function Updates() {
                       return user ? (
                         <Badge key={userId} variant="secondary">
                           {user.fullName}
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {formData.visibility === "specific_groups" && (
-              <div>
-                <Label>Target Groups</Label>
-                <Popover open={openGroupSelect} onOpenChange={setOpenGroupSelect}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={openGroupSelect}
-                      className="w-full justify-between mt-2"
-                      data-testid="button-select-groups"
-                    >
-                      {formData.targetGroups.length > 0
-                        ? `${formData.targetGroups.length} group(s) selected`
-                        : "Select groups..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandInput placeholder="Search groups..." />
-                      <CommandEmpty>No groups found.</CommandEmpty>
-                      <CommandGroup className="max-h-64 overflow-auto">
-                        {smartGroups.map((group) => (
-                          <CommandItem
-                            key={group.id}
-                            onSelect={() => {
-                              const isSelected = formData.targetGroups.includes(group.id);
-                              setFormData({
-                                ...formData,
-                                targetGroups: isSelected
-                                  ? formData.targetGroups.filter((id) => id !== group.id)
-                                  : [...formData.targetGroups, group.id],
-                              });
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.targetGroups.includes(group.id)
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              )}
-                            />
-                            {group.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                {formData.targetGroups.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.targetGroups.map((groupId) => {
-                      const group = smartGroups.find((g) => g.id === groupId);
-                      return group ? (
-                        <Badge key={groupId} variant="secondary">
-                          {group.name}
                         </Badge>
                       ) : null;
                     })}
