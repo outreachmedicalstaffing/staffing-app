@@ -48,7 +48,7 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Load pay rules from the database
-  const { data: payRulesData, refetch: refetchPayRules } = useQuery({
+  const { data: payRulesData, refetch: refetchPayRules, isLoading: payRulesLoading, error: payRulesError } = useQuery({
     queryKey: ['/api/settings/pay_rules'],
     retry: (failureCount, error: any) => {
       // Don't retry on 404 - it just means no data exists yet
@@ -60,7 +60,7 @@ export default function Settings() {
   });
 
   // Load holidays from the database
-  const { data: holidaysData, refetch: refetchHolidays } = useQuery({
+  const { data: holidaysData, refetch: refetchHolidays, isLoading: holidaysLoading, error: holidaysError } = useQuery({
     queryKey: ['/api/settings/holidays'],
     retry: (failureCount, error: any) => {
       // Don't retry on 404 - it just means no data exists yet
@@ -71,26 +71,46 @@ export default function Settings() {
     refetchOnMount: 'always', // Always refetch when component mounts
   });
 
+  // Debug logging
+  console.log('Payroll Settings Debug:');
+  console.log('- Pay Rules Data:', payRulesData);
+  console.log('- Pay Rules Loading:', payRulesLoading);
+  console.log('- Pay Rules Error:', payRulesError);
+  console.log('- Holidays Data:', holidaysData);
+  console.log('- Holidays Loading:', holidaysLoading);
+  console.log('- Holidays Error:', holidaysError);
+  console.log('- Active Tab:', activeTab);
+
   // Update state when data is loaded
   useEffect(() => {
+    console.log('Pay Rules useEffect triggered, payRulesData:', payRulesData);
     if (payRulesData?.value) {
       const rules = payRulesData.value as PayRules;
+      console.log('Setting pay rules state:', rules);
       setRegularRate(rules.regularRate || "1.0");
       setHolidayRateType(rules.holidayRateType || "additional");
       setHolidayAdditionalRate(rules.holidayAdditionalRate || "0.5");
       setHolidayCustomRate(rules.holidayCustomRate || "1.5");
+    } else {
+      console.log('Pay rules data not available or no value property');
     }
   }, [payRulesData]);
 
   useEffect(() => {
+    console.log('Holidays useEffect triggered, holidaysData:', holidaysData);
     if (holidaysData?.value) {
+      console.log('Setting holidays state:', holidaysData.value);
       setHolidays(holidaysData.value as Holiday[]);
+    } else {
+      console.log('Holidays data not available or no value property');
     }
   }, [holidaysData]);
 
   // Refetch data when Payroll tab becomes active
   useEffect(() => {
+    console.log('Tab change effect triggered, activeTab:', activeTab);
     if (activeTab === "payroll") {
+      console.log('Payroll tab active, refetching data...');
       refetchPayRules();
       refetchHolidays();
     }
@@ -115,21 +135,30 @@ export default function Settings() {
 
   const saveSettings = async () => {
     setIsSaving(true);
+    console.log('Saving settings...');
+    console.log('Pay Rules to save:', { regularRate, holidayRateType, holidayAdditionalRate, holidayCustomRate });
+    console.log('Holidays to save:', holidays);
+
     try {
       // Save pay rules
+      const payRulesBody = {
+        value: {
+          regularRate,
+          holidayRateType,
+          holidayAdditionalRate,
+          holidayCustomRate,
+        },
+      };
+      console.log('Sending pay rules request:', payRulesBody);
+
       const payRulesResponse = await fetch('/api/settings/pay_rules', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          value: {
-            regularRate,
-            holidayRateType,
-            holidayAdditionalRate,
-            holidayCustomRate,
-          },
-        }),
+        body: JSON.stringify(payRulesBody),
         credentials: 'include',
       });
+
+      console.log('Pay rules response status:', payRulesResponse.status);
 
       if (!payRulesResponse.ok) {
         const errorData = await payRulesResponse.json().catch(() => ({}));
@@ -137,27 +166,34 @@ export default function Settings() {
       }
 
       // Save holidays
+      const holidaysBody = { value: holidays };
+      console.log('Sending holidays request:', holidaysBody);
+
       const holidaysResponse = await fetch('/api/settings/holidays', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          value: holidays,
-        }),
+        body: JSON.stringify(holidaysBody),
         credentials: 'include',
       });
+
+      console.log('Holidays response status:', holidaysResponse.status);
 
       if (!holidaysResponse.ok) {
         const errorData = await holidaysResponse.json().catch(() => ({}));
         throw new Error(errorData.message || `Failed to save holidays: ${holidaysResponse.status} ${holidaysResponse.statusText}`);
       }
 
+      console.log('Both save operations successful, refetching data...');
+
       // Invalidate and refetch queries to refresh data
-      await Promise.all([
+      const refetchResults = await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['/api/settings/pay_rules'] }),
         queryClient.invalidateQueries({ queryKey: ['/api/settings/holidays'] }),
         refetchPayRules(),
         refetchHolidays(),
       ]);
+
+      console.log('Refetch completed:', refetchResults);
 
       toast({
         title: "Settings saved",

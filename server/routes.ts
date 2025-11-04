@@ -3175,12 +3175,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole("Owner", "Admin"),
     async (req, res) => {
       try {
+        console.log(`[GET /api/settings/${req.params.key}] Request received`);
         const setting = await storage.getSetting(req.params.key);
+        console.log(`[GET /api/settings/${req.params.key}] Setting from DB:`, setting);
         if (!setting) {
+          console.log(`[GET /api/settings/${req.params.key}] Setting not found, returning 404`);
           return res.status(404).json({ error: "Setting not found" });
         }
+        console.log(`[GET /api/settings/${req.params.key}] Returning setting:`, setting);
         res.json(setting);
       } catch (error) {
+        console.error(`[GET /api/settings/${req.params.key}] Error:`, error);
         res.status(500).json({ error: "Failed to get setting" });
       }
     },
@@ -3192,12 +3197,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole("Owner", "Admin"),
     async (req, res) => {
       try {
+        console.log(`[PUT /api/settings/${req.params.key}] Request received`);
+        console.log(`[PUT /api/settings/${req.params.key}] Request body:`, req.body);
+
         const data = insertSettingSchema.parse({
           key: req.params.key,
           ...req.body,
         });
+        console.log(`[PUT /api/settings/${req.params.key}] Parsed data:`, data);
 
         const setting = await storage.setSetting(data);
+        console.log(`[PUT /api/settings/${req.params.key}] Setting saved to DB:`, setting);
+
         await logAudit(
           req.session.userId,
           "update",
@@ -3208,8 +3219,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { key: setting.key },
           req.ip,
         );
+        console.log(`[PUT /api/settings/${req.params.key}] Returning setting:`, setting);
         res.json(setting);
       } catch (error) {
+        console.error(`[PUT /api/settings/${req.params.key}] Error:`, error);
         if (error instanceof z.ZodError) {
           return res.status(400).json({ error: error.errors });
         }
