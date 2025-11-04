@@ -7,6 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { User } from "@shared/schema";
 
 interface GroupData {
@@ -32,6 +36,9 @@ export default function Groups() {
   const [expandedCategories, setExpandedCategories] = useState<Set<CategoryType>>(
     new Set(["discipline", "general", "program"])
   );
+  const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType>("general");
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -151,11 +158,25 @@ export default function Groups() {
     return user.fullName?.[0]?.toUpperCase() || "?";
   };
 
+  const handleAddGroup = () => {
+    // TODO: Implement API call to save the group
+    console.log("Adding group:", { name: newGroupName, category: selectedCategory });
+
+    // Reset form and close modal
+    setNewGroupName("");
+    setSelectedCategory("general");
+    setIsAddGroupModalOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-2xl font-semibold" data-testid="heading-groups">Groups</h1>
+        <Button onClick={() => setIsAddGroupModalOpen(true)} size="sm">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Group
+        </Button>
       </div>
 
       {/* Main Content */}
@@ -272,12 +293,6 @@ export default function Groups() {
                           </TableBody>
                         </Table>
                       </div>
-
-                      {/* Add Group Button */}
-                      <Button variant="outline" size="sm" className="w-full">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Group
-                      </Button>
                     </>
                   )}
                 </div>
@@ -286,6 +301,47 @@ export default function Groups() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Group Modal */}
+      <Dialog open={isAddGroupModalOpen} onOpenChange={setIsAddGroupModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Group</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="groupName">Group Name</Label>
+              <Input
+                id="groupName"
+                placeholder="Enter group name"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={selectedCategory} onValueChange={(value: CategoryType) => setSelectedCategory(value)}>
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="discipline">Groups by Discipline</SelectItem>
+                  <SelectItem value="general">General groups</SelectItem>
+                  <SelectItem value="program">Groups by Program</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddGroupModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddGroup} disabled={!newGroupName.trim()}>
+              Add Group
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
