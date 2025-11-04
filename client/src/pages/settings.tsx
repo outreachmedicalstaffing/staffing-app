@@ -571,6 +571,19 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" data-testid="button-cancel">
+              Cancel
+            </Button>
+            <Button
+              onClick={saveSettings}
+              disabled={isSaving}
+              data-testid="button-save-settings"
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-4">
@@ -647,19 +660,6 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <div className="flex justify-end gap-3">
-        <Button variant="outline" data-testid="button-cancel">
-          Cancel
-        </Button>
-        <Button
-          onClick={saveSettings}
-          disabled={isSaving}
-          data-testid="button-save-settings"
-        >
-          {isSaving ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
     </div>
   );
 }
