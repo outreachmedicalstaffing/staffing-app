@@ -26,6 +26,7 @@ interface PayRules {
   holidayAdditionalRate: string;
   holidayCustomRate: string;
   payrollPeriod?: string;
+  autoClockOutHours?: string;
 }
 
 export default function Settings() {
@@ -43,6 +44,7 @@ export default function Settings() {
 
   const [activeTab, setActiveTab] = useState("general");
   const [payrollPeriod, setPayrollPeriod] = useState("biweekly");
+  const [autoClockOutHours, setAutoClockOutHours] = useState("14");
   const [regularRate, setRegularRate] = useState("1.0");
   const [holidayRateType, setHolidayRateType] = useState<"additional" | "custom">("additional");
   const [holidayAdditionalRate, setHolidayAdditionalRate] = useState("0.5");
@@ -90,6 +92,7 @@ export default function Settings() {
       const rules = payRulesData.value as PayRules;
       console.log('Setting pay rules state:', rules);
       setPayrollPeriod(rules.payrollPeriod || "biweekly");
+      setAutoClockOutHours(rules.autoClockOutHours || "14");
       setRegularRate(rules.regularRate || "1.0");
       setHolidayRateType(rules.holidayRateType || "additional");
       setHolidayAdditionalRate(rules.holidayAdditionalRate || "0.5");
@@ -139,7 +142,7 @@ export default function Settings() {
   const saveSettings = async () => {
     setIsSaving(true);
     console.log('Saving settings...');
-    console.log('Pay Rules to save:', { payrollPeriod, regularRate, holidayRateType, holidayAdditionalRate, holidayCustomRate });
+    console.log('Pay Rules to save:', { payrollPeriod, autoClockOutHours, regularRate, holidayRateType, holidayAdditionalRate, holidayCustomRate });
     console.log('Holidays to save:', holidays);
 
     try {
@@ -147,6 +150,7 @@ export default function Settings() {
       const payRulesBody = {
         value: {
           payrollPeriod,
+          autoClockOutHours,
           regularRate,
           holidayRateType,
           holidayAdditionalRate,
@@ -386,7 +390,8 @@ export default function Settings() {
                 <Input
                   id="auto-clockout"
                   type="number"
-                  defaultValue="14"
+                  value={autoClockOutHours}
+                  onChange={(e) => setAutoClockOutHours(e.target.value)}
                   data-testid="input-auto-clockout"
                 />
               </div>
