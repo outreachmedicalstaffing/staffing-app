@@ -25,6 +25,7 @@ interface PayRules {
   holidayRateType: "additional" | "custom";
   holidayAdditionalRate: string;
   holidayCustomRate: string;
+  payrollPeriod?: string;
 }
 
 export default function Settings() {
@@ -41,6 +42,7 @@ export default function Settings() {
   ]);
 
   const [activeTab, setActiveTab] = useState("general");
+  const [payrollPeriod, setPayrollPeriod] = useState("biweekly");
   const [regularRate, setRegularRate] = useState("1.0");
   const [holidayRateType, setHolidayRateType] = useState<"additional" | "custom">("additional");
   const [holidayAdditionalRate, setHolidayAdditionalRate] = useState("0.5");
@@ -87,6 +89,7 @@ export default function Settings() {
     if (payRulesData?.value) {
       const rules = payRulesData.value as PayRules;
       console.log('Setting pay rules state:', rules);
+      setPayrollPeriod(rules.payrollPeriod || "biweekly");
       setRegularRate(rules.regularRate || "1.0");
       setHolidayRateType(rules.holidayRateType || "additional");
       setHolidayAdditionalRate(rules.holidayAdditionalRate || "0.5");
@@ -136,13 +139,14 @@ export default function Settings() {
   const saveSettings = async () => {
     setIsSaving(true);
     console.log('Saving settings...');
-    console.log('Pay Rules to save:', { regularRate, holidayRateType, holidayAdditionalRate, holidayCustomRate });
+    console.log('Pay Rules to save:', { payrollPeriod, regularRate, holidayRateType, holidayAdditionalRate, holidayCustomRate });
     console.log('Holidays to save:', holidays);
 
     try {
       // Save pay rules
       const payRulesBody = {
         value: {
+          payrollPeriod,
           regularRate,
           holidayRateType,
           holidayAdditionalRate,
@@ -364,7 +368,7 @@ export default function Settings() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="payroll-period">Payroll Period</Label>
-                <Select defaultValue="biweekly">
+                <Select value={payrollPeriod} onValueChange={setPayrollPeriod}>
                   <SelectTrigger id="payroll-period" data-testid="select-payroll-period">
                     <SelectValue />
                   </SelectTrigger>
