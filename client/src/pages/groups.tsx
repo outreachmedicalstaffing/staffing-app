@@ -5,29 +5,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { User } from "@shared/schema";
 
 interface Group {
   id: string;
   name: string;
   category: string;
-  createdBy: string;
-  administeredBy: string;
+  memberIds: string[];
+  assignmentIds: string[];
   createdAt: string;
   updatedAt: string;
-}
-
-interface GroupWithDetails extends Group {
-  memberCount: number;
-  createdByUser?: User;
-  administeredByUser?: User;
-  assignments: number;
 }
 
 type CategoryType = "discipline" | "general" | "program";
@@ -36,7 +27,7 @@ interface Category {
   id: CategoryType;
   name: string;
   dotColor: string;
-  groups: GroupWithDetails[];
+  groups: Group[];
 }
 
 export default function Groups() {
@@ -49,12 +40,8 @@ export default function Groups() {
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("general");
 
-  const { data: groups = [], isLoading: isLoadingGroups } = useQuery<Group[]>({
+  const { data: groups = [], isLoading } = useQuery<Group[]>({
     queryKey: ['/api/groups'],
-  });
-
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ['/api/users'],
   });
 
   const createGroupMutation = useMutation({
@@ -64,7 +51,11 @@ export default function Groups() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          memberIds: [],
+          assignmentIds: [],
+        }),
         credentials: 'include',
       });
 
@@ -90,37 +81,13 @@ export default function Groups() {
     },
   });
 
-  const isLoading = isLoadingGroups || isLoadingUsers;
-
-  // Enrich groups with user details and member counts
-  const groupsWithDetails = useMemo((): GroupWithDetails[] => {
-    return groups.map(group => {
-      // Count members in this group
-      const memberCount = users.filter(user =>
-        user.groups && Array.isArray(user.groups) && user.groups.includes(group.name)
-      ).length;
-
-      // Find user details
-      const createdByUser = users.find(u => u.id === group.createdBy);
-      const administeredByUser = users.find(u => u.id === group.administeredBy);
-
-      return {
-        ...group,
-        memberCount,
-        createdByUser,
-        administeredByUser,
-        assignments: 0, // TODO: Implement assignments when available
-      };
-    });
-  }, [groups, users]);
-
   // Categorize groups
   const categories = useMemo((): Category[] => {
-    const disciplineGroups: GroupWithDetails[] = [];
-    const generalGroups: GroupWithDetails[] = [];
-    const programGroups: GroupWithDetails[] = [];
+    const disciplineGroups: Group[] = [];
+    const generalGroups: Group[] = [];
+    const programGroups: Group[] = [];
 
-    groupsWithDetails.forEach(group => {
+    groups.forEach(group => {
       if (group.category === 'discipline') {
         disciplineGroups.push(group);
       } else if (group.category === 'program') {
@@ -150,7 +117,7 @@ export default function Groups() {
         groups: programGroups,
       },
     ];
-  }, [groupsWithDetails]);
+  }, [groups]);
 
   const toggleCategory = (categoryId: CategoryType) => {
     const newExpanded = new Set(expandedCategories);
@@ -185,15 +152,6 @@ export default function Groups() {
     });
 
     setSelectedGroups(newSelected);
-  };
-
-  const getInitials = (user?: User) => {
-    if (!user) return "?";
-    const names = user.fullName?.split(" ") || [];
-    if (names.length >= 2) {
-      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-    }
-    return user.fullName?.[0]?.toUpperCase() || "?";
   };
 
   const handleAddGroup = () => {
@@ -263,16 +221,14 @@ export default function Groups() {
                                 />
                               </TableHead>
                               <TableHead>Group name</TableHead>
-                              <TableHead>Connected</TableHead>
-                              <TableHead>Created by</TableHead>
+                              <TableHead>Members</TableHead>
                               <TableHead>Assignments</TableHead>
-                              <TableHead>Administered by</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {category.groups.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                                   No groups in this category
                                 </TableCell>
                               </TableRow>
@@ -291,38 +247,10 @@ export default function Groups() {
                                   </TableCell>
                                   <TableCell className="font-medium">{group.name}</TableCell>
                                   <TableCell className="text-sm text-muted-foreground">
-                                    {group.memberCount} / {group.memberCount}
+                                    {group.memberIds?.length || 0}
                                   </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarImage src={(group.createdByUser as any)?.profilePicture} />
-                                        <AvatarFallback className="text-xs">
-                                          {getInitials(group.createdByUser)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-sm">
-                                        {group.createdByUser?.fullName || "Unknown"}
-                                      </span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <select className="text-sm border rounded px-2 py-1 bg-background">
-                                      <option>{group.assignments} selected</option>
-                                    </select>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarImage src={(group.administeredByUser as any)?.profilePicture} />
-                                        <AvatarFallback className="text-xs">
-                                          {getInitials(group.administeredByUser)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-sm">
-                                        {group.administeredByUser?.fullName || "Unknown"}
-                                      </span>
-                                    </div>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {group.assignmentIds?.length || 0}
                                   </TableCell>
                                 </TableRow>
                               ))

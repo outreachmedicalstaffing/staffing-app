@@ -2780,11 +2780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole("Owner", "Admin"),
     async (req, res) => {
       try {
-        const data = insertGroupSchema.parse({
-          ...req.body,
-          createdBy: req.session.userId!,
-          administeredBy: req.body.administeredBy || req.session.userId!,
-        });
+        const data = insertGroupSchema.parse(req.body);
 
         const group = await storage.createGroup(data);
         await logAudit(
