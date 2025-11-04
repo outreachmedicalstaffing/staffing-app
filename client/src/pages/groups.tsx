@@ -83,28 +83,35 @@ export default function Groups() {
     setGroups(loadedGroups);
   }, []);
 
-  // Function to count members for a group based on discipline matching
+  // Function to count members for a group based on category
   const getMemberCount = (group: Group): number => {
-    if (group.category !== 'discipline') {
+    if (group.category === 'discipline') {
+      // For discipline groups, count users whose role matches the group name
+      // Extract common abbreviations from group name (e.g., "RN" from "Registered Nurse (RN)")
+      const groupNameLower = group.name.toLowerCase();
+
+      return users.filter(user => {
+        if (!user.role) return false;
+
+        const userRole = user.role.toLowerCase();
+
+        // Check if the user's role matches common patterns
+        // Match exact role or if group name contains the role
+        return groupNameLower.includes(userRole) ||
+               userRole.includes(groupNameLower) ||
+               // Check for abbreviation matches (e.g., "RN", "LPN", "CNA")
+               (group.name.match(/\(([^)]+)\)/)?.[1]?.toLowerCase() === userRole);
+      }).length;
+    } else if (group.category === 'program') {
+      // For program groups, count users whose groups array includes this group name
+      return users.filter(user => {
+        if (!user.groups || !Array.isArray(user.groups)) return false;
+        return user.groups.includes(group.name);
+      }).length;
+    } else {
+      // For general groups, use memberIds array
       return group.memberIds?.length || 0;
     }
-
-    // For discipline groups, count users whose title matches the group name
-    // Extract common abbreviations from group name (e.g., "RN" from "Registered Nurse (RN)")
-    const groupNameLower = group.name.toLowerCase();
-
-    return users.filter(user => {
-      if (!user.role) return false;
-
-      const userRole = user.role.toLowerCase();
-
-      // Check if the user's role matches common patterns
-      // Match exact role or if group name contains the role
-      return groupNameLower.includes(userRole) ||
-             userRole.includes(groupNameLower) ||
-             // Check for abbreviation matches (e.g., "RN", "LPN", "CNA")
-             (group.name.match(/\(([^)]+)\)/)?.[1]?.toLowerCase() === userRole);
-    }).length;
   };
 
   // Categorize groups
