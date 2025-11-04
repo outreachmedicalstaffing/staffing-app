@@ -19,6 +19,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import type { User } from "@shared/schema";
 
 interface Group {
   id: string;
@@ -70,11 +72,40 @@ export default function Groups() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("general");
   const [deleteConfirmGroup, setDeleteConfirmGroup] = useState<Group | null>(null);
 
+  // Fetch users from API
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+  });
+
   // Load groups from localStorage on mount
   useEffect(() => {
     const loadedGroups = loadGroupsFromStorage();
     setGroups(loadedGroups);
   }, []);
+
+  // Function to count members for a group based on discipline matching
+  const getMemberCount = (group: Group): number => {
+    if (group.category !== 'discipline') {
+      return group.memberIds?.length || 0;
+    }
+
+    // For discipline groups, count users whose title matches the group name
+    // Extract common abbreviations from group name (e.g., "RN" from "Registered Nurse (RN)")
+    const groupNameLower = group.name.toLowerCase();
+
+    return users.filter(user => {
+      if (!user.role) return false;
+
+      const userRole = user.role.toLowerCase();
+
+      // Check if the user's role matches common patterns
+      // Match exact role or if group name contains the role
+      return groupNameLower.includes(userRole) ||
+             userRole.includes(groupNameLower) ||
+             // Check for abbreviation matches (e.g., "RN", "LPN", "CNA")
+             (group.name.match(/\(([^)]+)\)/)?.[1]?.toLowerCase() === userRole);
+    }).length;
+  };
 
   // Categorize groups
   const categories = useMemo((): Category[] => {
@@ -297,7 +328,7 @@ export default function Groups() {
                                 </TableCell>
                                 <TableCell className="font-medium">{group.name}</TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
-                                  {group.memberIds?.length || 0}
+                                  {getMemberCount(group)}
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
                                   {group.assignmentIds?.length || 0}
