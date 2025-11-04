@@ -18,6 +18,7 @@ import Documents from "@/pages/documents";
 import Knowledge from "@/pages/knowledge";
 import Updates from "@/pages/updates";
 import Users from "@/pages/users";
+import Groups from "@/pages/groups";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import Onboarding from "@/pages/onboarding";
@@ -60,6 +61,7 @@ function AuthenticatedRouter() {
       <Route path="/knowledge" component={Knowledge} />
       <Route path="/updates" component={Updates} />
       <Route path="/users" component={Users} />
+      <Route path="/groups" component={Groups} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>

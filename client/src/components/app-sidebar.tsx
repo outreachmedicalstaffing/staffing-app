@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FolderTree,
   Bell,
+  UsersRound,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -37,6 +38,7 @@ const menuItems = [
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
   { title: "Updates", url: "/updates", icon: Bell },
   { title: "Users", url: "/users", icon: Users },
+  { title: "Groups", url: "/groups", icon: UsersRound },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
