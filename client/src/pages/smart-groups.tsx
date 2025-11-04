@@ -123,16 +123,19 @@ export default function SmartGroups() {
   const [newGroupData, setNewGroupData] = useState({ name: "", categoryId: "", color: "bg-blue-500" });
   const { toast } = useToast();
 
-  const { data: smartGroups = [], isLoading } = useQuery<SmartGroup[]>({
+  const { data: smartGroups = [], isLoading, refetch } = useQuery<SmartGroup[]>({
     queryKey: ["/api/smart-groups"],
+    staleTime: 0, // Always refetch to get latest groups
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: { name: string; categoryId: string; categoryName: string; categoryIcon: string; count: number; color: string }) => {
       return await apiRequest("POST", "/api/smart-groups", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+      await refetch(); // Explicitly refetch to ensure new group appears
       toast({ title: "Group created successfully" });
       setAddingGroup(false);
       setNewGroupData({ name: "", categoryId: "", color: "bg-blue-500" });
@@ -146,8 +149,9 @@ export default function SmartGroups() {
     mutationFn: async ({ id, data }: { id: string; data: Partial<SmartGroup> }) => {
       return await apiRequest("PATCH", `/api/smart-groups/${id}`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+      await refetch(); // Explicitly refetch to ensure updates appear
       toast({ title: "Group updated successfully" });
       setEditingGroup(null);
       setEditFormData({ name: "", count: 0, color: "" });
@@ -161,8 +165,9 @@ export default function SmartGroups() {
     mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/smart-groups/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/smart-groups"] });
+      await refetch(); // Explicitly refetch to ensure deletion is reflected
       toast({ title: "Group deleted successfully" });
       setDeletingGroup(null);
     },
