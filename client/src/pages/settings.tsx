@@ -40,6 +40,7 @@ export default function Settings() {
     { id: "6", name: "Christmas", date: "2025-12-25" },
   ]);
 
+  const [activeTab, setActiveTab] = useState("general");
   const [regularRate, setRegularRate] = useState("1.0");
   const [holidayRateType, setHolidayRateType] = useState<"additional" | "custom">("additional");
   const [holidayAdditionalRate, setHolidayAdditionalRate] = useState("0.5");
@@ -47,13 +48,27 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Load pay rules from the database
-  const { data: payRulesData } = useQuery({
+  const { data: payRulesData, refetch: refetchPayRules } = useQuery({
     queryKey: ['/api/settings/pay_rules'],
+    retry: (failureCount, error: any) => {
+      // Don't retry on 404 - it just means no data exists yet
+      if (error?.message?.includes('404')) return false;
+      return failureCount < 3;
+    },
+    staleTime: 0, // Always refetch to get latest data
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 
   // Load holidays from the database
-  const { data: holidaysData } = useQuery({
+  const { data: holidaysData, refetch: refetchHolidays } = useQuery({
     queryKey: ['/api/settings/holidays'],
+    retry: (failureCount, error: any) => {
+      // Don't retry on 404 - it just means no data exists yet
+      if (error?.message?.includes('404')) return false;
+      return failureCount < 3;
+    },
+    staleTime: 0, // Always refetch to get latest data
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 
   // Update state when data is loaded
@@ -72,6 +87,14 @@ export default function Settings() {
       setHolidays(holidaysData.value as Holiday[]);
     }
   }, [holidaysData]);
+
+  // Refetch data when Payroll tab becomes active
+  useEffect(() => {
+    if (activeTab === "payroll") {
+      refetchPayRules();
+      refetchHolidays();
+    }
+  }, [activeTab, refetchPayRules, refetchHolidays]);
 
   const addHoliday = () => {
     const newHoliday: Holiday = {
@@ -128,9 +151,13 @@ export default function Settings() {
         throw new Error(errorData.message || `Failed to save holidays: ${holidaysResponse.status} ${holidaysResponse.statusText}`);
       }
 
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/settings/pay_rules'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/settings/holidays'] });
+      // Invalidate and refetch queries to refresh data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/settings/pay_rules'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/settings/holidays'] }),
+        refetchPayRules(),
+        refetchHolidays(),
+      ]);
 
       toast({
         title: "Settings saved",
@@ -155,7 +182,7 @@ export default function Settings() {
         <p className="text-muted-foreground">Manage organization preferences and configurations</p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general" data-testid="tab-general">
             <Database className="h-4 w-4 mr-2" />
