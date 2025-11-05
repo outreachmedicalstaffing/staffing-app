@@ -404,6 +404,7 @@ export const updates = pgTable("updates", {
     .references(() => users.id),
   visibility: text("visibility").notNull().default("all"), // all, specific_users
   targetUserIds: text("target_user_ids").array(), // For specific users
+  targetGroupIds: text("target_group_ids").array(), // For specific groups
   status: text("status").notNull().default("draft"), // draft, published, archived
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

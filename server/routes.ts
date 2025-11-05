@@ -1970,6 +1970,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.updates)
         .orderBy(desc(schema.updates.publishDate));
 
+      // Helper function to check if user is in a group
+      const isUserInGroup = (groupId: string): boolean => {
+        // Check if it's an auto-program group
+        if (groupId.startsWith('auto-program-')) {
+          const programName = groupId.replace('auto-program-', '');
+          const userCustomFields = currentUser.customFields as any;
+          const userPrograms = userCustomFields?.programs || [];
+          return userPrograms.includes(programName);
+        }
+
+        // For discipline and general groups stored in localStorage,
+        // we can't check membership server-side without storing groups in DB.
+        // As a workaround, we'll return false here, which means only program groups
+        // and direct user targeting will work for now.
+        // To fully support discipline/general groups, we'd need to store group
+        // membership in the database or send group metadata with the update.
+        return false;
+      };
+
       // Filter updates based on user role and visibility
       const filteredUpdates = allUpdates.filter(update => {
         // Admins/Owners can see all updates
@@ -1987,8 +2006,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return true;
         }
 
-        if (update.visibility === "specific_users" && update.targetUserIds) {
-          return update.targetUserIds.includes(currentUser.id);
+        if (update.visibility === "specific_users") {
+          // Check if user is in targetUserIds
+          if (update.targetUserIds && update.targetUserIds.includes(currentUser.id)) {
+            return true;
+          }
+
+          // Check if user is in any of the target groups
+          if (update.targetGroupIds && update.targetGroupIds.length > 0) {
+            for (const groupId of update.targetGroupIds) {
+              if (isUserInGroup(groupId)) {
+                return true;
+              }
+            }
+          }
         }
 
         return false;

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@shared/schema";
 import { format } from "date-fns";
+import { PROGRAM_OPTIONS } from "@/lib/constants";
 import {
   Card,
   CardContent,
@@ -66,6 +67,7 @@ interface Update {
   createdBy: string;
   visibility: string;
   targetUserIds: string[] | null;
+  targetGroupIds: string[] | null;
   status: string;
   createdAt: string;
   viewCount: number;
@@ -82,6 +84,29 @@ interface Comment {
   userName: string;
 }
 
+interface Group {
+  id: string;
+  name: string;
+  category: string;
+  memberIds: string[];
+  assignmentIds: string[];
+  createdAt: string;
+}
+
+type CategoryType = "discipline" | "general" | "program";
+
+const STORAGE_KEY = "staffing-app-groups";
+
+function loadGroupsFromStorage(): Group[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error("Error loading groups from localStorage:", error);
+    return [];
+  }
+}
+
 export default function Updates() {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -89,6 +114,8 @@ export default function Updates() {
   const [selectedUpdate, setSelectedUpdate] = useState<Update | null>(null);
   const [newComment, setNewComment] = useState("");
   const [openUserSelect, setOpenUserSelect] = useState(false);
+  const [openGroupSelect, setOpenGroupSelect] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -96,6 +123,7 @@ export default function Updates() {
     publishDate: new Date().toISOString().split("T")[0],
     visibility: "all",
     targetUserIds: [] as string[],
+    targetGroupIds: [] as string[],
     status: "published",
   });
 
@@ -119,6 +147,42 @@ export default function Updates() {
     queryKey: ["/api/updates", selectedUpdate?.id, "comments"],
     enabled: !!selectedUpdate,
   });
+
+  // Load groups from localStorage on mount
+  useEffect(() => {
+    const loadedGroups = loadGroupsFromStorage();
+    setGroups(loadedGroups);
+  }, []);
+
+  // Create program groups from the predefined program options
+  const autoProgramGroups = useMemo((): Group[] => {
+    return PROGRAM_OPTIONS.map(programName => ({
+      id: `auto-program-${programName}`,
+      name: programName,
+      category: 'program',
+      memberIds: [],
+      assignmentIds: [],
+      createdAt: new Date().toISOString(),
+    }));
+  }, []);
+
+  // Combine all groups (stored groups + auto-generated program groups)
+  const allGroups = useMemo(() => {
+    const disciplineGroups: Group[] = [];
+    const generalGroups: Group[] = [];
+
+    // Only get discipline and general groups from localStorage
+    groups.forEach(group => {
+      if (group.category === 'discipline') {
+        disciplineGroups.push(group);
+      } else if (group.category === 'general') {
+        generalGroups.push(group);
+      }
+    });
+
+    // Combine all groups
+    return [...disciplineGroups, ...generalGroups, ...autoProgramGroups];
+  }, [groups, autoProgramGroups]);
 
   // Create update mutation
   const createMutation = useMutation({
@@ -219,6 +283,7 @@ export default function Updates() {
       publishDate: new Date().toISOString().split("T")[0],
       visibility: "all",
       targetUserIds: [],
+      targetGroupIds: [],
       status: "published",
     });
   };
@@ -464,69 +529,135 @@ export default function Updates() {
             </div>
 
             {formData.visibility === "specific_users" && (
-              <div>
-                <Label>Target Users</Label>
-                <Popover open={openUserSelect} onOpenChange={setOpenUserSelect}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={openUserSelect}
-                      className="w-full justify-between mt-2"
-                      data-testid="button-select-users"
-                    >
-                      {formData.targetUserIds.length > 0
-                        ? `${formData.targetUserIds.length} user(s) selected`
-                        : "Select users..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandInput placeholder="Search users..." />
-                      <CommandEmpty>No users found.</CommandEmpty>
-                      <CommandGroup className="max-h-64 overflow-auto">
-                        {users.map((user) => (
-                          <CommandItem
-                            key={user.id}
-                            onSelect={() => {
-                              const isSelected = formData.targetUserIds.includes(user.id);
-                              setFormData({
-                                ...formData,
-                                targetUserIds: isSelected
-                                  ? formData.targetUserIds.filter((id) => id !== user.id)
-                                  : [...formData.targetUserIds, user.id],
-                              });
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.targetUserIds.includes(user.id)
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              )}
-                            />
-                            {user.fullName} ({user.role})
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                {formData.targetUserIds.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.targetUserIds.map((userId) => {
-                      const user = users.find((u) => u.id === userId);
-                      return user ? (
-                        <Badge key={userId} variant="secondary">
-                          {user.fullName}
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </div>
+              <>
+                <div>
+                  <Label>Target Users</Label>
+                  <Popover open={openUserSelect} onOpenChange={setOpenUserSelect}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openUserSelect}
+                        className="w-full justify-between mt-2"
+                        data-testid="button-select-users"
+                      >
+                        {formData.targetUserIds.length > 0
+                          ? `${formData.targetUserIds.length} user(s) selected`
+                          : "Select users..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search users..." />
+                        <CommandEmpty>No users found.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {users.map((user) => (
+                            <CommandItem
+                              key={user.id}
+                              onSelect={() => {
+                                const isSelected = formData.targetUserIds.includes(user.id);
+                                setFormData({
+                                  ...formData,
+                                  targetUserIds: isSelected
+                                    ? formData.targetUserIds.filter((id) => id !== user.id)
+                                    : [...formData.targetUserIds, user.id],
+                                });
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.targetUserIds.includes(user.id)
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {user.fullName} ({user.role})
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {formData.targetUserIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.targetUserIds.map((userId) => {
+                        const user = users.find((u) => u.id === userId);
+                        return user ? (
+                          <Badge key={userId} variant="secondary">
+                            {user.fullName}
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Target Groups</Label>
+                  <Popover open={openGroupSelect} onOpenChange={setOpenGroupSelect}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openGroupSelect}
+                        className="w-full justify-between mt-2"
+                        data-testid="button-select-groups"
+                      >
+                        {formData.targetGroupIds.length > 0
+                          ? `${formData.targetGroupIds.length} group(s) selected`
+                          : "Select groups..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search groups..." />
+                        <CommandEmpty>No groups found.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {allGroups.map((group) => (
+                            <CommandItem
+                              key={group.id}
+                              onSelect={() => {
+                                const isSelected = formData.targetGroupIds.includes(group.id);
+                                setFormData({
+                                  ...formData,
+                                  targetGroupIds: isSelected
+                                    ? formData.targetGroupIds.filter((id) => id !== group.id)
+                                    : [...formData.targetGroupIds, group.id],
+                                });
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.targetGroupIds.includes(group.id)
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {group.name} ({group.category})
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {formData.targetGroupIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.targetGroupIds.map((groupId) => {
+                        const group = allGroups.find((g) => g.id === groupId);
+                        return group ? (
+                          <Badge key={groupId} variant="secondary">
+                            {group.name}
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
