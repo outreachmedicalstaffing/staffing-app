@@ -53,6 +53,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { PROGRAM_OPTIONS } from "@/lib/constants";
 const SHOW_USER_TAGS = false;
 interface UserDetailViewProps {
   user: User | null;
@@ -849,6 +850,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                         <Select
                           disabled={!isEditing}
                           onValueChange={(value) => {
+                            // Generate programMap from PROGRAM_OPTIONS
                             const programMap: Record<string, string> = {
                               "vitas-nature-coast": "Vitas Nature Coast",
                               "vitas-citrus": "Vitas Citrus",
@@ -859,12 +861,10 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                               "vitas-dade-monroe": "Vitas Dade/Monroe",
                               "vitas-palm-beach": "Vitas Palm Beach",
                               "adventhealth-ipu": "AdventHealth IPU",
-                              "adventhealth-central":
-                                "AdventHealth Central Florida",
+                              "adventhealth-central": "AdventHealth Central Florida",
                               "vitas-treasure-coast": "Vitas Treasure Coast",
-                              haven: "Haven",
-                              "vitas-jacksonville-stjohns":
-                                "Vitas Jacksonville (St. Johns)",
+                              "haven": "Haven",
+                              "vitas-jacksonville-stjohns": "Vitas Jacksonville (St. Johns)",
                               "vitas-broward": "Vitas Broward",
                               "vitas-central": "Vitas Central Florida",
                             };
