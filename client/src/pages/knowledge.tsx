@@ -3,26 +3,67 @@ import { KnowledgeItem } from "@/components/knowledge-item";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Plus, FolderOpen } from "lucide-react";
+import { Search, Plus, FolderOpen, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
+type Article = {
+  id: string;
+  title: string;
+  type: "page" | "pdf" | "folder";
+  description: string;
+  category: string;
+  lastUpdated: string;
+  publishStatus: "published" | "draft";
+  content?: string;
+};
 
 export default function Knowledge() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewArticle, setViewArticle] = useState<Article | null>(null);
+  const [editArticle, setEditArticle] = useState<Article | null>(null);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [editedDescription, setEditedDescription] = useState("");
+  const [editedContent, setEditedContent] = useState("");
 
-  const hrDocuments = [
-    { id: "1", title: "Employee Handbook", type: "page" as const, description: "Complete guide for all employees", category: "HR", lastUpdated: "2 days ago", publishStatus: "published" as const },
-    { id: "2", title: "New Hire Checklist", type: "page" as const, description: "Step-by-step onboarding process", category: "HR", lastUpdated: "1 day ago", publishStatus: "draft" as const },
+  const hrDocuments: Article[] = [
+    { id: "1", title: "Employee Handbook", type: "page" as const, description: "Complete guide for all employees", category: "HR", lastUpdated: "2 days ago", publishStatus: "published" as const, content: "# Employee Handbook\n\nWelcome to our organization! This handbook contains important policies, procedures, and guidelines that govern employment with our company.\n\n## Code of Conduct\nAll employees are expected to maintain professional behavior and treat colleagues with respect.\n\n## Work Hours\nStandard work hours are 9:00 AM to 5:00 PM, Monday through Friday.\n\n## Benefits\nWe offer competitive benefits including health insurance, retirement plans, and paid time off." },
+    { id: "2", title: "New Hire Checklist", type: "page" as const, description: "Step-by-step onboarding process", category: "HR", lastUpdated: "1 day ago", publishStatus: "draft" as const, content: "# New Hire Checklist\n\n## Before Day One\n- [ ] Complete employment paperwork\n- [ ] Submit I-9 documentation\n- [ ] Enroll in benefits\n\n## First Day\n- [ ] Meet your team\n- [ ] Complete IT setup\n- [ ] Review company policies\n\n## First Week\n- [ ] Complete required training\n- [ ] Set up email and accounts\n- [ ] Schedule one-on-one with manager" },
   ];
 
-  const complianceDocuments = [
-    { id: "3", title: "HIPAA Compliance Training", type: "pdf" as const, description: "Required annual training materials", category: "Compliance", lastUpdated: "1 week ago", publishStatus: "published" as const },
-    { id: "4", title: "Safety Protocols", type: "folder" as const, description: "Workplace safety guidelines", category: "Compliance", lastUpdated: "2 weeks ago", publishStatus: "published" as const },
+  const complianceDocuments: Article[] = [
+    { id: "3", title: "HIPAA Compliance Training", type: "pdf" as const, description: "Required annual training materials", category: "Compliance", lastUpdated: "1 week ago", publishStatus: "published" as const, content: "# HIPAA Compliance Training\n\nThis document contains essential information about HIPAA compliance requirements.\n\n## What is HIPAA?\nThe Health Insurance Portability and Accountability Act (HIPAA) establishes standards for protecting sensitive patient health information.\n\n## Key Requirements\n- Maintain patient privacy at all times\n- Secure all electronic health records\n- Report any potential breaches immediately" },
+    { id: "4", title: "Safety Protocols", type: "folder" as const, description: "Workplace safety guidelines", category: "Compliance", lastUpdated: "2 weeks ago", publishStatus: "published" as const, content: "# Safety Protocols\n\nThis folder contains comprehensive safety guidelines for all workplace situations.\n\n## General Safety\n- Always wear appropriate PPE\n- Report hazards immediately\n- Keep emergency exits clear\n\n## Emergency Contacts\n- Security: x5555\n- First Aid: x5556\n- Facilities: x5557" },
   ];
 
-  const operationsDocuments = [
-    { id: "5", title: "Shift Protocols", type: "folder" as const, description: "Standard operating procedures", category: "Operations", lastUpdated: "3 weeks ago", publishStatus: "published" as const },
-    { id: "6", title: "Emergency Procedures", type: "page" as const, description: "Critical response guidelines", category: "Operations", lastUpdated: "5 days ago", publishStatus: "published" as const },
+  const operationsDocuments: Article[] = [
+    { id: "5", title: "Shift Protocols", type: "folder" as const, description: "Standard operating procedures", category: "Operations", lastUpdated: "3 weeks ago", publishStatus: "published" as const, content: "# Shift Protocols\n\n## Shift Changes\n- Arrive 15 minutes before your shift\n- Complete handoff documentation\n- Review pending tasks\n\n## Documentation\n- Log all activities in the system\n- Complete end-of-shift reports\n- Note any issues for the next shift" },
+    { id: "6", title: "Emergency Procedures", type: "page" as const, description: "Critical response guidelines", category: "Operations", lastUpdated: "5 days ago", publishStatus: "published" as const, content: "# Emergency Procedures\n\n## Fire Emergency\n1. Activate fire alarm\n2. Evacuate immediately\n3. Call 911\n4. Meet at designated assembly point\n\n## Medical Emergency\n1. Call for help\n2. Do not move the injured person\n3. Provide first aid if trained\n4. Contact emergency services\n\n## Severe Weather\n1. Move to designated shelter area\n2. Stay away from windows\n3. Monitor weather alerts\n4. Wait for all-clear signal" },
   ];
+
+  const handleView = (article: Article) => {
+    setViewArticle(article);
+  };
+
+  const handleEdit = (article: Article) => {
+    setEditArticle(article);
+    setEditedTitle(article.title);
+    setEditedDescription(article.description);
+    setEditedContent(article.content || "");
+  };
+
+  const handleSaveEdit = () => {
+    // In a real app, this would save to a backend
+    console.log("Saving article:", {
+      id: editArticle?.id,
+      title: editedTitle,
+      description: editedDescription,
+      content: editedContent,
+    });
+    setEditArticle(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -77,8 +118,8 @@ export default function Knowledge() {
                   <KnowledgeItem
                     key={item.id}
                     {...item}
-                    onView={() => console.log(`View ${item.id}`)}
-                    onEdit={() => console.log(`Edit ${item.id}`)}
+                    onView={() => handleView(item)}
+                    onEdit={() => handleEdit(item)}
                   />
                 ))}
               </div>
@@ -98,8 +139,8 @@ export default function Knowledge() {
                   <KnowledgeItem
                     key={item.id}
                     {...item}
-                    onView={() => console.log(`View ${item.id}`)}
-                    onEdit={() => console.log(`Edit ${item.id}`)}
+                    onView={() => handleView(item)}
+                    onEdit={() => handleEdit(item)}
                   />
                 ))}
               </div>
@@ -119,8 +160,8 @@ export default function Knowledge() {
                   <KnowledgeItem
                     key={item.id}
                     {...item}
-                    onView={() => console.log(`View ${item.id}`)}
-                    onEdit={() => console.log(`Edit ${item.id}`)}
+                    onView={() => handleView(item)}
+                    onEdit={() => handleEdit(item)}
                   />
                 ))}
               </div>
@@ -140,8 +181,8 @@ export default function Knowledge() {
                   <KnowledgeItem
                     key={item.id}
                     {...item}
-                    onView={() => console.log(`View ${item.id}`)}
-                    onEdit={() => console.log(`Edit ${item.id}`)}
+                    onView={() => handleView(item)}
+                    onEdit={() => handleEdit(item)}
                   />
                 ))}
               </div>
@@ -149,6 +190,75 @@ export default function Knowledge() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* View Article Dialog */}
+      <Dialog open={!!viewArticle} onOpenChange={() => setViewArticle(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{viewArticle?.title}</DialogTitle>
+            <DialogDescription>{viewArticle?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-medium">Category:</span>
+              <span>{viewArticle?.category}</span>
+              <span className="mx-2">•</span>
+              <span>Updated {viewArticle?.lastUpdated}</span>
+            </div>
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <div className="whitespace-pre-wrap">{viewArticle?.content}</div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Article Dialog */}
+      <Dialog open={!!editArticle} onOpenChange={() => setEditArticle(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Article</DialogTitle>
+            <DialogDescription>Make changes to the article below</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                placeholder="Article title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
+                id="edit-description"
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                placeholder="Brief description"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-content">Content</Label>
+              <Textarea
+                id="edit-content"
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                placeholder="Article content (supports markdown)"
+                className="min-h-[300px] font-mono text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setEditArticle(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
