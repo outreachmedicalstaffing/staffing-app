@@ -158,7 +158,7 @@ export default function Documents() {
         </div>
         <Button onClick={handleOpenUploadModal} data-testid="button-upload-document">
           <Plus className="h-4 w-4 mr-2" />
-          Upload Document
+          Create Document
         </Button>
       </div>
 
