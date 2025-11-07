@@ -389,12 +389,12 @@ export default function Documents() {
                 {uploadMutation.isPending ? (
                   <>
                     <Clock className="h-4 w-4 mr-2 animate-spin" />
-                    Uploading...
+                    Saving...
                   </>
                 ) : (
                   <>
                     <UploadIcon className="h-4 w-4 mr-2" />
-                    Upload Document
+                    Save
                   </>
                 )}
               </Button>
