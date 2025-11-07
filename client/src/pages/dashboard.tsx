@@ -146,6 +146,13 @@ export default function Dashboard() {
     return isAfter(shiftDate, now) && isBefore(shiftDate, addDays(now, 7));
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
+  // Expired documents
+  const expiredDocs = documents.filter(doc => {
+    if (!doc.expiryDate) return false;
+    const expiryDate = new Date(doc.expiryDate);
+    return isBefore(expiryDate, now);
+  });
+
   // Pending items
   const expiringDocs = documents.filter(doc => {
     if (!doc.expiryDate) return false;
@@ -179,6 +186,35 @@ export default function Dashboard() {
         <h1 className="text-2xl font-semibold" data-testid="heading-dashboard">Dashboard</h1>
         <p className="text-muted-foreground">Welcome back, {user?.fullName || 'User'}</p>
       </div>
+
+      {/* Expired Documents Alert */}
+      {expiredDocs.length > 0 && (
+        <Card className="border-destructive bg-destructive/5">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive text-destructive-foreground shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <h3 className="font-semibold text-destructive">Expired Documents Require Renewal</h3>
+                <p className="text-sm text-muted-foreground">
+                  You have {expiredDocs.length} expired {expiredDocs.length === 1 ? 'document' : 'documents'} that need to be renewed immediately.
+                </p>
+                <div className="pt-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setLocation('/documents')}
+                    data-testid="button-view-expired-documents"
+                  >
+                    View Expired Documents
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
