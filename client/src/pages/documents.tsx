@@ -54,6 +54,8 @@ export default function Documents() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
 
   // Load documents from localStorage on mount
   useEffect(() => {
@@ -77,6 +79,26 @@ export default function Documents() {
     setVisibleToUsers(true);
     setEnableUserUpload(true);
     setRequireReview(true);
+    setIsEditMode(false);
+    setEditingDocumentId(null);
+  };
+
+  const handleEditDocument = (doc: Document) => {
+    // Pre-fill form with document data
+    setDocumentTitle(doc.title);
+    setDocumentDescription(doc.description);
+    setExpirationDate(doc.expirationDate);
+    setNotes(doc.notes);
+    setVisibleToUsers(doc.visibleToUsers);
+    setEnableUserUpload(doc.enableUserUpload);
+    setRequireReview(doc.requireReview);
+
+    // Set edit mode
+    setIsEditMode(true);
+    setEditingDocumentId(doc.id);
+
+    // Open modal
+    setShowCreateModal(true);
   };
 
   const handleSaveDocument = () => {
@@ -85,26 +107,49 @@ export default function Documents() {
       return;
     }
 
-    // Create new document object (no status - this is a requirement/template, not an uploaded document)
-    const newDocument: Document = {
-      id: Date.now().toString(),
-      title: documentTitle,
-      description: documentDescription,
-      expirationDate: expirationDate,
-      uploadedDate: new Date().toISOString().split('T')[0],
-      fileName: uploadFile?.name,
-      notes: notes,
-      visibleToUsers: visibleToUsers,
-      enableUserUpload: enableUserUpload,
-      requireReview: requireReview,
-    };
+    if (isEditMode && editingDocumentId) {
+      // Update existing document
+      const updatedDocuments = documents.map(doc => {
+        if (doc.id === editingDocumentId) {
+          return {
+            ...doc,
+            title: documentTitle,
+            description: documentDescription,
+            expirationDate: expirationDate,
+            fileName: uploadFile?.name || doc.fileName,
+            notes: notes,
+            visibleToUsers: visibleToUsers,
+            enableUserUpload: enableUserUpload,
+            requireReview: requireReview,
+          };
+        }
+        return doc;
+      });
 
-    // Add to documents array
-    const updatedDocuments = [...documents, newDocument];
-    setDocuments(updatedDocuments);
+      setDocuments(updatedDocuments);
+      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+    } else {
+      // Create new document object (no status - this is a requirement/template, not an uploaded document)
+      const newDocument: Document = {
+        id: Date.now().toString(),
+        title: documentTitle,
+        description: documentDescription,
+        expirationDate: expirationDate,
+        uploadedDate: new Date().toISOString().split('T')[0],
+        fileName: uploadFile?.name,
+        notes: notes,
+        visibleToUsers: visibleToUsers,
+        enableUserUpload: enableUserUpload,
+        requireReview: requireReview,
+      };
 
-    // Save to localStorage
-    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+      // Add to documents array
+      const updatedDocuments = [...documents, newDocument];
+      setDocuments(updatedDocuments);
+
+      // Save to localStorage
+      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+    }
 
     // Reset form and close modal
     resetForm();
@@ -154,13 +199,13 @@ export default function Documents() {
         </Button>
       </div>
 
-      {/* Create Document Modal */}
+      {/* Create/Edit Document Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Create Document</DialogTitle>
+            <DialogTitle>{isEditMode ? "Edit Document" : "Create Document"}</DialogTitle>
             <DialogDescription>
-              Create a new document requirement
+              {isEditMode ? "Edit document requirement" : "Create a new document requirement"}
             </DialogDescription>
           </DialogHeader>
 
@@ -487,7 +532,11 @@ export default function Documents() {
                                     <Eye className="h-4 w-4 mr-2" />
                                     View
                                   </Button>
-                                  <Button variant="outline" size="sm">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditDocument(doc)}
+                                  >
                                     <Upload className="h-4 w-4 mr-2" />
                                     Edit
                                   </Button>
