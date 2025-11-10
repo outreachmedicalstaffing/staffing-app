@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Plus, CheckCircle, Clock, AlertTriangle, Search } from "lucide-react";
 
 export default function Documents() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -68,6 +73,47 @@ export default function Documents() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="space-y-4">
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search documents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        {/* Tabs */}
+        <Tabs defaultValue="my-documents">
+          <TabsList>
+            <TabsTrigger value="my-documents">My Documents</TabsTrigger>
+            <TabsTrigger value="required">Required</TabsTrigger>
+            <TabsTrigger value="document-packs">Document Packs</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="my-documents" className="mt-4">
+            <div className="text-muted-foreground">
+              My Documents content will go here
+            </div>
+          </TabsContent>
+
+          <TabsContent value="required" className="mt-4">
+            <div className="text-muted-foreground">
+              Required documents content will go here
+            </div>
+          </TabsContent>
+
+          <TabsContent value="document-packs" className="mt-4">
+            <div className="text-muted-foreground">
+              Document Packs content will go here
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
