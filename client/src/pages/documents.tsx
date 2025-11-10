@@ -162,6 +162,13 @@ export default function Documents() {
       setDocuments(updatedDocuments);
       localStorage.setItem("documents", JSON.stringify(updatedDocuments));
     } else {
+      // Get current local date in YYYY-MM-DD format
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const currentDate = `${year}-${month}-${day}`;
+
       // Create new document object (no status - this is a requirement/template, not an uploaded document)
       const newDocument: Document = {
         id: Date.now().toString(),
@@ -169,7 +176,7 @@ export default function Documents() {
         description: documentDescription,
         hasExpiration: hasExpiration,
         expirationDate: hasExpiration ? expirationDate : "",
-        uploadedDate: new Date().toISOString().split('T')[0],
+        uploadedDate: currentDate,
         fileName: uploadFile?.name,
         notes: notes,
         visibleToUsers: visibleToUsers,
@@ -242,6 +249,13 @@ export default function Documents() {
     // Determine status based on requireReview setting
     const status: "approved" | "pending" = documentToUpload.requireReview ? "pending" : "approved";
 
+    // Get current local date in YYYY-MM-DD format
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const currentDate = `${year}-${month}-${day}`;
+
     // Update document with uploaded file info and status
     const updatedDocuments = documents.map(doc => {
       if (doc.id === documentToUpload.id) {
@@ -250,7 +264,7 @@ export default function Documents() {
           fileName: uploadModalFile.name,
           fileData: fileData,
           fileType: uploadModalFile.type,
-          uploadedDate: new Date().toISOString().split('T')[0],
+          uploadedDate: currentDate,
           expirationDate: uploadExpirationDate || doc.expirationDate,
           notes: uploadNotes,
           status: status,
