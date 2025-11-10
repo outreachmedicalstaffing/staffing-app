@@ -63,6 +63,7 @@ export default function Documents() {
   const [documentToUpload, setDocumentToUpload] = useState<Document | null>(null);
   const [uploadModalFile, setUploadModalFile] = useState<File | null>(null);
   const [uploadNotes, setUploadNotes] = useState("");
+  const [uploadExpirationDate, setUploadExpirationDate] = useState("");
 
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
@@ -202,6 +203,7 @@ export default function Documents() {
     setDocumentToUpload(doc);
     setUploadModalFile(null);
     setUploadNotes("");
+    setUploadExpirationDate("");
     setShowUploadModal(true);
   };
 
@@ -213,6 +215,12 @@ export default function Documents() {
 
     if (!documentToUpload) return;
 
+    // Validate expiration date if required
+    if (documentToUpload.expirationDate && !uploadExpirationDate) {
+      alert("Please enter an expiration date for this document");
+      return;
+    }
+
     // Determine status based on requireReview setting
     const status: "approved" | "pending" = documentToUpload.requireReview ? "pending" : "approved";
 
@@ -223,6 +231,7 @@ export default function Documents() {
           ...doc,
           fileName: uploadModalFile.name,
           uploadedDate: new Date().toISOString().split('T')[0],
+          expirationDate: uploadExpirationDate || doc.expirationDate,
           notes: uploadNotes,
           status: status,
         };
@@ -236,6 +245,7 @@ export default function Documents() {
     // Reset and close modal
     setUploadModalFile(null);
     setUploadNotes("");
+    setUploadExpirationDate("");
     setDocumentToUpload(null);
     setShowUploadModal(false);
   };
@@ -243,6 +253,7 @@ export default function Documents() {
   const handleCancelUpload = () => {
     setUploadModalFile(null);
     setUploadNotes("");
+    setUploadExpirationDate("");
     setDocumentToUpload(null);
     setShowUploadModal(false);
   };
@@ -501,6 +512,21 @@ export default function Documents() {
                 rows={3}
               />
             </div>
+
+            {documentToUpload?.expirationDate && (
+              <div className="space-y-2">
+                <Label htmlFor="upload-expiration-date">
+                  Expiration Date <span className="text-red-600">*</span>
+                </Label>
+                <Input
+                  id="upload-expiration-date"
+                  type="date"
+                  placeholder="mm/dd/yyyy"
+                  value={uploadExpirationDate}
+                  onChange={(e) => setUploadExpirationDate(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2">
@@ -613,7 +639,10 @@ export default function Documents() {
                       });
                     };
 
-                    const isExpired = doc.status === "expired";
+                    // Check if document is expired based on expiration date
+                    const isExpired = doc.expirationDate && doc.status !== undefined
+                      ? new Date(doc.expirationDate) < new Date()
+                      : doc.status === "expired";
                     const hasStatus = doc.status !== undefined;
 
                     return (
