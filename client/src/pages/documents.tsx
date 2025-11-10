@@ -27,7 +27,7 @@ interface Document {
   visibleToUsers: boolean;
   enableUserUpload: boolean;
   requireReview: boolean;
-  status: "approved" | "expired" | "pending";
+  status?: "approved" | "expired" | "pending";
 }
 
 export default function Documents() {
@@ -73,17 +73,7 @@ export default function Documents() {
       return;
     }
 
-    // Determine document status based on expiration date
-    let status: "approved" | "expired" | "pending" = "approved";
-    if (expirationDate) {
-      const expDate = new Date(expirationDate);
-      const today = new Date();
-      if (expDate < today) {
-        status = "expired";
-      }
-    }
-
-    // Create new document object
+    // Create new document object (no status - this is a requirement/template, not an uploaded document)
     const newDocument: Document = {
       id: Date.now().toString(),
       title: documentTitle,
@@ -95,7 +85,6 @@ export default function Documents() {
       visibleToUsers: visibleToUsers,
       enableUserUpload: enableUserUpload,
       requireReview: requireReview,
-      status: status,
     };
 
     // Add to documents array
@@ -377,6 +366,7 @@ export default function Documents() {
                     };
 
                     const isExpired = doc.status === "expired";
+                    const hasStatus = doc.status !== undefined;
 
                     return (
                       <Card key={doc.id}>
@@ -394,20 +384,22 @@ export default function Documents() {
                                   )}
                                 </div>
                               </div>
-                              <Badge
-                                className={
-                                  isExpired
-                                    ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                    : "bg-green-100 text-green-800 hover:bg-green-100"
-                                }
-                              >
-                                {isExpired ? "Expired" : "Approved"}
-                              </Badge>
+                              {hasStatus && (
+                                <Badge
+                                  className={
+                                    isExpired
+                                      ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                      : "bg-green-100 text-green-800 hover:bg-green-100"
+                                  }
+                                >
+                                  {isExpired ? "Expired" : "Approved"}
+                                </Badge>
+                              )}
                             </div>
 
                             <div className="space-y-1 text-sm">
                               <p className="text-muted-foreground">
-                                Uploaded: {formatDate(doc.uploadedDate)}
+                                {hasStatus ? "Uploaded:" : "Created:"} {formatDate(doc.uploadedDate)}
                               </p>
                               {doc.expirationDate && (
                                 <p
@@ -431,7 +423,18 @@ export default function Documents() {
                             )}
 
                             <div className="flex gap-2">
-                              {!isExpired ? (
+                              {!hasStatus ? (
+                                <>
+                                  <Button variant="outline" size="sm">
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View
+                                  </Button>
+                                  <Button variant="outline" size="sm">
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </Button>
+                                </>
+                              ) : !isExpired ? (
                                 <>
                                   <Button variant="outline" size="sm">
                                     <Eye className="h-4 w-4 mr-2" />
