@@ -47,6 +47,7 @@ export default function Documents() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [documentTitle, setDocumentTitle] = useState("");
   const [documentDescription, setDocumentDescription] = useState("");
+  const [hasExpiration, setHasExpiration] = useState(false);
   const [expirationDate, setExpirationDate] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
@@ -87,6 +88,7 @@ export default function Documents() {
   const resetForm = () => {
     setDocumentTitle("");
     setDocumentDescription("");
+    setHasExpiration(false);
     setExpirationDate("");
     setUploadFile(null);
     setNotes("");
@@ -101,6 +103,7 @@ export default function Documents() {
     // Pre-fill form with document data
     setDocumentTitle(doc.title);
     setDocumentDescription(doc.description);
+    setHasExpiration(!!doc.expirationDate);
     setExpirationDate(doc.expirationDate);
     setNotes(doc.notes);
     setVisibleToUsers(doc.visibleToUsers);
@@ -129,7 +132,7 @@ export default function Documents() {
             ...doc,
             title: documentTitle,
             description: documentDescription,
-            expirationDate: expirationDate,
+            expirationDate: hasExpiration ? expirationDate : "",
             fileName: uploadFile?.name || doc.fileName,
             notes: notes,
             visibleToUsers: visibleToUsers,
@@ -148,7 +151,7 @@ export default function Documents() {
         id: Date.now().toString(),
         title: documentTitle,
         description: documentDescription,
-        expirationDate: expirationDate,
+        expirationDate: hasExpiration ? expirationDate : "",
         uploadedDate: new Date().toISOString().split('T')[0],
         fileName: uploadFile?.name,
         notes: notes,
@@ -298,16 +301,39 @@ export default function Documents() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="expiration-date">Expiration Date</Label>
-              <Input
-                id="expiration-date"
-                type="date"
-                placeholder="mm/dd/yyyy"
-                value={expirationDate}
-                onChange={(e) => setExpirationDate(e.target.value)}
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="has-expiration"
+                checked={hasExpiration}
+                onCheckedChange={(checked) => {
+                  setHasExpiration(checked as boolean);
+                  if (!checked) {
+                    setExpirationDate("");
+                  }
+                }}
               />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="has-expiration"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  This document expires
+                </Label>
+              </div>
             </div>
+
+            {hasExpiration && (
+              <div className="space-y-2">
+                <Label htmlFor="expiration-date">Expiration Date</Label>
+                <Input
+                  id="expiration-date"
+                  type="date"
+                  placeholder="mm/dd/yyyy"
+                  value={expirationDate}
+                  onChange={(e) => setExpirationDate(e.target.value)}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="upload-file">Upload File</Label>
