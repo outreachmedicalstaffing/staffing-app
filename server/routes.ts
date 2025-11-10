@@ -1654,14 +1654,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create document
   app.post("/api/documents", requireAuth, async (req, res) => {
     try {
+      console.log("[POST /api/documents] Request received");
+      console.log("[POST /api/documents] Session userId:", req.session.userId);
+      console.log("[POST /api/documents] Request body:", JSON.stringify(req.body, null, 2));
+
       // Add userId to request body before validation (required for document creation)
       const requestData = {
         ...req.body,
         userId: req.body.userId || req.session.userId!,
       };
 
+      console.log("[POST /api/documents] Request data with userId:", JSON.stringify(requestData, null, 2));
+
       const data = insertDocumentSchema.parse(requestData);
+      console.log("[POST /api/documents] Validation passed");
+
       const document = await storage.createDocument(data);
+      console.log("[POST /api/documents] Document created successfully:", document.id);
 
       await logAudit(
         req.session.userId,
@@ -1675,9 +1684,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(document);
     } catch (error) {
+      console.error("[POST /api/documents] Error occurred:", error);
       if (error instanceof z.ZodError) {
+        console.error("[POST /api/documents] Zod validation errors:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ error: error.errors });
       }
+      console.error("[POST /api/documents] Non-validation error:", error);
       res.status(500).json({ error: "Failed to create document" });
     }
   });
