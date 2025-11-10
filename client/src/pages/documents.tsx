@@ -277,8 +277,8 @@ export default function Documents() {
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Upload Document</DialogTitle>
-            <DialogDescription>Add a new document to your profile</DialogDescription>
+            <DialogTitle>Create Document</DialogTitle>
+            <DialogDescription>Create a new document requirement</DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-4">
             <div className="space-y-2">
