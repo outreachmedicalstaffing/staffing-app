@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import type { User } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +58,14 @@ export default function Documents() {
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
+
+  // Get current user to check role
+  const { data: currentUser } = useQuery<User>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  // Check if user is admin or owner
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
 
   // Load documents from localStorage on mount
   useEffect(() => {
@@ -190,13 +200,15 @@ export default function Documents() {
             Manage your credentials and certifications
           </p>
         </div>
-        <Button
-          className="bg-red-600 hover:bg-red-700"
-          onClick={() => setShowCreateModal(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Document
-        </Button>
+        {isAdmin && (
+          <Button
+            className="bg-red-600 hover:bg-red-700"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Document
+          </Button>
+        )}
       </div>
 
       {/* Create/Edit Document Modal */}
@@ -527,62 +539,104 @@ export default function Documents() {
 
                             <div className="flex gap-2">
                               {!hasStatus ? (
-                                <>
-                                  <Button variant="outline" size="sm">
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEditDocument(doc)}
-                                  >
-                                    <Upload className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleInitiateDelete(doc.id)}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash className="h-4 w-4" />
-                                  </Button>
-                                </>
+                                // Document requirement/template
+                                isAdmin ? (
+                                  // Admin view: Edit and Delete
+                                  <>
+                                    <Button variant="outline" size="sm">
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditDocument(doc)}
+                                    >
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleInitiateDelete(doc.id)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  // Regular user view: View and Upload
+                                  <>
+                                    <Button variant="outline" size="sm">
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Upload
+                                    </Button>
+                                  </>
+                                )
                               ) : !isExpired ? (
-                                <>
-                                  <Button variant="outline" size="sm">
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View
-                                  </Button>
-                                  <Button variant="outline" size="sm">
-                                    <Upload className="h-4 w-4 mr-2" />
-                                    Update
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleInitiateDelete(doc.id)}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash className="h-4 w-4" />
-                                  </Button>
-                                </>
+                                // Uploaded document (not expired)
+                                isAdmin ? (
+                                  // Admin view: View, Update, Delete
+                                  <>
+                                    <Button variant="outline" size="sm">
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Update
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleInitiateDelete(doc.id)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  // Regular user view: View and Upload
+                                  <>
+                                    <Button variant="outline" size="sm">
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Upload
+                                    </Button>
+                                  </>
+                                )
                               ) : (
-                                <>
-                                  <Button className="flex-1 bg-red-600 hover:bg-red-700">
+                                // Expired document
+                                isAdmin ? (
+                                  // Admin view: Upload and Delete
+                                  <>
+                                    <Button className="flex-1 bg-red-600 hover:bg-red-700">
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Upload Document
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleInitiateDelete(doc.id)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  // Regular user view: Upload only
+                                  <Button className="w-full bg-red-600 hover:bg-red-700">
                                     <Upload className="h-4 w-4 mr-2" />
                                     Upload Document
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleInitiateDelete(doc.id)}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash className="h-4 w-4" />
-                                  </Button>
-                                </>
+                                )
                               )}
                             </div>
                           </div>
