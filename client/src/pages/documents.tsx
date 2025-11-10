@@ -58,6 +58,10 @@ export default function Documents() {
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [documentToUpload, setDocumentToUpload] = useState<Document | null>(null);
+  const [uploadFile, setUploadModalFile] = useState<File | null>(null);
+  const [uploadNotes, setUploadNotes] = useState("");
 
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
@@ -189,6 +193,55 @@ export default function Documents() {
   const handleCancelDelete = () => {
     setShowDeleteDialog(false);
     setDocumentToDelete(null);
+  };
+
+  const handleOpenUploadModal = (doc: Document) => {
+    setDocumentToUpload(doc);
+    setUploadModalFile(null);
+    setUploadNotes("");
+    setShowUploadModal(true);
+  };
+
+  const handleSaveUpload = () => {
+    if (!uploadFile) {
+      alert("Please select a file to upload");
+      return;
+    }
+
+    if (!documentToUpload) return;
+
+    // Determine status based on requireReview setting
+    const status: "approved" | "pending" = documentToUpload.requireReview ? "pending" : "approved";
+
+    // Update document with uploaded file info and status
+    const updatedDocuments = documents.map(doc => {
+      if (doc.id === documentToUpload.id) {
+        return {
+          ...doc,
+          fileName: uploadFile.name,
+          uploadedDate: new Date().toISOString().split('T')[0],
+          notes: uploadNotes,
+          status: status,
+        };
+      }
+      return doc;
+    });
+
+    setDocuments(updatedDocuments);
+    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+
+    // Reset and close modal
+    setUploadModalFile(null);
+    setUploadNotes("");
+    setDocumentToUpload(null);
+    setShowUploadModal(false);
+  };
+
+  const handleCancelUpload = () => {
+    setUploadModalFile(null);
+    setUploadNotes("");
+    setDocumentToUpload(null);
+    setShowUploadModal(false);
   };
 
   return (
@@ -384,6 +437,60 @@ export default function Documents() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Upload Document Modal */}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Upload {documentToUpload?.title}</DialogTitle>
+            <DialogDescription>
+              Upload your document file for review
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="upload-file-input">
+                File <span className="text-red-600">*</span>
+              </Label>
+              <Input
+                id="upload-file-input"
+                type="file"
+                onChange={(e) => setUploadModalFile(e.target.files?.[0] || null)}
+                className="cursor-pointer"
+              />
+              {uploadFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {uploadFile.name}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="upload-notes">Notes (Optional)</Label>
+              <Textarea
+                id="upload-notes"
+                placeholder="Add any notes about this document"
+                value={uploadNotes}
+                onChange={(e) => setUploadNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleCancelUpload}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleSaveUpload}
+            >
+              Upload
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Approved Card */}
         <Card>
@@ -571,7 +678,11 @@ export default function Documents() {
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleOpenUploadModal(doc)}
+                                    >
                                       <Upload className="h-4 w-4 mr-2" />
                                       Upload
                                     </Button>
@@ -606,7 +717,11 @@ export default function Documents() {
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleOpenUploadModal(doc)}
+                                    >
                                       <Upload className="h-4 w-4 mr-2" />
                                       Upload
                                     </Button>
@@ -632,7 +747,10 @@ export default function Documents() {
                                   </>
                                 ) : (
                                   // Regular user view: Upload only
-                                  <Button className="w-full bg-red-600 hover:bg-red-700">
+                                  <Button
+                                    className="w-full bg-red-600 hover:bg-red-700"
+                                    onClick={() => handleOpenUploadModal(doc)}
+                                  >
                                     <Upload className="h-4 w-4 mr-2" />
                                     Upload Document
                                   </Button>
