@@ -23,7 +23,6 @@ export default function Documents() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadDescription, setUploadDescription] = useState("");
-  const [uploadCategory, setUploadCategory] = useState("");
   const [uploadFileType, setUploadFileType] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadExpiryDate, setUploadExpiryDate] = useState("");
@@ -109,7 +108,6 @@ export default function Documents() {
   const resetUploadForm = () => {
     setUploadTitle("");
     setUploadDescription("");
-    setUploadCategory("");
     setUploadFileType("");
     setUploadFile(null);
     setUploadExpiryDate("");
@@ -131,16 +129,10 @@ export default function Documents() {
       return;
     }
 
-    if (!uploadCategory) {
-      alert("Please select a document category");
-      return;
-    }
-
     // Prepare document data
     const documentData = {
       title: uploadTitle.trim(),
       description: uploadDescription?.trim() || undefined,
-      category: uploadCategory,
       fileType: uploadFileType || undefined,
       fileUrl: uploadFile ? `/uploads/${uploadFile.name}` : undefined,
       status: "submitted",
@@ -327,24 +319,6 @@ export default function Documents() {
                 placeholder="Optional description of the document"
                 rows={3}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="upload-category">Document Type *</Label>
-              <Select value={uploadCategory} onValueChange={setUploadCategory}>
-                <SelectTrigger id="upload-category">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="license">License</SelectItem>
-                  <SelectItem value="certification">Certification</SelectItem>
-                  <SelectItem value="background-check">Background Check</SelectItem>
-                  <SelectItem value="insurance">Insurance</SelectItem>
-                  <SelectItem value="identification">Identification</SelectItem>
-                  <SelectItem value="education">Education</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">
