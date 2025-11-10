@@ -32,6 +32,7 @@ interface Document {
   id: string;
   title: string;
   description: string;
+  hasExpiration?: boolean; // optional for backward compatibility
   expirationDate: string;
   uploadedDate: string;
   fileName?: string;
@@ -116,7 +117,8 @@ export default function Documents() {
     // Pre-fill form with document data
     setDocumentTitle(doc.title);
     setDocumentDescription(doc.description);
-    setHasExpiration(!!doc.expirationDate);
+    // Use saved hasExpiration value, or fallback to checking if expirationDate exists (for backward compatibility)
+    setHasExpiration(doc.hasExpiration !== undefined ? doc.hasExpiration : !!doc.expirationDate);
     setExpirationDate(doc.expirationDate);
     setNotes(doc.notes);
     setVisibleToUsers(doc.visibleToUsers);
@@ -145,6 +147,7 @@ export default function Documents() {
             ...doc,
             title: documentTitle,
             description: documentDescription,
+            hasExpiration: hasExpiration,
             expirationDate: hasExpiration ? expirationDate : "",
             fileName: uploadFile?.name || doc.fileName,
             notes: notes,
@@ -164,6 +167,7 @@ export default function Documents() {
         id: Date.now().toString(),
         title: documentTitle,
         description: documentDescription,
+        hasExpiration: hasExpiration,
         expirationDate: hasExpiration ? expirationDate : "",
         uploadedDate: new Date().toISOString().split('T')[0],
         fileName: uploadFile?.name,
@@ -604,7 +608,7 @@ export default function Documents() {
               )}
             </div>
 
-            {documentToUpload?.expirationDate && (
+            {documentToUpload?.hasExpiration && (
               <div className="space-y-2">
                 <Label htmlFor="upload-expiration-date">
                   Expiration Date (Optional)
