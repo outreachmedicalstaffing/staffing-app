@@ -227,12 +227,6 @@ export default function Documents() {
 
     if (!documentToUpload) return;
 
-    // Validate expiration date if required
-    if (documentToUpload.expirationDate && !uploadExpirationDate) {
-      alert("Please enter an expiration date for this document");
-      return;
-    }
-
     // Convert file to base64
     const fileData = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -613,7 +607,7 @@ export default function Documents() {
             {documentToUpload?.expirationDate && (
               <div className="space-y-2">
                 <Label htmlFor="upload-expiration-date">
-                  Expiration Date <span className="text-red-600">*</span>
+                  Expiration Date (Optional)
                 </Label>
                 <Input
                   id="upload-expiration-date"
