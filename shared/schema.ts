@@ -352,6 +352,9 @@ export const documents = pgTable("documents", {
   approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
   notes: text("notes"),
+  visibleToUsers: boolean("visible_to_users").notNull().default(true), // Visible in mobile app
+  enableUserUpload: boolean("enable_user_upload").notNull().default(true), // Allow users to upload
+  requireReview: boolean("require_review").notNull().default(true), // Require review for user uploads
 });
 
 export const insertDocumentSchema = createInsertSchema(documents).omit({

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import { z } from "zod";
-import { eq, count, desc } from "drizzle-orm";
+import { eq, and, count, desc } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import {
   insertUserSchema,
@@ -24,8 +24,6 @@ import { upload } from "./upload";
 import path from "path";
 import fs from "fs";
 import { pool } from "./db";
-import { eq, and, desc, count } from "drizzle-orm";
-import * as schema from "@shared/schema";
 
 // Middleware to check authentication
 function requireAuth(req: Request, res: Response, next: NextFunction) {

@@ -45,7 +45,9 @@ export default function Documents() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload document');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || 'Failed to save document';
+        throw new Error(errorMessage);
       }
 
       return response.json();
@@ -55,6 +57,10 @@ export default function Documents() {
       setShowUploadModal(false);
       // Reset form
       resetUploadForm();
+    },
+    onError: (error: Error) => {
+      console.error('Failed to save document:', error);
+      alert(`Error: ${error.message}`);
     },
   });
 
