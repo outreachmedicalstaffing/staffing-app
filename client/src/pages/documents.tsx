@@ -44,6 +44,7 @@ interface Document {
   requireReview: boolean;
   status?: "approved" | "expired" | "pending" | "rejected";
   rejectionReason?: string;
+  userId?: number; // ID of user who uploaded the document
 }
 
 export default function Documents() {
@@ -272,6 +273,7 @@ export default function Documents() {
           expirationDate: uploadExpirationDate || doc.expirationDate,
           notes: uploadNotes,
           status: status,
+          userId: currentUser?.id, // Track which user uploaded the document
         };
       }
       return doc;
@@ -721,13 +723,13 @@ export default function Documents() {
           </DialogHeader>
 
           <div className="space-y-4 py-4 overflow-y-auto max-h-[60vh]">
-            {documents.filter(d => d.status).length === 0 ? (
+            {documents.filter(d => d.status && d.userId === selectedUser?.id).length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 No documents uploaded yet
               </div>
             ) : (
               documents
-                .filter(d => d.status) // Only show uploaded documents
+                .filter(d => d.status && d.userId === selectedUser?.id) // Only show uploaded documents for this user
                 .map((doc) => {
                   const formatDate = (dateString: string) => {
                     if (!dateString) return "N/A";
@@ -1313,9 +1315,10 @@ export default function Documents() {
                       })
                       .map((user) => {
                       // Calculate document completion for this user
-                      // For now, we'll use placeholder values since user documents are stored per-user
-                      const totalDocuments = documents.filter(d => !d.status).length; // document requirements
-                      const uploadedDocuments = 0; // placeholder - would need to track per user
+                      // Total required documents that users need to upload
+                      const totalDocuments = documents.filter(d => !d.status && d.enableUserUpload).length;
+                      // Documents uploaded by this specific user
+                      const uploadedDocuments = documents.filter(d => d.status && d.userId === user.id).length;
 
                       return (
                         <Card
