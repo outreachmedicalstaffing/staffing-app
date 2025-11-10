@@ -502,17 +502,6 @@ export default function Documents() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="upload-notes">Notes (Optional)</Label>
-              <Textarea
-                id="upload-notes"
-                placeholder="Add any notes about this document"
-                value={uploadNotes}
-                onChange={(e) => setUploadNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
-
             {documentToUpload?.expirationDate && (
               <div className="space-y-2">
                 <Label htmlFor="upload-expiration-date">
@@ -527,6 +516,17 @@ export default function Documents() {
                 />
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="upload-notes">Notes (Optional)</Label>
+              <Textarea
+                id="upload-notes"
+                placeholder="Add any notes about this document"
+                value={uploadNotes}
+                onChange={(e) => setUploadNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-2">
