@@ -37,16 +37,20 @@ export default function Documents() {
 
   const uploadMutation = useMutation({
     mutationFn: async (documentData: any) => {
-      console.log('Sending document data:', documentData);
+      console.log('[uploadMutation] Starting mutation');
+      console.log('[uploadMutation] Sending document data:', documentData);
+
       const response = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(documentData),
       });
 
+      console.log('[uploadMutation] Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Server error response:', errorData);
+        console.error('[uploadMutation] Server error response:', errorData);
 
         // Handle Zod validation errors (array of error objects)
         if (Array.isArray(errorData.error)) {
@@ -61,16 +65,19 @@ export default function Documents() {
         throw new Error(errorMessage);
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log('[uploadMutation] Document created successfully:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('[uploadMutation] onSuccess called with:', data);
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
       setShowUploadModal(false);
       // Reset form
       resetUploadForm();
     },
     onError: (error: Error) => {
-      console.error('Failed to save document:', error);
+      console.error('[uploadMutation] onError called:', error);
       alert(`Error saving document:\n\n${error.message}`);
     },
   });
@@ -123,8 +130,12 @@ export default function Documents() {
   };
 
   const handleUploadDocument = () => {
+    console.log('[handleUploadDocument] Save button clicked');
+    console.log('[handleUploadDocument] uploadTitle:', uploadTitle);
+
     // Validate required fields
     if (!uploadTitle.trim()) {
+      console.log('[handleUploadDocument] Validation failed: Title is empty');
       alert("Please enter a document title");
       return;
     }
@@ -144,6 +155,9 @@ export default function Documents() {
       enableUserUpload: Boolean(enableUserUpload),
       requireReview: enableUserUpload ? Boolean(requireReview) : false,
     };
+
+    console.log('[handleUploadDocument] Document data prepared:', documentData);
+    console.log('[handleUploadDocument] Calling mutation.mutate()');
 
     uploadMutation.mutate(documentData);
   };
