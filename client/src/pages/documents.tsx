@@ -14,7 +14,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash } from "lucide-react";
 
 interface Document {
   id: string;
@@ -42,6 +52,8 @@ export default function Documents() {
   const [enableUserUpload, setEnableUserUpload] = useState(true);
   const [requireReview, setRequireReview] = useState(true);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
 
   // Load documents from localStorage on mount
   useEffect(() => {
@@ -97,6 +109,31 @@ export default function Documents() {
     // Reset form and close modal
     resetForm();
     setShowCreateModal(false);
+  };
+
+  const handleInitiateDelete = (documentId: string) => {
+    setDocumentToDelete(documentId);
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (documentToDelete) {
+      // Remove document from array
+      const updatedDocuments = documents.filter(doc => doc.id !== documentToDelete);
+      setDocuments(updatedDocuments);
+
+      // Update localStorage
+      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+
+      // Close dialog and reset state
+      setShowDeleteDialog(false);
+      setDocumentToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteDialog(false);
+    setDocumentToDelete(null);
   };
 
   return (
@@ -269,6 +306,27 @@ export default function Documents() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this document? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Approved Card */}
         <Card>
@@ -433,6 +491,14 @@ export default function Documents() {
                                     <Upload className="h-4 w-4 mr-2" />
                                     Edit
                                   </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleInitiateDelete(doc.id)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                  </Button>
                                 </>
                               ) : !isExpired ? (
                                 <>
@@ -444,12 +510,30 @@ export default function Documents() {
                                     <Upload className="h-4 w-4 mr-2" />
                                     Update
                                   </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleInitiateDelete(doc.id)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                  </Button>
                                 </>
                               ) : (
-                                <Button className="w-full bg-red-600 hover:bg-red-700">
-                                  <Upload className="h-4 w-4 mr-2" />
-                                  Upload Document
-                                </Button>
+                                <>
+                                  <Button className="flex-1 bg-red-600 hover:bg-red-700">
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Upload Document
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleInitiateDelete(doc.id)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </div>
