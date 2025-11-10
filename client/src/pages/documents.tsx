@@ -1054,12 +1054,20 @@ export default function Documents() {
 
                 {/* User Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {users.length === 0 ? (
+                  {users.filter(u => {
+                    const role = u.role?.toLowerCase();
+                    return role !== "owner" && role !== "admin";
+                  }).length === 0 ? (
                     <div className="col-span-3 text-center py-12 text-muted-foreground">
                       No users found
                     </div>
                   ) : (
-                    users.map((user) => {
+                    users
+                      .filter(u => {
+                        const role = u.role?.toLowerCase();
+                        return role !== "owner" && role !== "admin";
+                      })
+                      .map((user) => {
                       // Calculate document completion for this user
                       // For now, we'll use placeholder values since user documents are stored per-user
                       const totalDocuments = documents.filter(d => !d.status).length; // document requirements
