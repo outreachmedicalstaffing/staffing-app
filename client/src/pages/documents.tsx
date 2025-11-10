@@ -258,6 +258,38 @@ export default function Documents() {
     setShowUploadModal(false);
   };
 
+  const handleApproveDocument = (documentId: string) => {
+    // Update document status to approved
+    const updatedDocuments = documents.map(doc => {
+      if (doc.id === documentId) {
+        return {
+          ...doc,
+          status: "approved" as const,
+        };
+      }
+      return doc;
+    });
+
+    setDocuments(updatedDocuments);
+    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+  };
+
+  // Calculate document counts
+  const approvedCount = documents.filter(doc =>
+    doc.status === "approved" &&
+    (!doc.expirationDate || new Date(doc.expirationDate) >= new Date())
+  ).length;
+
+  const pendingCount = documents.filter(doc =>
+    doc.status === "pending"
+  ).length;
+
+  const expiredCount = documents.filter(doc =>
+    doc.expirationDate &&
+    doc.status !== undefined &&
+    new Date(doc.expirationDate) < new Date()
+  ).length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -549,7 +581,7 @@ export default function Documents() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold">1</div>
+                <div className="text-3xl font-bold">{approvedCount}</div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Documents approved
                 </p>
@@ -564,7 +596,7 @@ export default function Documents() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold">0</div>
+                <div className="text-3xl font-bold">{pendingCount}</div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Awaiting approval
                 </p>
@@ -579,7 +611,7 @@ export default function Documents() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold">1</div>
+                <div className="text-3xl font-bold">{expiredCount}</div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Expired or expiring
                 </p>
@@ -666,10 +698,12 @@ export default function Documents() {
                                   className={
                                     isExpired
                                       ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                      : doc.status === "pending"
+                                      ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
                                       : "bg-green-100 text-green-800 hover:bg-green-100"
                                   }
                                 >
-                                  {isExpired ? "Expired" : "Approved"}
+                                  {isExpired ? "Expired" : doc.status === "pending" ? "Pending Review" : "Approved"}
                                 </Badge>
                               )}
                             </div>
@@ -746,12 +780,23 @@ export default function Documents() {
                               ) : !isExpired ? (
                                 // Uploaded document (not expired)
                                 isAdmin ? (
-                                  // Admin view: View, Edit, Delete
+                                  // Admin view: View, Edit, Delete, and Approve for pending
                                   <>
                                     <Button variant="outline" size="sm">
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
+                                    {doc.status === "pending" && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleApproveDocument(doc.id)}
+                                        className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -789,12 +834,23 @@ export default function Documents() {
                               ) : (
                                 // Expired document
                                 isAdmin ? (
-                                  // Admin view: View, Edit, Delete
+                                  // Admin view: View, Edit, Delete, and Approve for pending
                                   <>
                                     <Button variant="outline" size="sm">
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
+                                    {doc.status === "pending" && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleApproveDocument(doc.id)}
+                                        className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="outline"
                                       size="sm"
