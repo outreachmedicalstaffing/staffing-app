@@ -980,7 +980,11 @@ export default function Documents() {
                                 isAdmin ? (
                                   // Admin view: Edit and Delete
                                   <>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewDocument(doc)}
+                                    >
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
@@ -1004,7 +1008,11 @@ export default function Documents() {
                                 ) : (
                                   // Regular user view: View and Upload
                                   <>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewDocument(doc)}
+                                    >
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
@@ -1023,7 +1031,11 @@ export default function Documents() {
                                 isAdmin ? (
                                   // Admin view: View, Edit, Delete, and Approve for pending
                                   <>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewDocument(doc)}
+                                    >
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
@@ -1058,7 +1070,11 @@ export default function Documents() {
                                 ) : (
                                   // Regular user view: View and Upload
                                   <>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewDocument(doc)}
+                                    >
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
@@ -1077,7 +1093,11 @@ export default function Documents() {
                                 isAdmin ? (
                                   // Admin view: View, Edit, Delete, and Approve for pending
                                   <>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewDocument(doc)}
+                                    >
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
