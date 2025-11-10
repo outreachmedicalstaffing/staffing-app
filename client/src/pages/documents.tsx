@@ -2,12 +2,36 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X } from "lucide-react";
 
 export default function Documents() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [documentTitle, setDocumentTitle] = useState("");
+  const [documentDescription, setDocumentDescription] = useState("");
+
+  const handleSaveDocument = () => {
+    if (!documentTitle.trim()) {
+      alert("Please enter a document title");
+      return;
+    }
+    console.log("Saving document:", { documentTitle, documentDescription });
+    // Reset form and close modal
+    setDocumentTitle("");
+    setDocumentDescription("");
+    setShowCreateModal(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -20,14 +44,68 @@ export default function Documents() {
         </div>
         <Button
           className="bg-red-600 hover:bg-red-700"
-          onClick={() => {
-            console.log("Create Document clicked");
-          }}
+          onClick={() => setShowCreateModal(true)}
         >
           <Plus className="h-4 w-4 mr-2" />
           Create Document
         </Button>
       </div>
+
+      {/* Create Document Modal */}
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create Document</DialogTitle>
+            <DialogDescription>
+              Create a new document requirement
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="document-title">
+                Document Title <span className="text-red-600">*</span>
+              </Label>
+              <Input
+                id="document-title"
+                placeholder="e.g., RN License, CPR Certification"
+                value={documentTitle}
+                onChange={(e) => setDocumentTitle(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="document-description">Description</Label>
+              <Textarea
+                id="document-description"
+                placeholder="Optional description of the document"
+                value={documentDescription}
+                onChange={(e) => setDocumentDescription(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDocumentTitle("");
+                setDocumentDescription("");
+                setShowCreateModal(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleSaveDocument}
+            >
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Approved Card */}
