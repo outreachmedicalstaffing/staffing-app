@@ -35,6 +35,8 @@ interface Document {
   expirationDate: string;
   uploadedDate: string;
   fileName?: string;
+  fileData?: string; // base64 encoded file data
+  fileType?: string; // MIME type
   notes: string;
   visibleToUsers: boolean;
   enableUserUpload: boolean;
@@ -66,6 +68,8 @@ export default function Documents() {
   const [uploadExpirationDate, setUploadExpirationDate] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserDocumentsModal, setShowUserDocumentsModal] = useState(false);
+  const [showFilePreview, setShowFilePreview] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
 
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
@@ -215,7 +219,7 @@ export default function Documents() {
     setShowUploadModal(true);
   };
 
-  const handleSaveUpload = () => {
+  const handleSaveUpload = async () => {
     if (!uploadModalFile) {
       alert("Please select a file to upload");
       return;
@@ -229,6 +233,14 @@ export default function Documents() {
       return;
     }
 
+    // Convert file to base64
+    const fileData = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(uploadModalFile);
+    });
+
     // Determine status based on requireReview setting
     const status: "approved" | "pending" = documentToUpload.requireReview ? "pending" : "approved";
 
@@ -238,6 +250,8 @@ export default function Documents() {
         return {
           ...doc,
           fileName: uploadModalFile.name,
+          fileData: fileData,
+          fileType: uploadModalFile.type,
           uploadedDate: new Date().toISOString().split('T')[0],
           expirationDate: uploadExpirationDate || doc.expirationDate,
           notes: uploadNotes,
@@ -293,14 +307,37 @@ export default function Documents() {
   };
 
   const handleViewDocument = (doc: Document) => {
-    // In a real application, this would open the uploaded file
-    // For now, show an alert with document info
-    if (doc.fileName) {
-      alert(`Document: ${doc.fileName}\n\nIn a production environment, this would open the uploaded file for preview.`);
-      // TODO: Replace with actual file viewing logic
-      // window.open(doc.fileUrl, '_blank');
-    } else {
+    if (!doc.fileData) {
       alert("No file uploaded for this document.");
+      return;
+    }
+
+    // Check file type
+    const fileType = doc.fileType || '';
+
+    // For PDFs, open in new tab
+    if (fileType === 'application/pdf') {
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(
+          `<iframe src="${doc.fileData}" style="width:100%; height:100%; border:none;" title="${doc.fileName}"></iframe>`
+        );
+        newWindow.document.title = doc.fileName || 'Document Preview';
+      }
+    }
+    // For images, show in modal
+    else if (fileType.startsWith('image/')) {
+      setPreviewDocument(doc);
+      setShowFilePreview(true);
+    }
+    // For other files, download
+    else {
+      const link = document.createElement('a');
+      link.href = doc.fileData;
+      link.download = doc.fileName || 'document';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -727,6 +764,49 @@ export default function Documents() {
 
           <div className="flex justify-end">
             <Button variant="outline" onClick={handleCloseUserDocuments}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Preview Modal */}
+      <Dialog open={showFilePreview} onOpenChange={setShowFilePreview}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{previewDocument?.fileName || "Document Preview"}</DialogTitle>
+            <DialogDescription>
+              {previewDocument?.title}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 overflow-auto max-h-[70vh] flex items-center justify-center">
+            {previewDocument?.fileData && (
+              <img
+                src={previewDocument.fileData}
+                alt={previewDocument.fileName || "Document"}
+                className="max-w-full h-auto"
+              />
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            {previewDocument?.fileData && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = previewDocument.fileData!;
+                  link.download = previewDocument.fileName || 'document';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+              >
+                Download
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowFilePreview(false)}>
               Close
             </Button>
           </div>
