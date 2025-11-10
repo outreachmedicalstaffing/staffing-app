@@ -14,7 +14,6 @@ import Dashboard from "@/pages/dashboard";
 import Clock from "@/pages/clock";
 import Schedule from "@/pages/schedule";
 import Timesheets from "@/pages/timesheets";
-import Documents from "@/pages/documents";
 import Knowledge from "@/pages/knowledge";
 import Updates from "@/pages/updates";
 import Users from "@/pages/users";
@@ -57,7 +56,6 @@ function AuthenticatedRouter() {
       <Route path="/clock" component={Clock} />
       <Route path="/schedule" component={Schedule} />
       <Route path="/timesheets" component={Timesheets} />
-      <Route path="/documents" component={Documents} />
       <Route path="/knowledge" component={Knowledge} />
       <Route path="/updates" component={Updates} />
       <Route path="/users" component={Users} />
