@@ -20,16 +20,32 @@ export default function Documents() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [documentTitle, setDocumentTitle] = useState("");
   const [documentDescription, setDocumentDescription] = useState("");
+  const [expirationDate, setExpirationDate] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [notes, setNotes] = useState("");
+
+  const resetForm = () => {
+    setDocumentTitle("");
+    setDocumentDescription("");
+    setExpirationDate("");
+    setUploadFile(null);
+    setNotes("");
+  };
 
   const handleSaveDocument = () => {
     if (!documentTitle.trim()) {
       alert("Please enter a document title");
       return;
     }
-    console.log("Saving document:", { documentTitle, documentDescription });
+    console.log("Saving document:", {
+      documentTitle,
+      documentDescription,
+      expirationDate,
+      uploadFile: uploadFile?.name,
+      notes,
+    });
     // Reset form and close modal
-    setDocumentTitle("");
-    setDocumentDescription("");
+    resetForm();
     setShowCreateModal(false);
   };
 
@@ -61,7 +77,7 @@ export default function Documents() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
             <div className="space-y-2">
               <Label htmlFor="document-title">
                 Document Title <span className="text-red-600">*</span>
@@ -81,7 +97,46 @@ export default function Documents() {
                 placeholder="Optional description of the document"
                 value={documentDescription}
                 onChange={(e) => setDocumentDescription(e.target.value)}
-                rows={4}
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="expiration-date">Expiration Date</Label>
+              <Input
+                id="expiration-date"
+                type="date"
+                placeholder="mm/dd/yyyy"
+                value={expirationDate}
+                onChange={(e) => setExpirationDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="upload-file">Upload File</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="upload-file"
+                  type="file"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  className="cursor-pointer"
+                />
+              </div>
+              {uploadFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {uploadFile.name}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                placeholder="Optional notes about this document"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
               />
             </div>
           </div>
@@ -90,8 +145,7 @@ export default function Documents() {
             <Button
               variant="outline"
               onClick={() => {
-                setDocumentTitle("");
-                setDocumentDescription("");
+                resetForm();
                 setShowCreateModal(false);
               }}
             >
