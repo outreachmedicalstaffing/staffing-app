@@ -292,6 +292,18 @@ export default function Documents() {
     setShowUserDocumentsModal(false);
   };
 
+  const handleViewDocument = (doc: Document) => {
+    // In a real application, this would open the uploaded file
+    // For now, show an alert with document info
+    if (doc.fileName) {
+      alert(`Document: ${doc.fileName}\n\nIn a production environment, this would open the uploaded file for preview.`);
+      // TODO: Replace with actual file viewing logic
+      // window.open(doc.fileUrl, '_blank');
+    } else {
+      alert("No file uploaded for this document.");
+    }
+  };
+
   // Helper function to get user initials
   const getInitials = (fullName: string): string => {
     const names = fullName.trim().split(" ");
@@ -674,27 +686,37 @@ export default function Documents() {
                             </Badge>
                           </div>
 
-                          {doc.status === "pending" && (
-                            <div className="flex gap-2 pt-2 border-t">
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveDocument(doc.id)}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleInitiateDelete(doc.id)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            {doc.status === "pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApproveDocument(doc.id)}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleInitiateDelete(doc.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <X className="h-4 w-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
