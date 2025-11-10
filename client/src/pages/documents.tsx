@@ -1319,42 +1319,77 @@ export default function Documents() {
                       const totalDocuments = documents.filter(d => !d.status && d.enableUserUpload).length;
                       // Documents uploaded by this specific user
                       const uploadedDocuments = documents.filter(d => d.status && d.userId === user.id).length;
+                      // Pending documents for this user
+                      const pendingDocuments = documents.filter(d => d.status === "pending" && d.userId === user.id).length;
 
-                      return (
-                        <Card
-                          key={user.id}
-                          className="cursor-pointer hover:shadow-lg transition-shadow"
-                          onClick={() => handleViewUserDocuments(user)}
-                        >
-                          <CardContent className="pt-6">
-                            <div className="flex items-start space-x-4">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                <span className="text-lg font-semibold">
-                                  {getInitials(user.fullName)}
+                      return {
+                        user,
+                        totalDocuments,
+                        uploadedDocuments,
+                        pendingDocuments,
+                      };
+                    })
+                    .sort((a, b) => {
+                      // Sort users with pending documents to the top
+                      if (a.pendingDocuments > 0 && b.pendingDocuments === 0) return -1;
+                      if (a.pendingDocuments === 0 && b.pendingDocuments > 0) return 1;
+                      // Then sort by pending count descending
+                      if (a.pendingDocuments !== b.pendingDocuments) {
+                        return b.pendingDocuments - a.pendingDocuments;
+                      }
+                      // Finally sort alphabetically by name
+                      return a.user.fullName.localeCompare(b.user.fullName);
+                    })
+                    .map(({ user, totalDocuments, uploadedDocuments, pendingDocuments }) => (
+                      <Card
+                        key={user.id}
+                        className={`cursor-pointer hover:shadow-lg transition-all ${
+                          pendingDocuments > 0
+                            ? "border-blue-300 bg-blue-50/50 shadow-md"
+                            : ""
+                        }`}
+                        onClick={() => handleViewUserDocuments(user)}
+                      >
+                        <CardContent className="pt-6">
+                          <div className="flex items-start space-x-4">
+                            <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <span className="text-lg font-semibold">
+                                {getInitials(user.fullName)}
+                              </span>
+                              {pendingDocuments > 0 && (
+                                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
+                                  {pendingDocuments}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold truncate">{user.fullName}</h3>
+                                {pendingDocuments > 0 && (
+                                  <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
+                                    {pendingDocuments} pending
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground capitalize">
+                                {user.role}
+                              </p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-green-600 h-2 rounded-full transition-all"
+                                    style={{ width: `${totalDocuments > 0 ? (uploadedDocuments / totalDocuments) * 100 : 0}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {uploadedDocuments}/{totalDocuments}
                                 </span>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold truncate">{user.fullName}</h3>
-                                <p className="text-sm text-muted-foreground capitalize">
-                                  {user.role}
-                                </p>
-                                <div className="mt-2 flex items-center gap-2">
-                                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className="bg-green-600 h-2 rounded-full transition-all"
-                                      style={{ width: `${totalDocuments > 0 ? (uploadedDocuments / totalDocuments) * 100 : 0}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                    {uploadedDocuments}/{totalDocuments}
-                                  </span>
-                                </div>
-                              </div>
                             </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )))
                   )}
                 </div>
               </div>

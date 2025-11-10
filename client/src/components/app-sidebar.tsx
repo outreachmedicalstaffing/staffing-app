@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -56,10 +57,48 @@ function getInitials(fullName: string): string {
 
 export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
   const [location] = useLocation();
+  const [pendingDocumentsCount, setPendingDocumentsCount] = useState(0);
 
   const { data: currentUser, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
+
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+
+  // Calculate total pending documents for admins
+  useEffect(() => {
+    if (!isAdmin) {
+      setPendingDocumentsCount(0);
+      return;
+    }
+
+    const updatePendingCount = () => {
+      try {
+        const storedDocuments = localStorage.getItem("documents");
+        if (storedDocuments) {
+          const documents = JSON.parse(storedDocuments);
+          const pendingCount = documents.filter((d: any) => d.status === "pending").length;
+          setPendingDocumentsCount(pendingCount);
+        }
+      } catch (error) {
+        console.error("Error reading documents from localStorage:", error);
+      }
+    };
+
+    // Initial load
+    updatePendingCount();
+
+    // Listen for storage changes
+    window.addEventListener("storage", updatePendingCount);
+
+    // Poll for changes every 2 seconds (in case changes happen in same tab)
+    const interval = setInterval(updatePendingCount, 2000);
+
+    return () => {
+      window.removeEventListener("storage", updatePendingCount);
+      clearInterval(interval);
+    };
+  }, [isAdmin]);
 
   return (
     <Sidebar>
@@ -90,6 +129,11 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
+                      {item.title === "Documents" && isAdmin && pendingDocumentsCount > 0 && (
+                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
+                          {pendingDocumentsCount}
+                        </span>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
