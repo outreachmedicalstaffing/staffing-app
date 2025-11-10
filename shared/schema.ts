@@ -361,6 +361,12 @@ export const insertDocumentSchema = createInsertSchema(documents)
   .omit({
     id: true,
     uploadedDate: true, // Omit uploadedDate since it has defaultNow()
+  })
+  .extend({
+    // Make checkbox fields optional since they have defaults in the database
+    visibleToUsers: z.boolean().optional(),
+    enableUserUpload: z.boolean().optional(),
+    requireReview: z.boolean().optional(),
   });
   // Note: userId is required - backend adds it from session before validation
 
