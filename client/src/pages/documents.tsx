@@ -38,6 +38,7 @@ export default function Documents() {
 
   const uploadMutation = useMutation({
     mutationFn: async (documentData: any) => {
+      console.log('Sending document data:', documentData);
       const response = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,7 +47,18 @@ export default function Documents() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || 'Failed to save document';
+        console.error('Server error response:', errorData);
+
+        // Handle Zod validation errors (array of error objects)
+        if (Array.isArray(errorData.error)) {
+          const errorMessages = errorData.error.map((err: any) =>
+            `${err.path?.join('.') || 'Field'}: ${err.message}`
+          ).join('\n');
+          throw new Error(errorMessages);
+        }
+
+        // Handle simple error message
+        const errorMessage = errorData.error || errorData.message || 'Failed to save document';
         throw new Error(errorMessage);
       }
 
@@ -60,7 +72,7 @@ export default function Documents() {
     },
     onError: (error: Error) => {
       console.error('Failed to save document:', error);
-      alert(`Error: ${error.message}`);
+      alert(`Error saving document:\n\n${error.message}`);
     },
   });
 
@@ -126,18 +138,19 @@ export default function Documents() {
 
     // Prepare document data
     const documentData = {
-      title: uploadTitle,
-      description: uploadDescription || undefined,
+      title: uploadTitle.trim(),
+      description: uploadDescription?.trim() || undefined,
       category: uploadCategory,
       fileType: uploadFileType || undefined,
-      fileUrl: uploadFile ? `/uploads/${uploadFile.name}` : undefined, // In a real app, upload file first
+      fileUrl: uploadFile ? `/uploads/${uploadFile.name}` : undefined,
       status: "submitted",
       expiryDate: uploadExpiryDate ? new Date(uploadExpiryDate).toISOString() : undefined,
-      notes: uploadNotes || undefined,
-      uploadedDate: new Date().toISOString(),
-      visibleToUsers,
-      enableUserUpload,
-      requireReview: enableUserUpload ? requireReview : false,
+      notes: uploadNotes?.trim() || undefined,
+      // Don't send uploadedDate - it's auto-set by the database with defaultNow()
+      // Don't send userId - it's set by the backend from the session
+      visibleToUsers: Boolean(visibleToUsers),
+      enableUserUpload: Boolean(enableUserUpload),
+      requireReview: enableUserUpload ? Boolean(requireReview) : false,
     };
 
     uploadMutation.mutate(documentData);

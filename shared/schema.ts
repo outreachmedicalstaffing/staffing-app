@@ -357,9 +357,14 @@ export const documents = pgTable("documents", {
   requireReview: boolean("require_review").notNull().default(true), // Require review for user uploads
 });
 
-export const insertDocumentSchema = createInsertSchema(documents).omit({
-  id: true,
-});
+export const insertDocumentSchema = createInsertSchema(documents)
+  .omit({
+    id: true,
+    uploadedDate: true, // Omit uploadedDate since it has defaultNow()
+  })
+  .extend({
+    userId: z.string().optional(), // Make userId optional for inserts since backend sets it from session
+  });
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
