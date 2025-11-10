@@ -68,8 +68,8 @@ export default function Documents() {
     queryKey: ["/api/auth/me"],
   });
 
-  // Check if user is admin or owner
-  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+  // Check if user is admin or owner (case-insensitive check)
+  const isAdmin = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
 
   // Load documents from localStorage on mount
   useEffect(() => {
