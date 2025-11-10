@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash } from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash, User as UserIcon } from "lucide-react";
 
 interface Document {
   id: string;
@@ -64,10 +64,18 @@ export default function Documents() {
   const [uploadModalFile, setUploadModalFile] = useState<File | null>(null);
   const [uploadNotes, setUploadNotes] = useState("");
   const [uploadExpirationDate, setUploadExpirationDate] = useState("");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserDocumentsModal, setShowUserDocumentsModal] = useState(false);
 
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/auth/me"],
+  });
+
+  // Fetch all users (for admins)
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    enabled: currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin",
   });
 
   // Check if user is admin or owner (case-insensitive check)
@@ -272,6 +280,25 @@ export default function Documents() {
 
     setDocuments(updatedDocuments);
     localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+  };
+
+  const handleViewUserDocuments = (user: User) => {
+    setSelectedUser(user);
+    setShowUserDocumentsModal(true);
+  };
+
+  const handleCloseUserDocuments = () => {
+    setSelectedUser(null);
+    setShowUserDocumentsModal(false);
+  };
+
+  // Helper function to get user initials
+  const getInitials = (fullName: string): string => {
+    const names = fullName.trim().split(" ");
+    if (names.length === 1) {
+      return names[0].substring(0, 2).toUpperCase();
+    }
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
 
   // Calculate document counts
@@ -575,6 +602,115 @@ export default function Documents() {
         </DialogContent>
       </Dialog>
 
+      {/* User Documents Modal */}
+      <Dialog open={showUserDocumentsModal} onOpenChange={setShowUserDocumentsModal}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedUser?.fullName}'s Documents
+            </DialogTitle>
+            <DialogDescription>
+              View and manage document submissions for {selectedUser?.fullName}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 overflow-y-auto max-h-[60vh]">
+            {documents.filter(d => d.status).length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No documents uploaded yet
+              </div>
+            ) : (
+              documents
+                .filter(d => d.status) // Only show uploaded documents
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
+
+                  const isExpired = doc.expirationDate && doc.status !== undefined
+                    ? new Date(doc.expirationDate) < new Date()
+                    : false;
+
+                  return (
+                    <Card key={doc.id}>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <FileText className="h-6 w-6 text-blue-600 mt-1" />
+                              <div className="flex-1">
+                                <h3 className="font-semibold">{doc.title}</h3>
+                                {doc.description && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {doc.description}
+                                  </p>
+                                )}
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className={`text-sm mt-1 ${isExpired ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge
+                              className={
+                                isExpired
+                                  ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                  : doc.status === "pending"
+                                  ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                  : "bg-green-100 text-green-800 hover:bg-green-100"
+                              }
+                            >
+                              {isExpired ? "Expired" : doc.status === "pending" ? "Pending Review" : "Approved"}
+                            </Badge>
+                          </div>
+
+                          {doc.status === "pending" && (
+                            <div className="flex gap-2 pt-2 border-t">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveDocument(doc.id)}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleInitiateDelete(doc.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={handleCloseUserDocuments}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Approved Card */}
         <Card>
@@ -641,6 +777,9 @@ export default function Documents() {
             <TabsTrigger value="my-documents">My Documents</TabsTrigger>
             <TabsTrigger value="required">Required</TabsTrigger>
             <TabsTrigger value="document-packs">Document Packs</TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="user-documents">User Documents</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="my-documents" className="mt-4">
@@ -901,6 +1040,71 @@ export default function Documents() {
               Document Packs content will go here
             </div>
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="user-documents" className="mt-4">
+              <div className="space-y-4">
+                {/* Section Header */}
+                <div>
+                  <h2 className="text-xl font-semibold">User Documents</h2>
+                  <p className="text-sm text-muted-foreground">
+                    View and manage document submissions from all users
+                  </p>
+                </div>
+
+                {/* User Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {users.length === 0 ? (
+                    <div className="col-span-3 text-center py-12 text-muted-foreground">
+                      No users found
+                    </div>
+                  ) : (
+                    users.map((user) => {
+                      // Calculate document completion for this user
+                      // For now, we'll use placeholder values since user documents are stored per-user
+                      const totalDocuments = documents.filter(d => !d.status).length; // document requirements
+                      const uploadedDocuments = 0; // placeholder - would need to track per user
+
+                      return (
+                        <Card
+                          key={user.id}
+                          className="cursor-pointer hover:shadow-lg transition-shadow"
+                          onClick={() => handleViewUserDocuments(user)}
+                        >
+                          <CardContent className="pt-6">
+                            <div className="flex items-start space-x-4">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <span className="text-lg font-semibold">
+                                  {getInitials(user.fullName)}
+                                </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold truncate">{user.fullName}</h3>
+                                <p className="text-sm text-muted-foreground capitalize">
+                                  {user.role}
+                                </p>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className="bg-green-600 h-2 rounded-full transition-all"
+                                      style={{ width: `${totalDocuments > 0 ? (uploadedDocuments / totalDocuments) * 100 : 0}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {uploadedDocuments}/{totalDocuments}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
