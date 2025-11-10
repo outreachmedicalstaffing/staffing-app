@@ -1654,11 +1654,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create document
   app.post("/api/documents", requireAuth, async (req, res) => {
     try {
-      const data = insertDocumentSchema.parse(req.body);
-      const document = await storage.createDocument({
-        ...data,
-        userId: data.userId || req.session.userId!,
-      });
+      // Add userId to request body before validation (required for document creation)
+      const requestData = {
+        ...req.body,
+        userId: req.body.userId || req.session.userId!,
+      };
+
+      const data = insertDocumentSchema.parse(requestData);
+      const document = await storage.createDocument(data);
 
       await logAudit(
         req.session.userId,

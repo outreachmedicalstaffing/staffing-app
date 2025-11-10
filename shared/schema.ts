@@ -361,10 +361,8 @@ export const insertDocumentSchema = createInsertSchema(documents)
   .omit({
     id: true,
     uploadedDate: true, // Omit uploadedDate since it has defaultNow()
-  })
-  .extend({
-    userId: z.string().optional(), // Make userId optional for inserts since backend sets it from session
   });
+  // Note: userId is required - backend adds it from session before validation
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
