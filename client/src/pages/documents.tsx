@@ -27,9 +27,6 @@ export default function Documents() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadExpiryDate, setUploadExpiryDate] = useState("");
   const [uploadNotes, setUploadNotes] = useState("");
-  const [visibleToUsers, setVisibleToUsers] = useState(true);
-  const [enableUserUpload, setEnableUserUpload] = useState(true);
-  const [requireReview, setRequireReview] = useState(true);
 
   const { data: documents = [], isLoading } = useQuery<Document[]>({
     queryKey: ['/api/documents'],
@@ -119,9 +116,6 @@ export default function Documents() {
     setUploadFile(null);
     setUploadExpiryDate("");
     setUploadNotes("");
-    setVisibleToUsers(true);
-    setEnableUserUpload(true);
-    setRequireReview(true);
   };
 
   const handleOpenUploadModal = () => {
@@ -151,9 +145,7 @@ export default function Documents() {
       notes: uploadNotes?.trim() || undefined,
       // Don't send uploadedDate - it's auto-set by the database with defaultNow()
       // Don't send userId - it's set by the backend from the session
-      visibleToUsers: Boolean(visibleToUsers),
-      enableUserUpload: Boolean(enableUserUpload),
-      requireReview: enableUserUpload ? Boolean(requireReview) : false,
+      // Don't send checkbox fields - they have defaults in the database
     };
 
     console.log('[handleUploadDocument] Document data prepared:', documentData);
@@ -371,64 +363,6 @@ export default function Documents() {
                 placeholder="Optional notes about this document"
                 rows={3}
               />
-            </div>
-
-            <div className="space-y-4 pt-2">
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="visible-to-users"
-                  checked={visibleToUsers}
-                  onCheckedChange={(checked) => setVisibleToUsers(checked as boolean)}
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label
-                    htmlFor="visible-to-users"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Visible to users in the mobile app
-                  </Label>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="enable-user-upload"
-                  checked={enableUserUpload}
-                  onCheckedChange={(checked) => setEnableUserUpload(checked as boolean)}
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label
-                    htmlFor="enable-user-upload"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Enable users to upload via the mobile app and user's view
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    If disabled only owners and admins can upload documents
-                  </p>
-                </div>
-              </div>
-
-              {enableUserUpload && (
-                <div className="flex items-start space-x-2 pl-6">
-                  <Checkbox
-                    id="require-review"
-                    checked={requireReview}
-                    onCheckedChange={(checked) => setRequireReview(checked as boolean)}
-                  />
-                  <div className="grid gap-1.5 leading-none">
-                    <Label
-                      htmlFor="require-review"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Require review for uploaded documents
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Only for documents uploaded by users
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
