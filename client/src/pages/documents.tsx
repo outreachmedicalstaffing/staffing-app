@@ -60,7 +60,7 @@ export default function Documents() {
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [documentToUpload, setDocumentToUpload] = useState<Document | null>(null);
-  const [uploadFile, setUploadModalFile] = useState<File | null>(null);
+  const [uploadModalFile, setUploadModalFile] = useState<File | null>(null);
   const [uploadNotes, setUploadNotes] = useState("");
 
   // Get current user to check role
@@ -203,7 +203,7 @@ export default function Documents() {
   };
 
   const handleSaveUpload = () => {
-    if (!uploadFile) {
+    if (!uploadModalFile) {
       alert("Please select a file to upload");
       return;
     }
@@ -218,7 +218,7 @@ export default function Documents() {
       if (doc.id === documentToUpload.id) {
         return {
           ...doc,
-          fileName: uploadFile.name,
+          fileName: uploadModalFile.name,
           uploadedDate: new Date().toISOString().split('T')[0],
           notes: uploadNotes,
           status: status,
@@ -458,9 +458,9 @@ export default function Documents() {
                 onChange={(e) => setUploadModalFile(e.target.files?.[0] || null)}
                 className="cursor-pointer"
               />
-              {uploadFile && (
+              {uploadModalFile && (
                 <p className="text-sm text-muted-foreground">
-                  Selected: {uploadFile.name}
+                  Selected: {uploadModalFile.name}
                 </p>
               )}
             </div>
