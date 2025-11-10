@@ -26,7 +26,6 @@ export default function Documents() {
   const [uploadFileType, setUploadFileType] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadExpiryDate, setUploadExpiryDate] = useState("");
-  const [uploadStatus, setUploadStatus] = useState("submitted");
   const [uploadNotes, setUploadNotes] = useState("");
 
   const { data: documents = [], isLoading } = useQuery<Document[]>({
@@ -92,7 +91,6 @@ export default function Documents() {
     setUploadFileType("");
     setUploadFile(null);
     setUploadExpiryDate("");
-    setUploadStatus("submitted");
     setUploadNotes("");
   };
 
@@ -120,7 +118,7 @@ export default function Documents() {
       category: uploadCategory,
       fileType: uploadFileType || undefined,
       fileUrl: uploadFile ? `/uploads/${uploadFile.name}` : undefined, // In a real app, upload file first
-      status: uploadStatus,
+      status: "submitted",
       expiryDate: uploadExpiryDate ? new Date(uploadExpiryDate).toISOString() : undefined,
       notes: uploadNotes || undefined,
       uploadedDate: new Date().toISOString(),
@@ -302,38 +300,22 @@ export default function Documents() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="upload-category">Document Type *</Label>
-                <Select value={uploadCategory} onValueChange={setUploadCategory}>
-                  <SelectTrigger id="upload-category">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="license">License</SelectItem>
-                    <SelectItem value="certification">Certification</SelectItem>
-                    <SelectItem value="background-check">Background Check</SelectItem>
-                    <SelectItem value="insurance">Insurance</SelectItem>
-                    <SelectItem value="identification">Identification</SelectItem>
-                    <SelectItem value="education">Education</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="upload-status">Status</Label>
-                <Select value={uploadStatus} onValueChange={setUploadStatus}>
-                  <SelectTrigger id="upload-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="submitted">Submitted</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="upload-category">Document Type *</Label>
+              <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                <SelectTrigger id="upload-category">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="license">License</SelectItem>
+                  <SelectItem value="certification">Certification</SelectItem>
+                  <SelectItem value="background-check">Background Check</SelectItem>
+                  <SelectItem value="insurance">Insurance</SelectItem>
+                  <SelectItem value="identification">Identification</SelectItem>
+                  <SelectItem value="education">Education</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
