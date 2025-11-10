@@ -691,15 +691,19 @@ export default function Documents() {
                               ) : !isExpired ? (
                                 // Uploaded document (not expired)
                                 isAdmin ? (
-                                  // Admin view: View, Update, Delete
+                                  // Admin view: View, Edit, Delete
                                   <>
                                     <Button variant="outline" size="sm">
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
                                     </Button>
-                                    <Button variant="outline" size="sm">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditDocument(doc)}
+                                    >
                                       <Upload className="h-4 w-4 mr-2" />
-                                      Update
+                                      Edit
                                     </Button>
                                     <Button
                                       variant="ghost"
@@ -730,11 +734,19 @@ export default function Documents() {
                               ) : (
                                 // Expired document
                                 isAdmin ? (
-                                  // Admin view: Upload and Delete
+                                  // Admin view: View, Edit, Delete
                                   <>
-                                    <Button className="flex-1 bg-red-600 hover:bg-red-700">
+                                    <Button variant="outline" size="sm">
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditDocument(doc)}
+                                    >
                                       <Upload className="h-4 w-4 mr-2" />
-                                      Upload Document
+                                      Edit
                                     </Button>
                                     <Button
                                       variant="ghost"
