@@ -42,7 +42,8 @@ interface Document {
   visibleToUsers: boolean;
   enableUserUpload: boolean;
   requireReview: boolean;
-  status?: "approved" | "expired" | "pending";
+  status?: "approved" | "expired" | "pending" | "rejected";
+  rejectionReason?: string;
 }
 
 export default function Documents() {
@@ -71,6 +72,9 @@ export default function Documents() {
   const [showUserDocumentsModal, setShowUserDocumentsModal] = useState(false);
   const [showFilePreview, setShowFilePreview] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [documentToReject, setDocumentToReject] = useState<Document | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
@@ -306,6 +310,47 @@ export default function Documents() {
 
     setDocuments(updatedDocuments);
     localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+  };
+
+  const handleInitiateReject = (doc: Document) => {
+    setDocumentToReject(doc);
+    setRejectionReason("");
+    setShowRejectModal(true);
+  };
+
+  const handleConfirmReject = () => {
+    if (!documentToReject) return;
+
+    if (!rejectionReason.trim()) {
+      alert("Please provide a reason for rejection");
+      return;
+    }
+
+    // Update document status to rejected with reason
+    const updatedDocuments = documents.map(doc => {
+      if (doc.id === documentToReject.id) {
+        return {
+          ...doc,
+          status: "rejected" as const,
+          rejectionReason: rejectionReason,
+        };
+      }
+      return doc;
+    });
+
+    setDocuments(updatedDocuments);
+    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+
+    // Reset and close modal
+    setShowRejectModal(false);
+    setDocumentToReject(null);
+    setRejectionReason("");
+  };
+
+  const handleCancelReject = () => {
+    setShowRejectModal(false);
+    setDocumentToReject(null);
+    setRejectionReason("");
   };
 
   const handleViewUserDocuments = (user: User) => {
@@ -726,14 +771,27 @@ export default function Documents() {
                               className={
                                 isExpired
                                   ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                  : doc.status === "rejected"
+                                  ? "bg-orange-100 text-orange-800 hover:bg-orange-100"
                                   : doc.status === "pending"
                                   ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
                                   : "bg-green-100 text-green-800 hover:bg-green-100"
                               }
                             >
-                              {isExpired ? "Expired" : doc.status === "pending" ? "Pending Review" : "Approved"}
+                              {isExpired ? "Expired" : doc.status === "rejected" ? "Rejected" : doc.status === "pending" ? "Pending Review" : "Approved"}
                             </Badge>
                           </div>
+
+                          {doc.status === "rejected" && doc.rejectionReason && (
+                            <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                              <p className="text-sm font-medium text-orange-800 mb-1">
+                                Rejection Reason
+                              </p>
+                              <p className="text-sm text-orange-700">
+                                {doc.rejectionReason}
+                              </p>
+                            </div>
+                          )}
 
                           <div className="flex gap-2 pt-2 border-t">
                             <Button
@@ -757,7 +815,7 @@ export default function Documents() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleInitiateDelete(doc.id)}
+                                  onClick={() => handleInitiateReject(doc)}
                                   className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                 >
                                   <X className="h-4 w-4 mr-2" />
@@ -820,6 +878,45 @@ export default function Documents() {
             )}
             <Button variant="outline" onClick={() => setShowFilePreview(false)}>
               Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Document Modal */}
+      <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Reject Document</DialogTitle>
+            <DialogDescription>
+              Provide a reason for rejecting {documentToReject?.title}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejection-reason">
+                Reason for rejection <span className="text-red-600">*</span>
+              </Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="Explain why this document is being rejected..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleCancelReject}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmReject}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Reject
             </Button>
           </div>
         </DialogContent>
@@ -951,12 +1048,14 @@ export default function Documents() {
                                   className={
                                     isExpired
                                       ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                      : doc.status === "rejected"
+                                      ? "bg-orange-100 text-orange-800 hover:bg-orange-100"
                                       : doc.status === "pending"
                                       ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
                                       : "bg-green-100 text-green-800 hover:bg-green-100"
                                   }
                                 >
-                                  {isExpired ? "Expired" : doc.status === "pending" ? "Pending Review" : "Approved"}
+                                  {isExpired ? "Expired" : doc.status === "rejected" ? "Rejected" : doc.status === "pending" ? "Pending Review" : "Approved"}
                                 </Badge>
                               )}
                             </div>
@@ -982,6 +1081,17 @@ export default function Documents() {
                               <div className="bg-red-50 border border-red-200 rounded-md p-3">
                                 <p className="text-sm text-red-800">
                                   This document has expired and needs renewal
+                                </p>
+                              </div>
+                            )}
+
+                            {doc.status === "rejected" && doc.rejectionReason && (
+                              <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                                <p className="text-sm font-medium text-orange-800 mb-1">
+                                  Document Rejected
+                                </p>
+                                <p className="text-sm text-orange-700">
+                                  {doc.rejectionReason}
                                 </p>
                               </div>
                             )}
