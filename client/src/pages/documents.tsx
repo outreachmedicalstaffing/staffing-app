@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash, User as UserIcon } from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash, User as UserIcon, Download } from "lucide-react";
 
 interface Document {
   id: string;
@@ -138,10 +138,24 @@ export default function Documents() {
     setShowCreateModal(true);
   };
 
-  const handleSaveDocument = () => {
+  const handleSaveDocument = async () => {
     if (!documentTitle.trim()) {
       alert("Please enter a document title");
       return;
+    }
+
+    // Convert file to base64 if a new file was uploaded
+    let fileData: string | undefined = undefined;
+    let fileType: string | undefined = undefined;
+
+    if (uploadFile) {
+      fileData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(uploadFile);
+      });
+      fileType = uploadFile.type;
     }
 
     if (isEditMode && editingDocumentId) {
@@ -155,6 +169,8 @@ export default function Documents() {
             hasExpiration: hasExpiration,
             expirationDate: hasExpiration ? expirationDate : "",
             fileName: uploadFile?.name || doc.fileName,
+            fileData: fileData || doc.fileData,
+            fileType: fileType || doc.fileType,
             notes: notes,
             visibleToUsers: visibleToUsers,
             enableUserUpload: enableUserUpload,
@@ -183,6 +199,8 @@ export default function Documents() {
         expirationDate: hasExpiration ? expirationDate : "",
         uploadedDate: currentDate,
         fileName: uploadFile?.name,
+        fileData: fileData,
+        fileType: fileType,
         notes: notes,
         visibleToUsers: visibleToUsers,
         enableUserUpload: enableUserUpload,
@@ -1107,8 +1125,18 @@ export default function Documents() {
                               {!hasStatus ? (
                                 // Document requirement/template
                                 isAdmin ? (
-                                  // Admin view: Edit and Delete
+                                  // Admin view: View Template (if exists), Edit and Delete
                                   <>
+                                    {doc.fileData && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleViewDocument(doc)}
+                                      >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        View Template
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -1127,16 +1155,18 @@ export default function Documents() {
                                     </Button>
                                   </>
                                 ) : (
-                                  // Regular user view: View and Upload
+                                  // Regular user view: View Template (if exists) and Upload
                                   <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleViewDocument(doc)}
-                                    >
-                                      <Eye className="h-4 w-4 mr-2" />
-                                      View
-                                    </Button>
+                                    {doc.fileData && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleViewDocument(doc)}
+                                      >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        View Template
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="outline"
                                       size="sm"
