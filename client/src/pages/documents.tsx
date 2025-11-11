@@ -1474,16 +1474,31 @@ export default function Documents() {
                       const uploadedDocuments = documents.filter(d => d.status && d.userId === user.id).length;
                       // Pending documents for this user
                       const pendingDocuments = documents.filter(d => d.status === "pending" && d.userId === user.id).length;
+                      // Expired documents for this user
+                      const expiredDocuments = documents.filter(d =>
+                        d.status &&
+                        d.userId === user.id &&
+                        d.expirationDate &&
+                        new Date(d.expirationDate) < new Date()
+                      ).length;
 
                       return {
                         user,
                         totalDocuments,
                         uploadedDocuments,
                         pendingDocuments,
+                        expiredDocuments,
                       };
                     })
                     .sort((a, b) => {
-                      // Sort users with pending documents to the top
+                      // Sort users with expired documents to the top (highest priority)
+                      if (a.expiredDocuments > 0 && b.expiredDocuments === 0) return -1;
+                      if (a.expiredDocuments === 0 && b.expiredDocuments > 0) return 1;
+                      // Then sort by expired count descending
+                      if (a.expiredDocuments !== b.expiredDocuments) {
+                        return b.expiredDocuments - a.expiredDocuments;
+                      }
+                      // Then sort users with pending documents
                       if (a.pendingDocuments > 0 && b.pendingDocuments === 0) return -1;
                       if (a.pendingDocuments === 0 && b.pendingDocuments > 0) return 1;
                       // Then sort by pending count descending
@@ -1493,11 +1508,13 @@ export default function Documents() {
                       // Finally sort alphabetically by name
                       return a.user.fullName.localeCompare(b.user.fullName);
                     })
-                    .map(({ user, totalDocuments, uploadedDocuments, pendingDocuments }) => (
+                    .map(({ user, totalDocuments, uploadedDocuments, pendingDocuments, expiredDocuments }) => (
                       <Card
                         key={user.id}
                         className={`cursor-pointer hover:shadow-lg transition-all ${
-                          pendingDocuments > 0
+                          expiredDocuments > 0
+                            ? "border-red-400 bg-red-50/50 shadow-md border-2"
+                            : pendingDocuments > 0
                             ? "border-blue-300 bg-blue-50/50 shadow-md"
                             : ""
                         }`}
@@ -1509,15 +1526,25 @@ export default function Documents() {
                               <span className="text-lg font-semibold">
                                 {getInitials(user.fullName)}
                               </span>
-                              {pendingDocuments > 0 && (
+                              {expiredDocuments > 0 ? (
                                 <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
+                                  {expiredDocuments}
+                                </div>
+                              ) : pendingDocuments > 0 ? (
+                                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">
                                   {pendingDocuments}
                                 </div>
-                              )}
+                              ) : null}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="font-semibold truncate">{user.fullName}</h3>
+                                {expiredDocuments > 0 && (
+                                  <Badge className="bg-red-600 hover:bg-red-700 text-white">
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    {expiredDocuments} expired
+                                  </Badge>
+                                )}
                                 {pendingDocuments > 0 && (
                                   <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
                                     {pendingDocuments} pending
