@@ -996,7 +996,6 @@ export default function Documents() {
           <TabsList>
             <TabsTrigger value="my-documents">My Documents</TabsTrigger>
             <TabsTrigger value="required">Required</TabsTrigger>
-            <TabsTrigger value="document-packs">Document Packs</TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="user-documents">User Documents</TabsTrigger>
             )}
@@ -1274,12 +1273,6 @@ export default function Documents() {
           <TabsContent value="required" className="mt-4">
             <div className="text-muted-foreground">
               Required documents content will go here
-            </div>
-          </TabsContent>
-
-          <TabsContent value="document-packs" className="mt-4">
-            <div className="text-muted-foreground">
-              Document Packs content will go here
             </div>
           </TabsContent>
 
