@@ -1159,7 +1159,15 @@ export default function Documents() {
                   </div>
                 ) : (
                   documents
-                    .filter(doc => isAdmin || doc.visibleToUsers) // Regular users only see visible documents
+                    .filter(doc => {
+                      if (isAdmin) {
+                        // Admins only see requirements (no status = templates)
+                        return !doc.status;
+                      } else {
+                        // Users see: visible requirements OR their own uploaded documents
+                        return (!doc.status && doc.visibleToUsers) || (doc.status && doc.userId === currentUser?.id);
+                      }
+                    })
                     .map((doc) => {
                     const formatDate = (dateString: string) => {
                       if (!dateString) return "N/A";
