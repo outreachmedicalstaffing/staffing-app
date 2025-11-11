@@ -1065,22 +1065,24 @@ export default function Documents() {
                               )}
                             </div>
 
-                            <div className="space-y-1 text-sm">
-                              <p className="text-muted-foreground">
-                                {hasStatus ? "Uploaded:" : "Created:"} {formatDate(doc.uploadedDate)}
-                              </p>
-                              {hasStatus && doc.expirationDate && (
-                                <p
-                                  className={
-                                    isExpired
-                                      ? "text-red-600 font-medium"
-                                      : "text-muted-foreground"
-                                  }
-                                >
-                                  Expires: {formatDate(doc.expirationDate)}
+                            {(hasStatus || isAdmin) && (
+                              <div className="space-y-1 text-sm">
+                                <p className="text-muted-foreground">
+                                  {hasStatus ? "Uploaded:" : "Created:"} {formatDate(doc.uploadedDate)}
                                 </p>
-                              )}
-                            </div>
+                                {hasStatus && doc.expirationDate && (
+                                  <p
+                                    className={
+                                      isExpired
+                                        ? "text-red-600 font-medium"
+                                        : "text-muted-foreground"
+                                    }
+                                  >
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            )}
 
                             {isExpired && (
                               <div className="bg-red-50 border border-red-200 rounded-md p-3">
