@@ -680,6 +680,16 @@ export default function Documents() {
                 </p>
               </div>
             )}
+            {documentToUpload?.notes && (
+              <div className="bg-amber-50 border border-amber-300 rounded-md p-3">
+                <p className="text-sm font-medium text-amber-900 mb-1">
+                  Instructions:
+                </p>
+                <p className="text-sm text-amber-800 whitespace-pre-wrap">
+                  {documentToUpload.notes}
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="upload-file-input">
                 File <span className="text-red-600">*</span>
