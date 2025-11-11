@@ -733,7 +733,9 @@ export default function Documents() {
                 .map((doc) => {
                   const formatDate = (dateString: string) => {
                     if (!dateString) return "N/A";
-                    const date = new Date(dateString);
+                    // Parse YYYY-MM-DD as local date to avoid timezone issues
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
                     return date.toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
@@ -1015,7 +1017,9 @@ export default function Documents() {
                   documents.map((doc) => {
                     const formatDate = (dateString: string) => {
                       if (!dateString) return "N/A";
-                      const date = new Date(dateString);
+                      // Parse YYYY-MM-DD as local date to avoid timezone issues
+                      const [year, month, day] = dateString.split('-').map(Number);
+                      const date = new Date(year, month - 1, day);
                       return date.toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
