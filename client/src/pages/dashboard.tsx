@@ -187,8 +187,8 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Welcome back, {user?.fullName || 'User'}</p>
       </div>
 
-      {/* Expired Documents Alert */}
-      {expiredDocs.length > 0 && (
+      {/* Expired Documents Alert - Only for regular users, not admins/owners */}
+      {expiredDocs.length > 0 && user?.role?.toLowerCase() !== "owner" && user?.role?.toLowerCase() !== "admin" && (
         <Card className="border-destructive bg-destructive/5">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
