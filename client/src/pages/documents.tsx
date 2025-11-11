@@ -652,6 +652,16 @@ export default function Documents() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {documentToUpload?.description && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-sm font-medium text-blue-800 mb-1">
+                  Document Requirements
+                </p>
+                <p className="text-sm text-blue-700">
+                  {documentToUpload.description}
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="upload-file-input">
                 File <span className="text-red-600">*</span>
@@ -756,11 +766,6 @@ export default function Documents() {
                               <FileText className="h-6 w-6 text-blue-600 mt-1" />
                               <div className="flex-1">
                                 <h3 className="font-semibold">{doc.title}</h3>
-                                {doc.description && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {doc.description}
-                                  </p>
-                                )}
                                 <p className="text-sm text-muted-foreground mt-1">
                                   Uploaded: {formatDate(doc.uploadedDate)}
                                 </p>
@@ -1042,11 +1047,6 @@ export default function Documents() {
                                 <FileText className="h-8 w-8 text-blue-600 mt-1" />
                                 <div>
                                   <h3 className="font-semibold">{doc.title}</h3>
-                                  {doc.description && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {doc.description}
-                                    </p>
-                                  )}
                                 </div>
                               </div>
                               {hasStatus && (
