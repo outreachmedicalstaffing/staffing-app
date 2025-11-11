@@ -1111,14 +1111,6 @@ export default function Documents() {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleViewDocument(doc)}
-                                    >
-                                      <Eye className="h-4 w-4 mr-2" />
-                                      View
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
                                       onClick={() => handleEditDocument(doc)}
                                     >
                                       <Upload className="h-4 w-4 mr-2" />
