@@ -1070,7 +1070,7 @@ export default function Documents() {
                               <p className="text-muted-foreground">
                                 {hasStatus ? "Uploaded:" : "Created:"} {formatDate(doc.uploadedDate)}
                               </p>
-                              {doc.expirationDate && (
+                              {hasStatus && doc.expirationDate && (
                                 <p
                                   className={
                                     isExpired
