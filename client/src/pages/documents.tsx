@@ -283,23 +283,27 @@ export default function Documents() {
     // Determine which user this document belongs to
     const documentUserId = isAdminUploadingForUser ? selectedUser.id : currentUser?.id;
 
-    // Update document with uploaded file info and status
-    const updatedDocuments = documents.map(doc => {
-      if (doc.id === documentToUpload.id) {
-        return {
-          ...doc,
-          fileName: uploadModalFile.name,
-          fileData: fileData,
-          fileType: uploadModalFile.type,
-          uploadedDate: currentDate,
-          expirationDate: uploadExpirationDate || doc.expirationDate,
-          notes: uploadNotes,
-          status: status,
-          userId: documentUserId, // Track which user this document belongs to
-        };
-      }
-      return doc;
-    });
+    // Create a new uploaded document entry (don't modify the requirement)
+    const newUploadedDocument: Document = {
+      id: `${documentToUpload.id}-${documentUserId}-${Date.now()}`, // Unique ID combining requirement ID, user ID, and timestamp
+      title: documentToUpload.title,
+      description: documentToUpload.description,
+      hasExpiration: documentToUpload.hasExpiration,
+      expirationDate: uploadExpirationDate || documentToUpload.expirationDate,
+      uploadedDate: currentDate,
+      fileName: uploadModalFile.name,
+      fileData: fileData,
+      fileType: uploadModalFile.type,
+      notes: uploadNotes,
+      visibleToUsers: documentToUpload.visibleToUsers,
+      enableUserUpload: documentToUpload.enableUserUpload,
+      requireReview: documentToUpload.requireReview,
+      status: status,
+      userId: documentUserId, // Track which user this document belongs to
+    };
+
+    // Add the new uploaded document to the array (keep the requirement unchanged)
+    const updatedDocuments = [...documents, newUploadedDocument];
 
     setDocuments(updatedDocuments);
     localStorage.setItem("documents", JSON.stringify(updatedDocuments));
