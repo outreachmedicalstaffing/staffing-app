@@ -766,78 +766,148 @@ export default function Documents() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4 overflow-y-auto max-h-[60vh]">
-            {/* Show all document requirements (templates) and uploaded documents for this user */}
-            {documents.filter(d => !d.status).length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                No document requirements created yet
-              </div>
-            ) : (
-              documents
-                .filter(d => !d.status) // Get all requirements (templates)
-                .map((requirement) => {
-                  // Find if this user has uploaded this document
-                  const userDoc = documents.find(d =>
-                    d.status &&
-                    d.userId === selectedUser?.id &&
-                    d.title === requirement.title
-                  );
+          <Tabs defaultValue="pending" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="pending">Pending Upload</TabsTrigger>
+              <TabsTrigger value="uploaded">Uploaded</TabsTrigger>
+            </TabsList>
 
-                  const doc = userDoc || requirement; // Use uploaded doc if exists, otherwise show requirement
-                  const formatDate = (dateString: string) => {
-                    if (!dateString) return "N/A";
-                    // Parse YYYY-MM-DD as local date to avoid timezone issues
-                    const [year, month, day] = dateString.split('-').map(Number);
-                    const date = new Date(year, month - 1, day);
-                    return date.toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    });
-                  };
+            {/* Pending Upload Tab */}
+            <TabsContent value="pending" className="space-y-4 py-4 overflow-y-auto max-h-[60vh]">
+              {documents.filter(d => !d.status).length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No document requirements created yet
+                </div>
+              ) : (
+                documents
+                  .filter(d => !d.status) // Get all requirements (templates)
+                  .map((requirement) => {
+                    // Find if this user has uploaded this document
+                    const userDoc = documents.find(d =>
+                      d.status &&
+                      d.userId === selectedUser?.id &&
+                      d.title === requirement.title
+                    );
 
-                  const isExpired = doc.expirationDate && doc.status !== undefined
-                    ? new Date(doc.expirationDate) < new Date()
-                    : false;
+                    const hasBeenUploaded = !!userDoc;
 
-                  const hasBeenUploaded = !!userDoc;
+                    // Only show documents that haven't been uploaded yet
+                    if (hasBeenUploaded) return null;
 
-                  return (
-                    <Card key={requirement.id}>
-                      <CardContent className="pt-4">
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start space-x-3 flex-1">
-                              <FileText className="h-6 w-6 text-blue-600 mt-1" />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-semibold">{doc.title}</h3>
-                                  {!requirement.visibleToUsers && (
-                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
-                                      <EyeOff className="h-3 w-3 mr-1" />
-                                      Admin Only
-                                    </Badge>
-                                  )}
-                                </div>
-                                {hasBeenUploaded ? (
-                                  <>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      Uploaded: {formatDate(doc.uploadedDate)}
-                                    </p>
-                                    {doc.expirationDate && (
-                                      <p className={`text-sm mt-1 ${isExpired ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
-                                        Expires: {formatDate(doc.expirationDate)}
-                                      </p>
+                    return (
+                      <Card key={requirement.id}>
+                        <CardContent className="pt-4">
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start space-x-3 flex-1">
+                                <FileText className="h-6 w-6 text-blue-600 mt-1" />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold">{requirement.title}</h3>
+                                    {!requirement.visibleToUsers && (
+                                      <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                        <EyeOff className="h-3 w-3 mr-1" />
+                                        Admin Only
+                                      </Badge>
                                     )}
-                                  </>
-                                ) : (
+                                  </div>
                                   <p className="text-sm text-amber-600 mt-1">
                                     Not uploaded yet
                                   </p>
-                                )}
+                                </div>
                               </div>
                             </div>
-                            {hasBeenUploaded && (
+
+                            <div className="flex gap-2 pt-2 border-t">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setDocumentToUpload(requirement);
+                                  setShowUploadModal(true);
+                                }}
+                                className="w-full"
+                              >
+                                <Upload className="h-4 w-4 mr-2" />
+                                Upload for User
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                  .filter(Boolean)
+              )}
+            </TabsContent>
+
+            {/* Uploaded Tab */}
+            <TabsContent value="uploaded" className="space-y-4 py-4 overflow-y-auto max-h-[60vh]">
+              {documents.filter(d => !d.status).length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No document requirements created yet
+                </div>
+              ) : (
+                documents
+                  .filter(d => !d.status) // Get all requirements (templates)
+                  .map((requirement) => {
+                    // Find if this user has uploaded this document
+                    const userDoc = documents.find(d =>
+                      d.status &&
+                      d.userId === selectedUser?.id &&
+                      d.title === requirement.title
+                    );
+
+                    const hasBeenUploaded = !!userDoc;
+
+                    // Only show documents that have been uploaded
+                    if (!hasBeenUploaded) return null;
+
+                    const doc = userDoc!; // We know userDoc exists here
+
+                    const formatDate = (dateString: string) => {
+                      if (!dateString) return "N/A";
+                      // Parse YYYY-MM-DD as local date to avoid timezone issues
+                      const [year, month, day] = dateString.split('-').map(Number);
+                      const date = new Date(year, month - 1, day);
+                      return date.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      });
+                    };
+
+                    const isExpired = doc.expirationDate && doc.status !== undefined
+                      ? new Date(doc.expirationDate) < new Date()
+                      : false;
+
+                    return (
+                      <Card key={requirement.id}>
+                        <CardContent className="pt-4">
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start space-x-3 flex-1">
+                                <FileText className="h-6 w-6 text-blue-600 mt-1" />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold">{doc.title}</h3>
+                                    {!requirement.visibleToUsers && (
+                                      <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                        <EyeOff className="h-3 w-3 mr-1" />
+                                        Admin Only
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Uploaded: {formatDate(doc.uploadedDate)}
+                                  </p>
+                                  {doc.expirationDate && (
+                                    <p className={`text-sm mt-1 ${isExpired ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                      Expires: {formatDate(doc.expirationDate)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
                               <Badge
                                 className={
                                   isExpired
@@ -851,75 +921,59 @@ export default function Documents() {
                               >
                                 {isExpired ? "Expired" : doc.status === "rejected" ? "Rejected" : doc.status === "pending" ? "Pending Review" : "Approved"}
                               </Badge>
-                            )}
-                          </div>
-
-                          {doc.status === "rejected" && doc.rejectionReason && (
-                            <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
-                              <p className="text-sm font-medium text-orange-800 mb-1">
-                                Rejection Reason
-                              </p>
-                              <p className="text-sm text-orange-700">
-                                {doc.rejectionReason}
-                              </p>
                             </div>
-                          )}
 
-                          <div className="flex gap-2 pt-2 border-t">
-                            {hasBeenUploaded ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleViewDocument(doc)}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View
-                                </Button>
-                                {doc.status === "pending" && (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleApproveDocument(doc.id)}
-                                      className="bg-green-600 hover:bg-green-700"
-                                    >
-                                      <CheckCircle className="h-4 w-4 mr-2" />
-                                      Approve
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleInitiateReject(doc)}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <X className="h-4 w-4 mr-2" />
-                                      Reject
-                                    </Button>
-                                  </>
-                                )}
-                              </>
-                            ) : (
+                            {doc.status === "rejected" && doc.rejectionReason && (
+                              <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                                <p className="text-sm font-medium text-orange-800 mb-1">
+                                  Rejection Reason
+                                </p>
+                                <p className="text-sm text-orange-700">
+                                  {doc.rejectionReason}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="flex gap-2 pt-2 border-t">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => {
-                                  setDocumentToUpload(requirement);
-                                  setShowUploadModal(true);
-                                }}
-                                className="w-full"
+                                onClick={() => handleViewDocument(doc)}
                               >
-                                <Upload className="h-4 w-4 mr-2" />
-                                Upload for User
+                                <Eye className="h-4 w-4 mr-2" />
+                                View
                               </Button>
-                            )}
+                              {doc.status === "pending" && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveDocument(doc.id)}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleInitiateReject(doc)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <X className="h-4 w-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-            )}
-          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                  .filter(Boolean)
+              )}
+            </TabsContent>
+          </Tabs>
 
           <div className="flex justify-end">
             <Button variant="outline" onClick={handleCloseUserDocuments}>
