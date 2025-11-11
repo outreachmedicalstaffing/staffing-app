@@ -1132,7 +1132,7 @@ export default function Documents() {
         {/* Tabs */}
         <Tabs defaultValue="my-documents">
           <TabsList>
-            <TabsTrigger value="my-documents">My Documents</TabsTrigger>
+            <TabsTrigger value="my-documents">{isAdmin ? "Documents" : "My Documents"}</TabsTrigger>
             <TabsTrigger value="required">Required</TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="user-documents">User Documents</TabsTrigger>
@@ -1143,10 +1143,12 @@ export default function Documents() {
             <div className="space-y-4">
               {/* Section Header */}
               <div>
-                <h2 className="text-xl font-semibold">Your Documents</h2>
-                <p className="text-sm text-muted-foreground">
-                  {documents.length} {documents.length === 1 ? 'document' : 'documents'} uploaded
-                </p>
+                <h2 className="text-xl font-semibold">{isAdmin ? "Document Requirements" : "Your Documents"}</h2>
+                {!isAdmin && (
+                  <p className="text-sm text-muted-foreground">
+                    {documents.length} {documents.length === 1 ? 'document' : 'documents'} uploaded
+                  </p>
+                )}
               </div>
 
               {/* Document Cards Grid */}
