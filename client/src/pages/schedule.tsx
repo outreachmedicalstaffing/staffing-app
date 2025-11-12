@@ -1097,43 +1097,45 @@ export default function Schedule() {
           </div>
 
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-add-menu"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem
-                  onClick={() => setShowAddShift(true)}
-                  data-testid="menu-add-single-shift"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add single shift
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setShowShiftTemplates(true)}
-                  data-testid="menu-add-from-templates"
-                >
-                  <CalendarClock className="h-4 w-4 mr-2" />
-                  Add from shift templates
-                </DropdownMenuItem>
-                <DropdownMenuItem data-testid="menu-add-unavailability">
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Add unavailability
-                </DropdownMenuItem>
-                <DropdownMenuItem data-testid="menu-add-work-preference">
-                  <Heart className="h-4 w-4 mr-2" />
-                  Add work preference
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-add-menu"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    onClick={() => setShowAddShift(true)}
+                    data-testid="menu-add-single-shift"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add single shift
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowShiftTemplates(true)}
+                    data-testid="menu-add-from-templates"
+                  >
+                    <CalendarClock className="h-4 w-4 mr-2" />
+                    Add from shift templates
+                  </DropdownMenuItem>
+                  <DropdownMenuItem data-testid="menu-add-unavailability">
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Add unavailability
+                  </DropdownMenuItem>
+                  <DropdownMenuItem data-testid="menu-add-work-preference">
+                    <Heart className="h-4 w-4 mr-2" />
+                    Add work preference
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </Card>
@@ -1233,8 +1235,11 @@ export default function Schedule() {
                   return (
                     <div
                       key={dayIdx}
-                      className="border-r last:border-r-0 p-2 min-h-[80px] space-y-1 cursor-pointer hover:bg-muted/30 transition-colors"
+                      className={`border-r last:border-r-0 p-2 min-h-[80px] space-y-1 ${isAdmin ? 'cursor-pointer hover:bg-muted/30' : ''} transition-colors`}
                       onClick={(e) => {
+                        // Only admins can add shifts
+                        if (!isAdmin) return;
+
                         // Only open Add Shift if clicking on empty space (not on a shift block)
                         if (
                           e.target === e.currentTarget ||
@@ -1405,8 +1410,11 @@ export default function Schedule() {
                             : !hasShifts && isPreferred
                               ? "bg-green-50 dark:bg-green-950/20 hover:bg-green-100 dark:hover:bg-green-950/30"
                               : "hover:bg-muted/30"
-                        }`}
+                        } ${isAdmin ? 'cursor-pointer' : ''}`}
                         onClick={(e) => {
+                          // Only admins can add shifts
+                          if (!isAdmin) return;
+
                           // Only open Add Shift if clicking on empty space (not on a shift block)
                           if (
                             e.target === e.currentTarget ||
