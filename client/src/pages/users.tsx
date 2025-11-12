@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,16 +11,48 @@ import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { UserDetailView } from "@/components/user-detail-view";
 import { AddUserDialog } from "@/components/add-user-dialog";
+import { useLocation } from "wouter";
 
 export default function Users() {
+  const [, setLocation] = useLocation();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("users");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
 
+  // Get current user to check role
+  const { data: currentUser, isLoading: isLoadingUser } = useQuery<User>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  // Check if user is admin
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+
+  // Redirect non-admin users to dashboard
+  useEffect(() => {
+    if (!isLoadingUser && !isAdmin) {
+      setLocation("/");
+    }
+  }, [isLoadingUser, isAdmin, setLocation]);
+
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
+
+  // Show loading state while checking permissions
+  if (isLoadingUser) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render page if not admin
+  if (!isAdmin) {
+    return null;
+  }
 
   const activeUsers = users.filter(u => u.status === 'active' && u.role !== 'Admin' && u.role !== 'Owner');
   const adminUsers = users.filter(u => (u.role === 'Admin' || u.role === 'Owner') && u.status === 'active');

@@ -30,16 +30,16 @@ import {
 import type { User } from "@shared/schema";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "Clock", url: "/clock", icon: Clock },
-  { title: "Schedule", url: "/schedule", icon: Calendar },
-  { title: "Timesheets", url: "/timesheets", icon: ClipboardList },
-  { title: "Documents", url: "/documents", icon: FileText },
-  { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
-  { title: "Updates", url: "/updates", icon: Bell },
-  { title: "Users", url: "/users", icon: Users },
-  { title: "Groups", url: "/groups", icon: UsersRound },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Dashboard", url: "/", icon: Home, adminOnly: false },
+  { title: "Clock", url: "/clock", icon: Clock, adminOnly: false },
+  { title: "Schedule", url: "/schedule", icon: Calendar, adminOnly: false },
+  { title: "Timesheets", url: "/timesheets", icon: ClipboardList, adminOnly: false },
+  { title: "Documents", url: "/documents", icon: FileText, adminOnly: false },
+  { title: "Knowledge Base", url: "/knowledge", icon: BookOpen, adminOnly: false },
+  { title: "Updates", url: "/updates", icon: Bell, adminOnly: false },
+  { title: "Users", url: "/users", icon: Users, adminOnly: true },
+  { title: "Groups", url: "/groups", icon: UsersRound, adminOnly: true },
+  { title: "Settings", url: "/settings", icon: Settings, adminOnly: false },
 ];
 
 interface AppSidebarProps {
@@ -121,24 +121,26 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link
-                      href={item.url}
-                      data-testid={`link-${item.title.toLowerCase().replace(" ", "-")}`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                      {item.title === "Documents" && isAdmin && pendingDocumentsCount > 0 && (
-                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
-                          {pendingDocumentsCount}
-                        </span>
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {menuItems
+                .filter((item) => !item.adminOnly || isAdmin)
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={location === item.url}>
+                      <Link
+                        href={item.url}
+                        data-testid={`link-${item.title.toLowerCase().replace(" ", "-")}`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                        {item.title === "Documents" && isAdmin && pendingDocumentsCount > 0 && (
+                          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
+                            {pendingDocumentsCount}
+                          </span>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { PROGRAM_OPTIONS } from "@/lib/constants";
+import { useLocation } from "wouter";
 
 interface Group {
   id: string;
@@ -62,6 +63,8 @@ function saveGroupsToStorage(groups: Group[]) {
 }
 
 export default function Groups() {
+  const [, setLocation] = useLocation();
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<CategoryType>>(
@@ -73,10 +76,39 @@ export default function Groups() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("general");
   const [deleteConfirmGroup, setDeleteConfirmGroup] = useState<Group | null>(null);
 
+  // Get current user to check role
+  const { data: currentUser, isLoading: isLoadingUser } = useQuery<User>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  // Check if user is admin
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+
+  // Redirect non-admin users to dashboard
+  useEffect(() => {
+    if (!isLoadingUser && !isAdmin) {
+      setLocation("/");
+    }
+  }, [isLoadingUser, isAdmin, setLocation]);
+
   // Fetch users from API
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
+
+  // Show loading state while checking permissions
+  if (isLoadingUser) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render page if not admin
+  if (!isAdmin) {
+    return null;
+  }
 
   // Load groups from localStorage on mount
   useEffect(() => {
