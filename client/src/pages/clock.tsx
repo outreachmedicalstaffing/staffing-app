@@ -245,7 +245,6 @@ export default function Clock() {
                     <TableHead>Clock Out</TableHead>
                     <TableHead>Total Hours</TableHead>
                     <TableHead>Program</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -272,26 +271,6 @@ export default function Clock() {
                           {entry.clockOut ? total.toFixed(2) : "—"}
                         </TableCell>
                         <TableCell>{entry.program || "—"}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {entry.locked && (
-                              <Badge
-                                variant="secondary"
-                                title="Locked by admin"
-                              >
-                                Locked
-                              </Badge>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEdit(entry)}
-                              disabled={Boolean(entry.locked)}
-                            >
-                              Edit Time Entry
-                            </Button>
-                          </div>
-                        </TableCell>
                       </TableRow>
                     );
                   })}
