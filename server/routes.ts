@@ -610,13 +610,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update time entry (for Owner/Admin to edit timesheets)
+  // Update time entry (users can edit their own, admins can edit any)
   app.patch(
     "/api/time/entries/:id",
-    requireRole("Owner", "Admin"),
+    requireAuth,
     async (req, res) => {
       try {
         const entryId = req.params.id;
+
+        // Get current user
+        const currentUser = await storage.getUser(req.session.userId!);
+        if (!currentUser) {
+          return res.status(401).json({ error: "User not found" });
+        }
+
+        const isAdmin = currentUser.role.toLowerCase() === "owner" ||
+                        currentUser.role.toLowerCase() === "admin";
 
         // Convert ISO string dates to Date objects
         if (req.body.clockIn && typeof req.body.clockIn === "string") {
@@ -635,11 +644,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ error: "Time entry not found" });
         }
 
+        // Check if user owns this entry (or is admin)
+        if (!isAdmin && existing.userId !== req.session.userId) {
+          return res.status(403).json({
+            error: "You can only edit your own time entries"
+          });
+        }
+
         // Check if entry is locked - prevent ANY edits to locked entries
         if (existing.locked) {
-          // Only allow unlocking if that's the ONLY change
-          if (req.body.locked === false && Object.keys(req.body).length === 1) {
-            // Allow unlock-only request
+          // Only allow unlocking if that's the ONLY change (and user is admin)
+          if (req.body.locked === false && Object.keys(req.body).length === 1 && isAdmin) {
+            // Allow unlock-only request for admins
           } else {
             return res.status(403).json({
               error: "Cannot edit locked time entry. Unlock it first.",
