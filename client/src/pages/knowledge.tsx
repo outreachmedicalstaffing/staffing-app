@@ -33,10 +33,14 @@ export default function Knowledge() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newCategory, setNewCategory] = useState<string>("HR");
+  const [newCategory, setNewCategory] = useState<string>("Getting Started");
   const [newType, setNewType] = useState<"page" | "pdf" | "folder">("page");
   const [newContent, setNewContent] = useState("");
   const [newStatus, setNewStatus] = useState<"published" | "draft">("draft");
+
+  const [gettingStartedDocuments, setGettingStartedDocuments] = useState<Article[]>([
+    { id: "0", title: "Welcome to Outreach Medical Staffing", type: "page" as const, description: "Your guide to getting started", category: "Getting Started", lastUpdated: "1 day ago", publishStatus: "published" as const, content: "# Welcome to Outreach Medical Staffing\n\nWelcome to our team! This guide will help you get started with our platform and learn the basics.\n\n## Quick Start Steps\n1. Complete your profile\n2. Review our employee handbook\n3. Set up your schedule preferences\n4. Review required compliance training\n\n## Important Resources\n- Employee Handbook\n- Safety Protocols\n- Contact Information\n\n## Questions?\nReach out to your supervisor or HR team for assistance." },
+  ]);
 
   const [hrDocuments, setHrDocuments] = useState<Article[]>([
     { id: "1", title: "Employee Handbook", type: "page" as const, description: "Complete guide for all employees", category: "HR", lastUpdated: "2 days ago", publishStatus: "published" as const, content: "# Employee Handbook\n\nWelcome to our organization! This handbook contains important policies, procedures, and guidelines that govern employment with our company.\n\n## Code of Conduct\nAll employees are expected to maintain professional behavior and treat colleagues with respect.\n\n## Work Hours\nStandard work hours are 9:00 AM to 5:00 PM, Monday through Friday.\n\n## Benefits\nWe offer competitive benefits including health insurance, retirement plans, and paid time off." },
@@ -79,7 +83,7 @@ export default function Knowledge() {
     // Reset form fields
     setNewTitle("");
     setNewDescription("");
-    setNewCategory("HR");
+    setNewCategory("Getting Started");
     setNewType("page");
     setNewContent("");
     setNewStatus("draft");
@@ -109,7 +113,9 @@ export default function Knowledge() {
     };
 
     // Add to the appropriate category
-    if (newCategory === "HR") {
+    if (newCategory === "Getting Started") {
+      setGettingStartedDocuments([...gettingStartedDocuments, newArticle]);
+    } else if (newCategory === "HR") {
       setHrDocuments([...hrDocuments, newArticle]);
     } else if (newCategory === "Compliance") {
       setComplianceDocuments([...complianceDocuments, newArticle]);
@@ -151,6 +157,9 @@ export default function Knowledge() {
           <TabsTrigger value="all" data-testid="tab-all">
             All Content
           </TabsTrigger>
+          <TabsTrigger value="getting-started" data-testid="tab-getting-started">
+            Getting Started
+          </TabsTrigger>
           <TabsTrigger value="hr" data-testid="tab-hr">
             <FolderOpen className="h-4 w-4 mr-2" />
             HR
@@ -167,11 +176,32 @@ export default function Knowledge() {
           <Card>
             <CardHeader>
               <CardTitle>All Articles & Resources</CardTitle>
-              <CardDescription>{hrDocuments.length + complianceDocuments.length + operationsDocuments.length} items</CardDescription>
+              <CardDescription>{gettingStartedDocuments.length + hrDocuments.length + complianceDocuments.length + operationsDocuments.length} items</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[...hrDocuments, ...complianceDocuments, ...operationsDocuments].map((item) => (
+                {[...gettingStartedDocuments, ...hrDocuments, ...complianceDocuments, ...operationsDocuments].map((item) => (
+                  <KnowledgeItem
+                    key={item.id}
+                    {...item}
+                    onView={() => handleView(item)}
+                    onEdit={() => handleEdit(item)}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="getting-started" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Getting Started</CardTitle>
+              <CardDescription>{gettingStartedDocuments.length} items</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {gettingStartedDocuments.map((item) => (
                   <KnowledgeItem
                     key={item.id}
                     {...item}
@@ -353,6 +383,7 @@ export default function Knowledge() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="Getting Started">Getting Started</SelectItem>
                     <SelectItem value="HR">HR</SelectItem>
                     <SelectItem value="Compliance">Compliance</SelectItem>
                     <SelectItem value="Operations">Operations</SelectItem>
