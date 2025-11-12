@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { KnowledgeArticle } from "@shared/schema";
+import type { KnowledgeArticle, User } from "@shared/schema";
 
 type Article = {
   id: string;
@@ -29,6 +29,13 @@ type Article = {
 export default function Knowledge() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Get current user to check role
+  const { data: currentUser } = useQuery<User>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -231,10 +238,12 @@ export default function Knowledge() {
             Access policies, procedures, and training materials
           </p>
         </div>
-        <Button className="bg-red-600 hover:bg-red-700" onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Article
-        </Button>
+        {isAdmin && (
+          <Button className="bg-red-600 hover:bg-red-700" onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Article
+          </Button>
+        )}
       </div>
 
       <div className="relative">
@@ -300,9 +309,11 @@ export default function Knowledge() {
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                            Edit
-                          </Button>
+                          {isAdmin && (
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
+                              Edit
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -347,9 +358,11 @@ export default function Knowledge() {
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                            Edit
-                          </Button>
+                          {isAdmin && (
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
+                              Edit
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -394,9 +407,11 @@ export default function Knowledge() {
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                            Edit
-                          </Button>
+                          {isAdmin && (
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
+                              Edit
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -441,9 +456,11 @@ export default function Knowledge() {
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                            Edit
-                          </Button>
+                          {isAdmin && (
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
+                              Edit
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -488,9 +505,11 @@ export default function Knowledge() {
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                            Edit
-                          </Button>
+                          {isAdmin && (
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
+                              Edit
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -608,17 +627,19 @@ export default function Knowledge() {
             <Button variant="outline" onClick={() => setShowViewDialog(false)}>
               Close
             </Button>
-            <Button
-              className="bg-red-600 hover:bg-red-700"
-              onClick={() => {
-                setShowViewDialog(false);
-                if (viewingArticle) {
-                  handleEditArticle(viewingArticle);
-                }
-              }}
-            >
-              Edit Article
-            </Button>
+            {isAdmin && (
+              <Button
+                className="bg-red-600 hover:bg-red-700"
+                onClick={() => {
+                  setShowViewDialog(false);
+                  if (viewingArticle) {
+                    handleEditArticle(viewingArticle);
+                  }
+                }}
+              >
+                Edit Article
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
