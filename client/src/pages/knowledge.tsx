@@ -23,12 +23,22 @@ type Article = {
 export default function Knowledge() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
 
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
   const [newStatus, setNewStatus] = useState<"Draft" | "Published">("Draft");
   const [newContent, setNewContent] = useState("");
+
+  // Form fields for Edit Article
+  const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
+  const [editStatus, setEditStatus] = useState<"Draft" | "Published">("Draft");
+  const [editContent, setEditContent] = useState("");
 
   // Sample articles data
   const [articles, setArticles] = useState<Article[]>([
@@ -149,6 +159,52 @@ export default function Knowledge() {
     setShowCreateDialog(false);
   };
 
+  const handleViewArticle = (article: Article) => {
+    setViewingArticle(article);
+    setShowViewDialog(true);
+  };
+
+  const handleEditArticle = (article: Article) => {
+    setEditingArticle(article);
+    setEditTitle(article.title);
+    setEditCategory(article.category);
+    setEditStatus(article.status);
+    setEditContent(article.content);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateArticle = () => {
+    if (!editTitle.trim()) {
+      alert("Please fill in the title");
+      return;
+    }
+
+    if (!editingArticle) return;
+
+    const updatedArticles = articles.map((article) =>
+      article.id === editingArticle.id
+        ? {
+            ...article,
+            title: editTitle,
+            category: editCategory,
+            status: editStatus,
+            content: editContent,
+            lastUpdated: "just now",
+          }
+        : article
+    );
+
+    setArticles(updatedArticles);
+
+    // Reset form
+    setEditingArticle(null);
+    setEditTitle("");
+    setEditCategory("Getting Started");
+    setEditStatus("Draft");
+    setEditContent("");
+    setShowEditDialog(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -221,11 +277,11 @@ export default function Knowledge() {
                           </span>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
                             Edit
                           </Button>
                         </div>
@@ -266,11 +322,11 @@ export default function Knowledge() {
                           </span>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
                             Edit
                           </Button>
                         </div>
@@ -311,11 +367,11 @@ export default function Knowledge() {
                           </span>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
                             Edit
                           </Button>
                         </div>
@@ -356,11 +412,11 @@ export default function Knowledge() {
                           </span>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
                             Edit
                           </Button>
                         </div>
@@ -401,11 +457,11 @@ export default function Knowledge() {
                           </span>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
                             Edit
                           </Button>
                         </div>
@@ -490,6 +546,127 @@ export default function Knowledge() {
             </Button>
             <Button className="bg-red-600 hover:bg-red-700" onClick={handleSaveArticle}>
               Save Article
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Article Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{viewingArticle?.title}</DialogTitle>
+            <DialogDescription>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge className={getCategoryColor(viewingArticle?.category || "")}>
+                  {viewingArticle?.category}
+                </Badge>
+                <Badge variant={viewingArticle?.status === "Published" ? "default" : "secondary"}>
+                  {viewingArticle?.status}
+                </Badge>
+                <span className="text-xs text-muted-foreground ml-2">
+                  Updated {viewingArticle?.lastUpdated}
+                </span>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="prose prose-sm max-w-none whitespace-pre-wrap font-mono text-sm">
+              {viewingArticle?.content}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowViewDialog(false)}>
+              Close
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                setShowViewDialog(false);
+                if (viewingArticle) {
+                  handleEditArticle(viewingArticle);
+                }
+              }}
+            >
+              Edit Article
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Article Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Article</DialogTitle>
+            <DialogDescription>
+              Update the article in the knowledge base
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-article-title">
+                Title <span className="text-red-600">*</span>
+              </Label>
+              <Input
+                id="edit-article-title"
+                placeholder="Article title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-article-category">Category</Label>
+                <Select value={editCategory} onValueChange={(value) => setEditCategory(value as any)}>
+                  <SelectTrigger id="edit-article-category">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Getting Started">Getting Started</SelectItem>
+                    <SelectItem value="HR">HR</SelectItem>
+                    <SelectItem value="Compliance">Compliance</SelectItem>
+                    <SelectItem value="Operations">Operations</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-article-status">Status</Label>
+                <Select value={editStatus} onValueChange={(value) => setEditStatus(value as any)}>
+                  <SelectTrigger id="edit-article-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Draft">Draft</SelectItem>
+                    <SelectItem value="Published">Published</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-article-content">Content (Supports Markdown)</Label>
+              <Textarea
+                id="edit-article-content"
+                placeholder="Write your article content here..."
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="min-h-[300px] font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-red-600 hover:bg-red-700" onClick={handleUpdateArticle}>
+              Update Article
             </Button>
           </div>
         </DialogContent>
