@@ -282,14 +282,16 @@ export default function Clock() {
                                 Locked
                               </Badge>
                             )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEdit(entry)}
-                              disabled={Boolean(entry.locked)}
-                            >
-                              Edit
-                            </Button>
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEdit(entry)}
+                                disabled={Boolean(entry.locked)}
+                              >
+                                Edit
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
