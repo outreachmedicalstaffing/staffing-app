@@ -184,11 +184,8 @@ export default function Clock() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-semibold" data-testid="heading-clock">
-            Time Clock
+            Loading...
           </h1>
-          <p className="text-muted-foreground">
-            Clock in and out of your shifts
-          </p>
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           <Skeleton className="h-96 lg:col-span-1" />
@@ -202,9 +199,11 @@ export default function Clock() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold" data-testid="heading-clock">
-          Time Clock
+          {isAdmin ? "Time Clock" : "Timesheets"}
         </h1>
-        <p className="text-muted-foreground">Clock in and out of your shifts</p>
+        {isAdmin && (
+          <p className="text-muted-foreground">Review and approve employee time</p>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
