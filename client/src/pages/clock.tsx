@@ -42,6 +42,9 @@ export default function Clock() {
   // Who am I
   const { data: user } = useQuery<User>({ queryKey: ["/api/auth/me"] });
 
+  // Check if user is admin
+  const isAdmin = user?.role?.toLowerCase() === "owner" || user?.role?.toLowerCase() === "admin";
+
   // All time entries
   const { data: timeEntries = [], isLoading } = useQuery<TimeEntry[]>({
     queryKey: ["/api/time/entries"],
@@ -330,16 +333,18 @@ export default function Clock() {
               </div>
             </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Job / Location
-              </label>
-              <Input
-                placeholder="Location"
-                value={editLocation}
-                onChange={(e) => setEditLocation(e.target.value)}
-              />
-            </div>
+            {isAdmin && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Job / Location
+                </label>
+                <Input
+                  placeholder="Location"
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>
