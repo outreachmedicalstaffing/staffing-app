@@ -110,9 +110,9 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
             className="h-12 w-12 object-contain"
           />
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">OutreachOps</span>
+            <span className="text-sm font-semibold">Outreach Medical</span>
             <span className="text-xs text-muted-foreground">
-              Medical Staffing
+              Staffing
             </span>
           </div>
         </div>
