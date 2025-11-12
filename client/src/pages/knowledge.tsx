@@ -26,7 +26,6 @@ export default function Knowledge() {
 
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
-  const [newDescription, setNewDescription] = useState("");
   const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
   const [newStatus, setNewStatus] = useState<"Draft" | "Published">("Draft");
   const [newContent, setNewContent] = useState("");
@@ -125,15 +124,15 @@ export default function Knowledge() {
   };
 
   const handleSaveArticle = () => {
-    if (!newTitle.trim() || !newDescription.trim()) {
-      alert("Please fill in both title and description");
+    if (!newTitle.trim()) {
+      alert("Please fill in the title");
       return;
     }
 
     const newArticle: Article = {
       id: Date.now().toString(),
       title: newTitle,
-      description: newDescription,
+      description: "",
       category: newCategory,
       status: newStatus,
       content: newContent,
@@ -144,7 +143,6 @@ export default function Knowledge() {
 
     // Reset form
     setNewTitle("");
-    setNewDescription("");
     setNewCategory("Getting Started");
     setNewStatus("Draft");
     setNewContent("");
@@ -441,18 +439,6 @@ export default function Knowledge() {
                 placeholder="Article title"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="article-description">
-                Description <span className="text-red-600">*</span>
-              </Label>
-              <Input
-                id="article-description"
-                placeholder="Brief description"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
               />
             </div>
 
