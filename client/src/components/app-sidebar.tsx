@@ -39,7 +39,7 @@ const menuItems = [
   { title: "Updates", url: "/updates", icon: Bell, adminOnly: false },
   { title: "Users", url: "/users", icon: Users, adminOnly: true },
   { title: "Groups", url: "/groups", icon: UsersRound, adminOnly: true },
-  { title: "Settings", url: "/settings", icon: Settings, adminOnly: false },
+  { title: "Settings", url: "/settings", icon: Settings, adminOnly: true },
 ];
 
 interface AppSidebarProps {

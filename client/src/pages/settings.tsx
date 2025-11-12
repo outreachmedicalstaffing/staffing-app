@@ -11,6 +11,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
+import type { User } from "@shared/schema";
 
 interface Holiday {
   id: string;
@@ -30,8 +32,24 @@ interface PayRules {
 }
 
 export default function Settings() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Get current user to check role
+  const { data: currentUser, isLoading: isLoadingUser } = useQuery<User>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  // Check if user is admin
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+
+  // Redirect non-admin users to dashboard
+  useEffect(() => {
+    if (!isLoadingUser && !isAdmin) {
+      setLocation("/");
+    }
+  }, [isLoadingUser, isAdmin, setLocation]);
 
   const [holidays, setHolidays] = useState<Holiday[]>([
     { id: "1", name: "New Year's Day", date: "2025-01-01" },
@@ -219,6 +237,21 @@ export default function Settings() {
       setIsSaving(false);
     }
   };
+
+  // Show loading state while checking permissions
+  if (isLoadingUser) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render page if not admin
+  if (!isAdmin) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       <div>
