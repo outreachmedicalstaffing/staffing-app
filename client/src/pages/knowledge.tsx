@@ -69,13 +69,45 @@ export default function Knowledge() {
   };
 
   const handleSaveEdit = () => {
-    // In a real app, this would save to a backend
-    console.log("Saving article:", {
-      id: editArticle?.id,
+    if (!editArticle) return;
+
+    // Create updated article with new values
+    const updatedArticle: Article = {
+      ...editArticle,
       title: editedTitle,
       description: editedDescription,
       content: editedContent,
-    });
+      lastUpdated: "just now",
+    };
+
+    // Update the article in the appropriate category
+    if (editArticle.category === "Getting Started") {
+      setGettingStartedDocuments(
+        gettingStartedDocuments.map((doc) =>
+          doc.id === editArticle.id ? updatedArticle : doc
+        )
+      );
+    } else if (editArticle.category === "HR") {
+      setHrDocuments(
+        hrDocuments.map((doc) =>
+          doc.id === editArticle.id ? updatedArticle : doc
+        )
+      );
+    } else if (editArticle.category === "Compliance") {
+      setComplianceDocuments(
+        complianceDocuments.map((doc) =>
+          doc.id === editArticle.id ? updatedArticle : doc
+        )
+      );
+    } else if (editArticle.category === "Operations") {
+      setOperationsDocuments(
+        operationsDocuments.map((doc) =>
+          doc.id === editArticle.id ? updatedArticle : doc
+        )
+      );
+    }
+
+    console.log("Article saved:", updatedArticle);
     setEditArticle(null);
   };
 
