@@ -140,6 +140,12 @@ export default function Dashboard() {
     return sum;
   }, 0);
 
+  // Shifts this week
+  const weekShifts = shifts.filter(shift => {
+    const shiftDate = new Date(shift.startTime);
+    return shiftDate >= weekStart && shiftDate <= weekEnd;
+  });
+
   // Upcoming shifts (next 7 days)
   const upcomingShifts = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
@@ -231,9 +237,9 @@ export default function Dashboard() {
         />
         <StatCard
           title="Total Shifts"
-          value={shifts.length}
+          value={weekShifts.length}
           icon={CheckCircle}
-          description="All scheduled shifts"
+          description="This week"
         />
         <StatCard
           title="Pending Items"
