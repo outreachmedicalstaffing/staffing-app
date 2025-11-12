@@ -9,18 +9,27 @@ import { Search, Plus, FileText, Eye } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import type { KnowledgeArticle } from "@shared/schema";
 
 type Article = {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
+  type: string;
   category: "Getting Started" | "HR" | "Compliance" | "Operations";
-  status: "Draft" | "Published";
-  content: string;
-  lastUpdated: string;
+  publishStatus: "draft" | "published";
+  content: string | null;
+  authorId: string;
+  lastUpdated: Date;
+  createdAt: Date;
 };
 
 export default function Knowledge() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
@@ -31,72 +40,61 @@ export default function Knowledge() {
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
-  const [newStatus, setNewStatus] = useState<"Draft" | "Published">("Draft");
+  const [newStatus, setNewStatus] = useState<"draft" | "published">("draft");
   const [newContent, setNewContent] = useState("");
 
   // Form fields for Edit Article
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
-  const [editStatus, setEditStatus] = useState<"Draft" | "Published">("Draft");
+  const [editStatus, setEditStatus] = useState<"draft" | "published">("draft");
   const [editContent, setEditContent] = useState("");
 
-  // Sample articles data
-  const [articles, setArticles] = useState<Article[]>([
-    {
-      id: "1",
-      title: "Welcome to Outreach Medical Staffing",
-      description: "Your guide to getting started with our platform",
-      category: "Getting Started",
-      status: "Published",
-      content: "# Welcome\n\nGet started with our platform...",
-      lastUpdated: "2 days ago",
+  // Fetch articles from API
+  const { data: articles = [], isLoading } = useQuery<Article[]>({
+    queryKey: ["/api/knowledge"],
+  });
+
+  // Create article mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to create article");
+      return res.json();
     },
-    {
-      id: "2",
-      title: "Employee Handbook",
-      description: "Complete guide for all employees",
-      category: "HR",
-      status: "Published",
-      content: "# Employee Handbook\n\nPolicies and procedures...",
-      lastUpdated: "1 week ago",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge"] });
+      toast({ title: "Article created successfully" });
     },
-    {
-      id: "3",
-      title: "HIPAA Compliance Training",
-      description: "Required annual training materials",
-      category: "Compliance",
-      status: "Published",
-      content: "# HIPAA Training\n\nCompliance requirements...",
-      lastUpdated: "3 days ago",
+    onError: () => {
+      toast({ title: "Failed to create article", variant: "destructive" });
     },
-    {
-      id: "4",
-      title: "Shift Protocols",
-      description: "Standard operating procedures for shifts",
-      category: "Operations",
-      status: "Published",
-      content: "# Shift Protocols\n\nOperating procedures...",
-      lastUpdated: "5 days ago",
+  });
+
+  // Update article mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/knowledge/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update article");
+      return res.json();
     },
-    {
-      id: "5",
-      title: "New Hire Onboarding Checklist",
-      description: "Step-by-step process for new employees",
-      category: "Getting Started",
-      status: "Draft",
-      content: "# Onboarding Checklist\n\nSteps for new hires...",
-      lastUpdated: "1 day ago",
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge"] });
+      toast({ title: "Article updated successfully" });
     },
-    {
-      id: "6",
-      title: "Time Off Request Policy",
-      description: "How to request and manage time off",
-      category: "HR",
-      status: "Published",
-      content: "# Time Off Policy\n\nRequest procedures...",
-      lastUpdated: "2 weeks ago",
+    onError: () => {
+      toast({ title: "Failed to update article", variant: "destructive" });
     },
-  ]);
+  });
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -133,28 +131,25 @@ export default function Knowledge() {
     return articles.filter((article) => article.category === category);
   };
 
-  const handleSaveArticle = () => {
+  const handleSaveArticle = async () => {
     if (!newTitle.trim()) {
-      alert("Please fill in the title");
+      toast({ title: "Please fill in the title", variant: "destructive" });
       return;
     }
 
-    const newArticle: Article = {
-      id: Date.now().toString(),
+    await createMutation.mutateAsync({
       title: newTitle,
       description: "",
+      type: "page",
       category: newCategory,
-      status: newStatus,
-      content: newContent,
-      lastUpdated: "just now",
-    };
-
-    setArticles([...articles, newArticle]);
+      publishStatus: newStatus,
+      content: newContent || "",
+    });
 
     // Reset form
     setNewTitle("");
     setNewCategory("Getting Started");
-    setNewStatus("Draft");
+    setNewStatus("draft");
     setNewContent("");
     setShowCreateDialog(false);
   };
@@ -168,42 +163,64 @@ export default function Knowledge() {
     setEditingArticle(article);
     setEditTitle(article.title);
     setEditCategory(article.category);
-    setEditStatus(article.status);
-    setEditContent(article.content);
+    setEditStatus(article.publishStatus);
+    setEditContent(article.content || "");
     setShowEditDialog(true);
   };
 
-  const handleUpdateArticle = () => {
+  const handleUpdateArticle = async () => {
     if (!editTitle.trim()) {
-      alert("Please fill in the title");
+      toast({ title: "Please fill in the title", variant: "destructive" });
       return;
     }
 
     if (!editingArticle) return;
 
-    const updatedArticles = articles.map((article) =>
-      article.id === editingArticle.id
-        ? {
-            ...article,
-            title: editTitle,
-            category: editCategory,
-            status: editStatus,
-            content: editContent,
-            lastUpdated: "just now",
-          }
-        : article
-    );
-
-    setArticles(updatedArticles);
+    await updateMutation.mutateAsync({
+      id: editingArticle.id,
+      data: {
+        title: editTitle,
+        category: editCategory,
+        publishStatus: editStatus,
+        content: editContent,
+        lastUpdated: new Date(),
+      },
+    });
 
     // Reset form
     setEditingArticle(null);
     setEditTitle("");
     setEditCategory("Getting Started");
-    setEditStatus("Draft");
+    setEditStatus("draft");
     setEditContent("");
     setShowEditDialog(false);
   };
+
+  // Format timestamp helper
+  const formatTimestamp = (date: Date | string) => {
+    if (!date) return "Unknown";
+    const d = new Date(date);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? "s" : ""} ago`;
+    return d.toLocaleDateString();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-muted-foreground">Loading articles...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -265,7 +282,7 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description}</p>
+                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -273,7 +290,7 @@ export default function Knowledge() {
                             {article.category}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Updated {article.lastUpdated}
+                            Updated {formatTimestamp(article.lastUpdated)}
                           </span>
                         </div>
                         <div className="flex gap-2">
@@ -310,7 +327,7 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description}</p>
+                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -318,7 +335,7 @@ export default function Knowledge() {
                             {article.category}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Updated {article.lastUpdated}
+                            Updated {formatTimestamp(article.lastUpdated)}
                           </span>
                         </div>
                         <div className="flex gap-2">
@@ -355,7 +372,7 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description}</p>
+                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -363,7 +380,7 @@ export default function Knowledge() {
                             {article.category}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Updated {article.lastUpdated}
+                            Updated {formatTimestamp(article.lastUpdated)}
                           </span>
                         </div>
                         <div className="flex gap-2">
@@ -400,7 +417,7 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description}</p>
+                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -408,7 +425,7 @@ export default function Knowledge() {
                             {article.category}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Updated {article.lastUpdated}
+                            Updated {formatTimestamp(article.lastUpdated)}
                           </span>
                         </div>
                         <div className="flex gap-2">
@@ -445,7 +462,7 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description}</p>
+                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -453,7 +470,7 @@ export default function Knowledge() {
                             {article.category}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Updated {article.lastUpdated}
+                            Updated {formatTimestamp(article.lastUpdated)}
                           </span>
                         </div>
                         <div className="flex gap-2">
@@ -521,8 +538,8 @@ export default function Knowledge() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Draft">Draft</SelectItem>
-                    <SelectItem value="Published">Published</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -561,11 +578,11 @@ export default function Knowledge() {
                 <Badge className={getCategoryColor(viewingArticle?.category || "")}>
                   {viewingArticle?.category}
                 </Badge>
-                <Badge variant={viewingArticle?.status === "Published" ? "default" : "secondary"}>
-                  {viewingArticle?.status}
+                <Badge variant={viewingArticle?.publishStatus === "published" ? "default" : "secondary"}>
+                  {viewingArticle?.publishStatus === "published" ? "Published" : "Draft"}
                 </Badge>
                 <span className="text-xs text-muted-foreground ml-2">
-                  Updated {viewingArticle?.lastUpdated}
+                  Updated {viewingArticle ? formatTimestamp(viewingArticle.lastUpdated) : "Unknown"}
                 </span>
               </div>
             </DialogDescription>
@@ -573,7 +590,7 @@ export default function Knowledge() {
 
           <div className="py-4">
             <div className="prose prose-sm max-w-none whitespace-pre-wrap font-mono text-sm">
-              {viewingArticle?.content}
+              {viewingArticle?.content || "No content available"}
             </div>
           </div>
 
@@ -642,8 +659,8 @@ export default function Knowledge() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Draft">Draft</SelectItem>
-                    <SelectItem value="Published">Published</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
