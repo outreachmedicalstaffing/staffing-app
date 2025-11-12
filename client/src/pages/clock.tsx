@@ -241,7 +241,7 @@ export default function Clock() {
                     <TableHead>Clock In</TableHead>
                     <TableHead>Clock Out</TableHead>
                     <TableHead>Total Hours</TableHead>
-                    <TableHead>Job/Location</TableHead>
+                    <TableHead>Program</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -268,7 +268,7 @@ export default function Clock() {
                         <TableCell>
                           {entry.clockOut ? total.toFixed(2) : "—"}
                         </TableCell>
-                        <TableCell>{entry.location || "—"}</TableCell>
+                        <TableCell>{entry.program || "—"}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {entry.locked && (
