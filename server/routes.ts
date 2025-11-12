@@ -618,9 +618,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const entryId = req.params.id;
 
+        console.log("Time entry update request:", {
+          entryId,
+          sessionUserId: req.session.userId,
+          hasSession: !!req.session,
+          bodyKeys: Object.keys(req.body)
+        });
+
         // Get current user
         const currentUser = await storage.getUser(req.session.userId!);
         if (!currentUser) {
+          console.log("User not found for session userId:", req.session.userId);
           return res.status(401).json({ error: "User not found" });
         }
 
@@ -645,7 +653,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Check if user owns this entry (or is admin)
-        if (!isAdmin && existing.userId !== req.session.userId) {
+        // Convert both IDs to strings for comparison to handle any type mismatches
+        const entryUserId = String(existing.userId);
+        const currentUserId = String(req.session.userId);
+
+        if (!isAdmin && entryUserId !== currentUserId) {
+          console.log("Authorization check failed:", {
+            isAdmin,
+            entryUserId,
+            currentUserId,
+            match: entryUserId === currentUserId
+          });
           return res.status(403).json({
             error: "You can only edit your own time entries"
           });
@@ -657,8 +675,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (req.body.locked === false && Object.keys(req.body).length === 1 && isAdmin) {
             // Allow unlock-only request for admins
           } else {
+            console.log("Locked entry edit attempted:", {
+              isAdmin,
+              locked: existing.locked,
+              unlockRequest: req.body.locked === false,
+              bodyKeys: Object.keys(req.body)
+            });
             return res.status(403).json({
-              error: "Cannot edit locked time entry. Unlock it first.",
+              error: "This time entry is locked and cannot be edited. Please contact an administrator.",
             });
           }
         }
