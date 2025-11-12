@@ -108,12 +108,9 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
             alt="OutreachOps Logo"
             className="h-12 w-12 object-contain"
           />
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">Outreach Medical</span>
-            <span className="text-xs font-semibold text-muted-foreground">
-              Staffing
-            </span>
-          </div>
+          <span className="text-sm font-semibold">
+            Outreach Medical Staffing
+          </span>
         </div>
       </SidebarHeader>
       <SidebarContent>
