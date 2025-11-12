@@ -457,6 +457,14 @@ export default function Schedule() {
 
   const { toast } = useToast();
 
+  // Fetch current user to check role
+  const { data: currentUser } = useQuery<User>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  // Check if user is admin
+  const isAdmin = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
+
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
@@ -1173,7 +1181,7 @@ export default function Schedule() {
                     </div>
                     <div className="mt-2 space-y-1 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Labor</span>
+                        <span className="text-muted-foreground">Pay</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Scheduled</span>
@@ -1624,14 +1632,16 @@ export default function Schedule() {
               <span className="text-muted-foreground">Shifts:</span>
               <span className="font-medium">{weekStats.shifts}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <UsersIcon className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Users:</span>
-              <span className="font-medium">{weekStats.users}</span>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-2">
+                <UsersIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Users:</span>
+                <span className="font-medium">{weekStats.users}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Labor:</span>
+              <span className="text-muted-foreground">Pay:</span>
               <span className="font-medium">${weekStats.labor.toFixed(2)}</span>
             </div>
           </div>
