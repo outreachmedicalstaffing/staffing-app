@@ -453,16 +453,16 @@ export default function Documents() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Documents</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Documents</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your credentials and certifications
           </p>
         </div>
         {isAdmin && (
           <Button
-            className="bg-red-600 hover:bg-red-700"
+            className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
             onClick={() => setShowCreateModal(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -1069,18 +1069,18 @@ export default function Documents() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {/* Approved Card */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <div>
-                <div className="text-3xl font-bold">{approvedCount}</div>
-                <p className="text-sm text-muted-foreground mt-1">
+              <div className="flex-1 min-w-0">
+                <div className="text-2xl sm:text-3xl font-bold">{approvedCount}</div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Documents approved
                 </p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-600" />
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 flex-shrink-0 ml-2" />
             </div>
           </CardContent>
         </Card>
@@ -1089,13 +1089,13 @@ export default function Documents() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <div>
-                <div className="text-3xl font-bold">{pendingCount}</div>
-                <p className="text-sm text-muted-foreground mt-1">
+              <div className="flex-1 min-w-0">
+                <div className="text-2xl sm:text-3xl font-bold">{pendingCount}</div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Awaiting approval
                 </p>
               </div>
-              <Clock className="h-8 w-8 text-blue-600" />
+              <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0 ml-2" />
             </div>
           </CardContent>
         </Card>
@@ -1104,13 +1104,13 @@ export default function Documents() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <div>
-                <div className="text-3xl font-bold">{expiredCount}</div>
-                <p className="text-sm text-muted-foreground mt-1">
+              <div className="flex-1 min-w-0">
+                <div className="text-2xl sm:text-3xl font-bold">{expiredCount}</div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   Expired or expiring
                 </p>
               </div>
-              <AlertTriangle className="h-8 w-8 text-orange-600" />
+              <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600 flex-shrink-0 ml-2" />
             </div>
           </CardContent>
         </Card>
@@ -1142,7 +1142,7 @@ export default function Documents() {
             <div className="space-y-4">
               {/* Section Header */}
               <div>
-                <h2 className="text-xl font-semibold">{isAdmin ? "Document Requirements" : "Your Documents"}</h2>
+                <h2 className="text-lg sm:text-xl font-semibold">{isAdmin ? "Document Requirements" : "Your Documents"}</h2>
                 {!isAdmin && (
                   <p className="text-sm text-muted-foreground">
                     {documents.length} {documents.length === 1 ? 'document' : 'documents'} uploaded
@@ -1190,16 +1190,16 @@ export default function Documents() {
                       <Card key={doc.id}>
                         <CardContent className="pt-6">
                           <div className="space-y-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start space-x-3">
-                                <FileText className="h-8 w-8 text-blue-600 mt-1" />
-                                <div>
-                                  <h3 className="font-semibold">{doc.title}</h3>
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                              <div className="flex items-start space-x-3 flex-1 min-w-0">
+                                <FileText className="h-8 w-8 text-blue-600 mt-1 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="font-semibold break-words">{doc.title}</h3>
                                 </div>
                               </div>
                               {hasStatus && (
                                 <Badge
-                                  className={
+                                  className={`flex-shrink-0 ${
                                     isExpired
                                       ? "bg-red-100 text-red-800 hover:bg-red-100"
                                       : doc.status === "rejected"
@@ -1207,7 +1207,7 @@ export default function Documents() {
                                       : doc.status === "pending"
                                       ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
                                       : "bg-green-100 text-green-800 hover:bg-green-100"
-                                  }
+                                  }`}
                                 >
                                   {isExpired ? "Expired" : doc.status === "rejected" ? "Rejected" : doc.status === "pending" ? "Pending Review" : "Approved"}
                                 </Badge>
@@ -1252,7 +1252,7 @@ export default function Documents() {
                               </div>
                             )}
 
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               {!hasStatus ? (
                                 // Document requirement/template
                                 isAdmin ? (
@@ -1263,6 +1263,7 @@ export default function Documents() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => handleViewDocument(doc)}
+                                        className="w-full sm:w-auto"
                                       >
                                         <Download className="h-4 w-4 mr-2" />
                                         View Template
@@ -1272,6 +1273,7 @@ export default function Documents() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleEditDocument(doc)}
+                                      className="w-full sm:w-auto"
                                     >
                                       <Upload className="h-4 w-4 mr-2" />
                                       Edit
@@ -1280,7 +1282,7 @@ export default function Documents() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleInitiateDelete(doc.id)}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:bg-red-50"
                                     >
                                       <Trash className="h-4 w-4" />
                                     </Button>
@@ -1293,6 +1295,7 @@ export default function Documents() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => handleViewDocument(doc)}
+                                        className="w-full sm:w-auto"
                                       >
                                         <Download className="h-4 w-4 mr-2" />
                                         View Template
@@ -1302,6 +1305,7 @@ export default function Documents() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleOpenUploadModal(doc)}
+                                      className="w-full sm:w-auto"
                                     >
                                       <Upload className="h-4 w-4 mr-2" />
                                       Upload
@@ -1317,6 +1321,7 @@ export default function Documents() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleViewDocument(doc)}
+                                      className="w-full sm:w-auto"
                                     >
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
@@ -1326,7 +1331,7 @@ export default function Documents() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => handleApproveDocument(doc.id)}
-                                        className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                        className="w-full sm:w-auto bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                                       >
                                         <CheckCircle className="h-4 w-4 mr-2" />
                                         Approve
@@ -1336,6 +1341,7 @@ export default function Documents() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleEditDocument(doc)}
+                                      className="w-full sm:w-auto"
                                     >
                                       <Upload className="h-4 w-4 mr-2" />
                                       Edit
@@ -1344,7 +1350,7 @@ export default function Documents() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleInitiateDelete(doc.id)}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:bg-red-50"
                                     >
                                       <Trash className="h-4 w-4" />
                                     </Button>
@@ -1356,6 +1362,7 @@ export default function Documents() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleViewDocument(doc)}
+                                      className="w-full sm:w-auto"
                                     >
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
@@ -1364,6 +1371,7 @@ export default function Documents() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleOpenUploadModal(doc)}
+                                      className="w-full sm:w-auto"
                                     >
                                       <Upload className="h-4 w-4 mr-2" />
                                       Upload
@@ -1379,6 +1387,7 @@ export default function Documents() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleViewDocument(doc)}
+                                      className="w-full sm:w-auto"
                                     >
                                       <Eye className="h-4 w-4 mr-2" />
                                       View
@@ -1388,7 +1397,7 @@ export default function Documents() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => handleApproveDocument(doc.id)}
-                                        className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                        className="w-full sm:w-auto bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                                       >
                                         <CheckCircle className="h-4 w-4 mr-2" />
                                         Approve
@@ -1398,6 +1407,7 @@ export default function Documents() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleEditDocument(doc)}
+                                      className="w-full sm:w-auto"
                                     >
                                       <Upload className="h-4 w-4 mr-2" />
                                       Edit
@@ -1406,7 +1416,7 @@ export default function Documents() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleInitiateDelete(doc.id)}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:bg-red-50"
                                     >
                                       <Trash className="h-4 w-4" />
                                     </Button>
