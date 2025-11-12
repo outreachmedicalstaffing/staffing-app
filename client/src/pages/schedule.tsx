@@ -1014,29 +1014,31 @@ export default function Schedule() {
           <ClipboardList className="h-6 w-6 text-primary" />
           Schedule
         </h1>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" data-testid="button-permissions">
-            <SettingsIcon className="h-4 w-4 mr-2" />
-            Permissions
-          </Button>
-          <Button variant="outline" size="sm" data-testid="button-requests">
-            <FileText className="h-4 w-4 mr-2" />
-            Requests
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowJobList(true)}
-            data-testid="button-job-list"
-          >
-            <ClipboardList className="h-4 w-4 mr-2" />
-            Job list
-          </Button>
-          <Button variant="outline" size="sm" data-testid="button-settings">
-            <SettingsIcon className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
-        </div>
+        {isAdmin && (
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" data-testid="button-permissions">
+              <SettingsIcon className="h-4 w-4 mr-2" />
+              Permissions
+            </Button>
+            <Button variant="outline" size="sm" data-testid="button-requests">
+              <FileText className="h-4 w-4 mr-2" />
+              Requests
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowJobList(true)}
+              data-testid="button-job-list"
+            >
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Job list
+            </Button>
+            <Button variant="outline" size="sm" data-testid="button-settings">
+              <SettingsIcon className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Top Controls */}
