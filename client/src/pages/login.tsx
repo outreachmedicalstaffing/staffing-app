@@ -71,10 +71,7 @@ export default function Login() {
               <Shield className="h-6 w-6" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center">OutreachOps</CardTitle>
-          <CardDescription className="text-center">
-            HIPAA-compliant workforce management platform
-          </CardDescription>
+          <CardTitle className="text-2xl text-center">Outreach Medical Staffing</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
