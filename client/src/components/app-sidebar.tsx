@@ -31,7 +31,7 @@ import type { User } from "@shared/schema";
 
 const getMenuItems = (isAdmin: boolean) => [
   { title: "Dashboard", url: "/", icon: Home, adminOnly: false },
-  { title: isAdmin ? "Payroll" : "Timesheets", url: "/clock", icon: Clock, adminOnly: false },
+  { title: isAdmin ? "Payroll" : "Clock", url: "/clock", icon: Clock, adminOnly: false },
   { title: "Schedule", url: "/schedule", icon: Calendar, adminOnly: false },
   { title: "Documents", url: "/documents", icon: FileText, adminOnly: false },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen, adminOnly: false },

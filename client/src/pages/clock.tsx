@@ -199,7 +199,7 @@ export default function Clock() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold" data-testid="heading-clock">
-          {isAdmin ? "Time Clock" : "Timesheets"}
+          {isAdmin ? "Time Clock" : "Clock"}
         </h1>
         {isAdmin && (
           <p className="text-muted-foreground">Review and approve employee time</p>
