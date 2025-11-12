@@ -436,20 +436,29 @@ export default function Documents() {
   };
 
   // Calculate document counts
-  const approvedCount = documents.filter(doc =>
-    doc.status === "approved" &&
-    (!doc.expirationDate || new Date(doc.expirationDate) >= new Date())
-  ).length;
+  const approvedCount = documents.filter(doc => {
+    // For regular users, only count their own documents
+    if (!isAdmin && doc.userId !== currentUser?.id) return false;
 
-  const pendingCount = documents.filter(doc =>
-    doc.status === "pending"
-  ).length;
+    return doc.status === "approved" &&
+      (!doc.expirationDate || new Date(doc.expirationDate) >= new Date());
+  }).length;
 
-  const expiredCount = documents.filter(doc =>
-    doc.expirationDate &&
-    doc.status !== undefined &&
-    new Date(doc.expirationDate) < new Date()
-  ).length;
+  const pendingCount = documents.filter(doc => {
+    // For regular users, only count their own documents
+    if (!isAdmin && doc.userId !== currentUser?.id) return false;
+
+    return doc.status === "pending";
+  }).length;
+
+  const expiredCount = documents.filter(doc => {
+    // For regular users, only count their own documents
+    if (!isAdmin && doc.userId !== currentUser?.id) return false;
+
+    return doc.expirationDate &&
+      doc.status !== undefined &&
+      new Date(doc.expirationDate) < new Date();
+  }).length;
 
   return (
     <div className="space-y-6">
