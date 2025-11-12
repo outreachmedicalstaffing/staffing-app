@@ -1155,11 +1155,6 @@ export default function Documents() {
               {/* Section Header */}
               <div>
                 <h2 className="text-lg sm:text-xl font-semibold">{isAdmin ? "Document Requirements" : "Your Documents"}</h2>
-                {!isAdmin && (
-                  <p className="text-sm text-muted-foreground">
-                    {documents.length} {documents.length === 1 ? 'document' : 'documents'} uploaded
-                  </p>
-                )}
               </div>
 
               {/* Document Cards Grid */}
