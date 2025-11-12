@@ -1133,6 +1133,9 @@ export default function Documents() {
         <Tabs defaultValue="my-documents">
           <TabsList>
             <TabsTrigger value="my-documents">{isAdmin ? "Documents" : "My Documents"}</TabsTrigger>
+            {!isAdmin && (
+              <TabsTrigger value="expired">Expired</TabsTrigger>
+            )}
             {isAdmin && (
               <TabsTrigger value="user-documents">User Documents</TabsTrigger>
             )}
@@ -1442,6 +1445,134 @@ export default function Documents() {
               </div>
             </div>
           </TabsContent>
+
+          {/* Expired Tab - Regular Users Only */}
+          {!isAdmin && (
+            <TabsContent value="expired" className="mt-4">
+              <div className="space-y-4">
+                {/* Section Header */}
+                <div>
+                  <h2 className="text-lg sm:text-xl font-semibold">Expired Documents</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Documents that are expired or expiring soon
+                  </p>
+                </div>
+
+                {/* Expired Document Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {documents
+                    .filter(doc => {
+                      // Only show user's own uploaded documents that are expired
+                      if (!doc.status || doc.userId !== currentUser?.id) return false;
+
+                      // Check if document is expired
+                      const isExpired = doc.expirationDate
+                        ? new Date(doc.expirationDate) < new Date()
+                        : doc.status === "expired";
+
+                      return isExpired;
+                    })
+                    .length === 0 ? (
+                    <div className="col-span-2 text-center py-12 text-muted-foreground">
+                      No expired documents
+                    </div>
+                  ) : (
+                    documents
+                      .filter(doc => {
+                        // Only show user's own uploaded documents that are expired
+                        if (!doc.status || doc.userId !== currentUser?.id) return false;
+
+                        // Check if document is expired
+                        const isExpired = doc.expirationDate
+                          ? new Date(doc.expirationDate) < new Date()
+                          : doc.status === "expired";
+
+                        return isExpired;
+                      })
+                      .map((doc) => {
+                      const formatDate = (dateString: string) => {
+                        if (!dateString) return "N/A";
+                        const [year, month, day] = dateString.split('-').map(Number);
+                        const date = new Date(year, month - 1, day);
+                        return date.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        });
+                      };
+
+                      return (
+                        <Card key={doc.id}>
+                          <CardContent className="pt-6">
+                            <div className="space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                                  <FileText className="h-8 w-8 text-blue-600 mt-1 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <h3 className="font-semibold break-words">{doc.title}</h3>
+                                  </div>
+                                </div>
+                                <Badge className="flex-shrink-0 bg-red-100 text-red-800 hover:bg-red-100">
+                                  Expired
+                                </Badge>
+                              </div>
+
+                              <div className="space-y-1 text-sm">
+                                <p className="text-muted-foreground">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className="text-red-600 font-medium">
+                                    Expired: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                                <p className="text-sm text-red-800">
+                                  This document has expired and needs renewal
+                                </p>
+                              </div>
+
+                              {doc.status === "rejected" && doc.rejectionReason && (
+                                <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                                  <p className="text-sm font-medium text-orange-800 mb-1">
+                                    Document Rejected
+                                  </p>
+                                  <p className="text-sm text-orange-700">
+                                    {doc.rejectionReason}
+                                  </p>
+                                </div>
+                              )}
+
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewDocument(doc)}
+                                  className="w-full sm:w-auto"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </Button>
+                                <Button
+                                  className="w-full bg-red-600 hover:bg-red-700"
+                                  onClick={() => handleOpenUploadModal(doc)}
+                                >
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Upload Document
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="user-documents" className="mt-4">
