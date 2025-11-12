@@ -13,7 +13,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Clock from "@/pages/clock";
 import Schedule from "@/pages/schedule";
-import Timesheets from "@/pages/timesheets";
+import UserTimesheets from "@/pages/user-timesheets";
 import Documents from "@/pages/documents";
 import Knowledge from "@/pages/knowledge";
 import Updates from "@/pages/updates";
@@ -56,7 +56,7 @@ function AuthenticatedRouter() {
       <Route path="/" component={Dashboard} />
       <Route path="/clock" component={Clock} />
       <Route path="/schedule" component={Schedule} />
-      <Route path="/timesheets" component={Timesheets} />
+      <Route path="/timesheets" component={UserTimesheets} />
       <Route path="/documents" component={Documents} />
       <Route path="/knowledge" component={Knowledge} />
       <Route path="/updates" component={Updates} />
