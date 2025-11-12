@@ -27,7 +27,7 @@ export default function Users() {
   });
 
   // Check if user is admin
-  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+  const isAdmin = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
 
   // Redirect non-admin users to dashboard
   useEffect(() => {

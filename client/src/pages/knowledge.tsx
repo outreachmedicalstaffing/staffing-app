@@ -35,7 +35,7 @@ export default function Knowledge() {
     queryKey: ["/api/auth/me"],
   });
 
-  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+  const isAdmin = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);

@@ -62,7 +62,7 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
     queryKey: ["/api/auth/me"],
   });
 
-  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+  const isAdmin = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
 
   // Calculate total pending documents for admins
   useEffect(() => {
