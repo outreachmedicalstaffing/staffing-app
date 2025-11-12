@@ -29,11 +29,10 @@ import {
 
 import type { User } from "@shared/schema";
 
-const menuItems = [
+const getMenuItems = (isAdmin: boolean) => [
   { title: "Dashboard", url: "/", icon: Home, adminOnly: false },
-  { title: "Clock", url: "/clock", icon: Clock, adminOnly: false },
+  { title: isAdmin ? "Payroll" : "Timesheets", url: "/clock", icon: Clock, adminOnly: false },
   { title: "Schedule", url: "/schedule", icon: Calendar, adminOnly: false },
-  { title: "Timesheets", url: "/timesheets", icon: ClipboardList, adminOnly: false },
   { title: "Documents", url: "/documents", icon: FileText, adminOnly: false },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen, adminOnly: false },
   { title: "Updates", url: "/updates", icon: Bell, adminOnly: false },
@@ -118,7 +117,7 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems
+              {getMenuItems(isAdmin)
                 .filter((item) => !item.adminOnly || isAdmin)
                 .map((item) => (
                   <SidebarMenuItem key={item.title}>
