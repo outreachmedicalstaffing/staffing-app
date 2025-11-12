@@ -282,7 +282,9 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -327,7 +329,9 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -372,7 +376,9 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -417,7 +423,9 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
@@ -462,7 +470,9 @@ export default function Knowledge() {
                           <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            <p className="text-sm text-muted-foreground">{article.description || "No description"}</p>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
