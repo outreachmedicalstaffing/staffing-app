@@ -175,8 +175,66 @@ export default function Clock() {
         location: editLocation,
         clockIn: newIn.toISOString(),
         ...(outISO ? { clockOut: outISO } : {}),
+        // Regular users require approval, admins don't
+        approvalStatus: isAdmin ? "approved" : "pending",
       },
     });
+  };
+
+  // Approve time entry mutation
+  const approveEntryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/time/entries/${id}`, {
+        approvalStatus: "approved",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      toast({
+        title: "Entry approved",
+        description: "Time entry has been approved.",
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Error",
+        description: err?.message || "Failed to approve entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reject time entry mutation
+  const rejectEntryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/time/entries/${id}`, {
+        approvalStatus: "rejected",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      toast({
+        title: "Entry rejected",
+        description: "Time entry has been rejected.",
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Error",
+        description: err?.message || "Failed to reject entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleApproveEntry = (id: string) => {
+    approveEntryMutation.mutate(id);
+  };
+
+  const handleRejectEntry = (id: string) => {
+    rejectEntryMutation.mutate(id);
   };
 
   if (isLoading) {
@@ -274,6 +332,23 @@ export default function Clock() {
                         <TableCell>{entry.program || "—"}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            {(entry as any).approvalStatus === "pending" && (
+                              <Badge
+                                variant="outline"
+                                className="bg-yellow-50 text-yellow-700 border-yellow-300"
+                                title="Pending admin approval"
+                              >
+                                Pending Approval
+                              </Badge>
+                            )}
+                            {(entry as any).approvalStatus === "rejected" && (
+                              <Badge
+                                variant="destructive"
+                                title="Rejected by admin"
+                              >
+                                Rejected
+                              </Badge>
+                            )}
                             {entry.locked && (
                               <Badge
                                 variant="secondary"
@@ -290,6 +365,25 @@ export default function Clock() {
                             >
                               Edit
                             </Button>
+                            {isAdmin && (entry as any).approvalStatus === "pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => handleApproveEntry(entry.id)}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleRejectEntry(entry.id)}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

@@ -98,6 +98,7 @@ export const timeEntries = pgTable(
     notes: text("notes"),
     status: text("status").notNull().default("active"), // active, completed, auto-clocked-out
     locked: boolean("locked").default(false), // locked days prevent editing
+    approvalStatus: text("approval_status").notNull().default("approved"), // approved, pending, rejected
     relievingNurseSignature: text("relieving_nurse_signature"), // Signature obtained at clock out
     shiftNoteAttachments: text("shift_note_attachments").array(), // Photos/files uploaded at clock out
     employeeNotes: text("employee_notes"), // Notes from employee
