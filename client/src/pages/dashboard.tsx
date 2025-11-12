@@ -154,14 +154,14 @@ export default function Dashboard() {
 
   // Expired documents
   const expiredDocs = documents.filter(doc => {
-    if (!doc.expiryDate) return false;
+    if (!doc.expiryDate || doc.userId !== user?.id) return false;
     const expiryDate = new Date(doc.expiryDate);
     return isBefore(expiryDate, now);
   });
 
   // Pending items
   const expiringDocs = documents.filter(doc => {
-    if (!doc.expiryDate) return false;
+    if (!doc.expiryDate || doc.userId !== user?.id) return false;
     const expiryDate = new Date(doc.expiryDate);
     const daysUntilExpiry = differenceInDays(expiryDate, now);
     return daysUntilExpiry > 0 && daysUntilExpiry <= 30;
