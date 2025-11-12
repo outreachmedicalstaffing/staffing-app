@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Shield } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { User } from "@shared/schema";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -12,6 +14,11 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Fetch all users for Quick Login buttons
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+  });
 
   const handleLogin = async (user: string, pass: string) => {
     setLoading(true);
@@ -115,39 +122,60 @@ export default function Login() {
               <p>Admin: admin / admin123</p>
               <p>Staff: jsmith / password123</p>
             </div>
-            
+
             <div className="border-t pt-4 space-y-2">
               <p className="text-xs text-center text-muted-foreground mb-2">Quick Login:</p>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => handleLogin("owner", "admin123")}
-                disabled={loading}
-                data-testid="button-quick-login-owner"
-              >
-                Login as Owner
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => handleLogin("admin", "admin123")}
-                disabled={loading}
-                data-testid="button-quick-login-admin"
-              >
-                Login as Admin
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => handleLogin("jsmith", "password123")}
-                disabled={loading}
-                data-testid="button-quick-login-staff"
-              >
-                Login as Staff (jsmith)
-              </Button>
+
+              {/* Owner users */}
+              {users
+                .filter(user => user.role?.toLowerCase() === 'owner')
+                .map(user => (
+                  <Button
+                    key={user.id}
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleLogin(user.username, "admin123")}
+                    disabled={loading}
+                    data-testid="button-quick-login-owner"
+                  >
+                    Login as Owner
+                  </Button>
+                ))}
+
+              {/* Admin users */}
+              {users
+                .filter(user => user.role?.toLowerCase() === 'admin')
+                .map(user => (
+                  <Button
+                    key={user.id}
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleLogin(user.username, "admin123")}
+                    disabled={loading}
+                    data-testid="button-quick-login-admin"
+                  >
+                    Login as Admin
+                  </Button>
+                ))}
+
+              {/* Staff users */}
+              {users
+                .filter(user => user.role?.toLowerCase() === 'staff')
+                .map(user => (
+                  <Button
+                    key={user.id}
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleLogin(user.username, "password123")}
+                    disabled={loading}
+                    data-testid={`button-quick-login-staff-${user.username}`}
+                  >
+                    Login as Staff ({user.fullName})
+                  </Button>
+                ))}
             </div>
           </div>
         </CardContent>
