@@ -5,13 +5,13 @@ import {
   Users,
   BookOpen,
   Settings,
-  Shield,
   ClipboardList,
   FolderTree,
   Bell,
   UsersRound,
   FileText,
 } from "lucide-react";
+import logo from "@/assets/logo.svg";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -104,9 +104,11 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Shield className="h-6 w-6" />
-          </div>
+          <img
+            src={logo}
+            alt="OutreachOps Logo"
+            className="h-10 w-10 object-contain"
+          />
           <div className="flex flex-col">
             <span className="text-sm font-semibold">OutreachOps</span>
             <span className="text-xs text-muted-foreground">
