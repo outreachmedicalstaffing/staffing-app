@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { User, TimeEntry, Shift, Document, Timesheet } from "@shared/schema";
-import { format, isAfter, isBefore, startOfWeek, endOfWeek, differenceInDays, addDays } from "date-fns";
+import { format, isAfter, isBefore, startOfWeek, endOfWeek, differenceInDays, addDays, startOfDay, endOfDay } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -43,6 +43,11 @@ export default function Dashboard() {
   // Fetch timesheets
   const { data: timesheets = [], isLoading: timesheetsLoading } = useQuery<Timesheet[]>({
     queryKey: ['/api/timesheets'],
+  });
+
+  // Fetch all users (for admin to see user names on shifts)
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['/api/users'],
   });
 
   // Clock in/out logic
@@ -120,10 +125,15 @@ export default function Dashboard() {
 
   const isLoading = userLoading || timeEntriesLoading || shiftsLoading || documentsLoading || timesheetsLoading;
 
+  // Check if user is admin
+  const isAdmin = user?.role?.toLowerCase() === "owner" || user?.role?.toLowerCase() === "admin";
+
   // Calculate statistics
   const now = new Date();
   const weekStart = startOfWeek(now);
   const weekEnd = endOfWeek(now);
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
 
   // Hours this week
   const weekTimeEntries = timeEntries.filter(entry => {
@@ -146,11 +156,24 @@ export default function Dashboard() {
     return shiftDate >= weekStart && shiftDate <= weekEnd;
   });
 
-  // Upcoming shifts (next 7 days)
+  // Upcoming shifts (next 7 days) - for regular users
   const upcomingShifts = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
     return isAfter(shiftDate, now) && isBefore(shiftDate, addDays(now, 7));
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  // Today's shifts - for admins (all users' shifts for today)
+  const todayShifts = shifts.filter(shift => {
+    const shiftDate = new Date(shift.startTime);
+    return shiftDate >= todayStart && shiftDate <= todayEnd;
+  }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  // Helper function to get user name by userId
+  const getUserName = (userId: string | undefined) => {
+    if (!userId) return 'Unassigned';
+    const shiftUser = users.find(u => u.id === userId);
+    return shiftUser?.fullName || 'Unknown User';
+  };
 
   // Expired documents
   const expiredDocs = documents.filter(doc => {
@@ -252,38 +275,72 @@ export default function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>My Shifts</CardTitle>
-            <CardDescription>Upcoming scheduled shifts</CardDescription>
+            <CardTitle>{isAdmin ? "Today's Shifts" : "My Shifts"}</CardTitle>
+            <CardDescription>{isAdmin ? "All shifts scheduled for today" : "Upcoming scheduled shifts"}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {upcomingShifts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No upcoming shifts</p>
+            {isAdmin ? (
+              // Admin view: Show today's shifts across all users
+              todayShifts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No shifts scheduled for today</p>
+              ) : (
+                <>
+                  {todayShifts.slice(0, 2).map(shift => (
+                    <ShiftCard
+                      key={shift.id}
+                      id={shift.id}
+                      job={shift.location || 'Unknown Location'}
+                      subJob={shift.notes || 'Shift'}
+                      date={format(new Date(shift.startTime), 'MMM d, yyyy')}
+                      startTime={format(new Date(shift.startTime), 'h:mm a')}
+                      endTime={format(new Date(shift.endTime), 'h:mm a')}
+                      location={shift.location || 'Unknown'}
+                      status={shift.status as any}
+                      assignedTo={getUserName(shift.userId)}
+                      onView={() => setViewingShift(shift)}
+                    />
+                  ))}
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-view-all-shifts"
+                    onClick={() => setLocation('/schedule')}
+                  >
+                    View All Shifts
+                  </Button>
+                </>
+              )
             ) : (
-              <>
-                {upcomingShifts.slice(0, 2).map(shift => (
-                  <ShiftCard
-                    key={shift.id}
-                    id={shift.id}
-                    job={shift.location || 'Unknown Location'}
-                    subJob={shift.notes || 'Shift'}
-                    date={format(new Date(shift.startTime), 'MMM d, yyyy')}
-                    startTime={format(new Date(shift.startTime), 'h:mm a')}
-                    endTime={format(new Date(shift.endTime), 'h:mm a')}
-                    location={shift.location || 'Unknown'}
-                    status={shift.status as any}
-                    assignedTo="You"
-                    onView={() => setViewingShift(shift)}
-                  />
-                ))}
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  data-testid="button-view-all-shifts"
-                  onClick={() => setLocation('/schedule')}
-                >
-                  View All Shifts
-                </Button>
-              </>
+              // Regular user view: Show upcoming shifts
+              upcomingShifts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No upcoming shifts</p>
+              ) : (
+                <>
+                  {upcomingShifts.slice(0, 2).map(shift => (
+                    <ShiftCard
+                      key={shift.id}
+                      id={shift.id}
+                      job={shift.location || 'Unknown Location'}
+                      subJob={shift.notes || 'Shift'}
+                      date={format(new Date(shift.startTime), 'MMM d, yyyy')}
+                      startTime={format(new Date(shift.startTime), 'h:mm a')}
+                      endTime={format(new Date(shift.endTime), 'h:mm a')}
+                      location={shift.location || 'Unknown'}
+                      status={shift.status as any}
+                      assignedTo="You"
+                      onView={() => setViewingShift(shift)}
+                    />
+                  ))}
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-view-all-shifts"
+                    onClick={() => setLocation('/schedule')}
+                  >
+                    View All Shifts
+                  </Button>
+                </>
+              )
             )}
           </CardContent>
         </Card>
