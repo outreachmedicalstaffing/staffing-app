@@ -668,6 +668,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ error: "Time entry not found" });
         }
 
+        // Create notification for owners/admins when a regular user edits their time
+        if (!isAdmin) {
+          try {
+            // Get all owners and admins
+            const allUsers = await storage.listUsers();
+            const adminUsers = allUsers.filter(u =>
+              u.role.toLowerCase() === "owner" || u.role.toLowerCase() === "admin"
+            );
+            const adminUserIds = adminUsers.map(u => u.id);
+
+            // Format old and new times
+            const formatTime = (date: Date | string) => {
+              const d = new Date(date);
+              return d.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              });
+            };
+
+            const oldClockIn = formatTime(existing.clockIn);
+            const newClockIn = data.clockIn ? formatTime(data.clockIn) : oldClockIn;
+            const oldClockOut = existing.clockOut ? formatTime(existing.clockOut) : "Not clocked out";
+            const newClockOut = data.clockOut ? formatTime(data.clockOut) : oldClockOut;
+
+            // Build change description
+            let changes = [];
+            if (data.clockIn && existing.clockIn.getTime() !== new Date(data.clockIn).getTime()) {
+              changes.push(`Clock In: ${oldClockIn} → ${newClockIn}`);
+            }
+            if (data.clockOut && (!existing.clockOut || existing.clockOut.getTime() !== new Date(data.clockOut).getTime())) {
+              changes.push(`Clock Out: ${oldClockOut} → ${newClockOut}`);
+            }
+
+            if (changes.length > 0 && adminUserIds.length > 0) {
+              // Create notification update
+              const entryDate = new Date(entry.clockIn).toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              });
+
+              await storage.db.insert(schema.updates).values({
+                title: `Time Entry Edited: ${currentUser.fullName}`,
+                content: `${currentUser.fullName} edited their time entry for ${entryDate}:\n\n${changes.join('\n')}`,
+                publishDate: new Date(),
+                createdBy: req.session.userId!,
+                visibility: "specific_users",
+                targetUserIds: adminUserIds,
+                status: "published",
+              });
+            }
+          } catch (notifError) {
+            // Don't fail the request if notification creation fails
+            console.error("Failed to create notification for time entry edit:", notifError);
+          }
+        }
+
         await logAudit(
           req.session.userId,
           "update",
