@@ -28,6 +28,7 @@ export default function Knowledge() {
   const [editedTitle, setEditedTitle] = useState("");
   const [editedDescription, setEditedDescription] = useState("");
   const [editedContent, setEditedContent] = useState("");
+  const [editedStatus, setEditedStatus] = useState<"published" | "draft">("draft");
 
   // Create Article state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -66,6 +67,7 @@ export default function Knowledge() {
     setEditedTitle(article.title);
     setEditedDescription(article.description);
     setEditedContent(article.content || "");
+    setEditedStatus(article.publishStatus);
   };
 
   const handleSaveEdit = () => {
@@ -77,6 +79,7 @@ export default function Knowledge() {
       title: editedTitle,
       description: editedDescription,
       content: editedContent,
+      publishStatus: editedStatus,
       lastUpdated: "just now",
     };
 
@@ -356,6 +359,18 @@ export default function Knowledge() {
                 onChange={(e) => setEditedDescription(e.target.value)}
                 placeholder="Brief description"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={editedStatus} onValueChange={(value) => setEditedStatus(value as "published" | "draft")}>
+                <SelectTrigger id="edit-status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-content">Content</Label>
