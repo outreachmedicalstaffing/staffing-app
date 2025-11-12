@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Shield } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
+import logo from "@/assets/logo.png";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -67,9 +67,11 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <div className="flex items-center justify-center h-12 w-12 rounded-md bg-primary text-primary-foreground">
-              <Shield className="h-6 w-6" />
-            </div>
+            <img
+              src={logo}
+              alt="Outreach Medical Staffing Logo"
+              className="h-16 w-16 object-contain"
+            />
           </div>
           <CardTitle className="text-2xl text-center">Outreach Medical Staffing</CardTitle>
         </CardHeader>
