@@ -11,7 +11,7 @@ import {
   UsersRound,
   FileText,
 } from "lucide-react";
-import logo from "@/assets/logo.svg";
+import logo from "@/assets/logo.png";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -107,7 +107,7 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
           <img
             src={logo}
             alt="OutreachOps Logo"
-            className="h-10 w-10 object-contain"
+            className="h-12 w-12 object-contain"
           />
           <div className="flex flex-col">
             <span className="text-sm font-semibold">OutreachOps</span>
