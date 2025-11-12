@@ -1,32 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <!-- Red Medical Cross Background -->
-  <path d="M 50 50 L 50 200 L 0 200 L 0 350 L 150 350 L 150 400 L 300 400 L 300 250 L 200 250 L 200 50 Z"
-        fill="#E61050" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+  <!-- Red/Pink Medical Cross with Rounded Corners -->
+  <path d="M 40 110 L 40 180 Q 40 190, 50 190 L 110 190 L 110 250 Q 110 260, 120 260 L 190 260 Q 200 260, 200 250 L 200 190 L 200 110 Q 200 100, 190 100 L 120 100 Q 110 100, 110 110 L 110 110 L 50 110 Q 40 110, 40 110 Z
+        M 50 60 Q 40 60, 40 70 L 40 100 L 110 100 L 110 70 Q 110 60, 120 60 Z
+        M 120 190 L 190 190 L 190 250 Q 190 260, 190 260 L 120 260 Q 110 260, 120 250 Z"
+        fill="#E91E63"
+        stroke="none"/>
+
+  <!-- Simplified Pink Medical Cross -->
+  <rect x="40" y="60" width="80" height="200" rx="10" fill="#E91E63"/>
+  <rect x="40" y="110" width="160" height="80" rx="10" fill="#E91E63"/>
 
   <!-- White Curved Accent -->
-  <path d="M 200 50 Q 250 200, 350 400"
+  <path d="M 150 70 Q 190 140, 220 270"
         stroke="white"
-        stroke-width="15"
+        stroke-width="12"
         fill="none"
         stroke-linecap="round"/>
 
   <!-- Blue Figure -->
-  <g fill="#1565C0">
+  <g fill="#1976D2">
     <!-- Head -->
-    <circle cx="280" cy="200" r="25"/>
+    <circle cx="200" cy="140" r="18"/>
 
-    <!-- Body and Arms -->
-    <path d="M 255 230 Q 280 240, 305 230 L 305 340 Q 280 350, 255 340 Z"/>
+    <!-- Body (curved) -->
+    <path d="M 185 165 Q 200 170, 215 165 Q 220 200, 215 240 Q 200 245, 185 240 Q 180 200, 185 165 Z"/>
 
     <!-- Raised Arm -->
-    <path d="M 280 240 L 330 140"
-          stroke="#1565C0"
-          stroke-width="20"
-          stroke-linecap="round"/>
+    <path d="M 200 165 Q 235 120, 260 95"
+          stroke="#1976D2"
+          stroke-width="16"
+          stroke-linecap="round"
+          fill="none"/>
   </g>
 
-  <!-- Star -->
-  <g fill="#E61050">
-    <path d="M 360 130 L 367 145 L 383 145 L 370 155 L 375 170 L 360 160 L 345 170 L 350 155 L 337 145 L 353 145 Z"/>
+  <!-- Pink Four-Point Star -->
+  <g fill="#E91E63">
+    <!-- Four-point star -->
+    <path d="M 275 85 L 280 95 L 290 100 L 280 105 L 275 115 L 270 105 L 260 100 L 270 95 Z"/>
+    <!-- Make it more prominent -->
+    <path d="M 275 80 L 278 93 L 291 96 L 278 99 L 275 112 L 272 99 L 259 96 L 272 93 Z"
+          fill="#E91E63"
+          opacity="0.8"/>
   </g>
 </svg>
