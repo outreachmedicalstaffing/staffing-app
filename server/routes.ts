@@ -361,7 +361,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const shiftId = req.body.shiftId || null;
       let jobName = req.body.jobName || null;
       let program: string | null = null;
-      let hourlyRate = user.defaultHourlyRate;
+      let hourlyRate = user.defaultHourlyRate || null;
+
+      console.log("Initial clock-in data:", {
+        userId,
+        shiftId,
+        jobName,
+        defaultHourlyRate: user.defaultHourlyRate,
+        userJobRates: user.jobRates
+      });
 
       // If shiftId provided, get shift details
       if (shiftId) {
@@ -369,34 +377,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (shift) {
           jobName = shift.jobName || jobName;
           program = (shift as any).program || null;
+          console.log("Found shift details:", { jobName, program });
+        } else {
+          console.warn("Shift not found for shiftId:", shiftId);
+          // Don't fail if shift not found, just continue without shift data
         }
       } else if (!jobName) {
         // Auto-detect which shift the user is clocking in for
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        try {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
 
-        // Get user's shifts for today
-        const todayShifts = await storage.listShifts(
-          undefined,
-          today,
-          tomorrow,
-        );
-        const userAssignments = await storage.listShiftAssignments(
-          undefined,
-          userId,
-        );
-        const assignedShiftIds = new Set(userAssignments.map((a) => a.shiftId));
+          console.log("Auto-detecting shift for date range:", { today, tomorrow });
 
-        // Find assigned shift for today
-        const assignedShift = todayShifts.find(
-          (shift) => assignedShiftIds.has(shift.id) && shift.jobName,
-        );
+          // Get user's shifts for today
+          const todayShifts = await storage.listShifts(
+            undefined,
+            today,
+            tomorrow,
+          );
+          const userAssignments = await storage.listShiftAssignments(
+            undefined,
+            userId,
+          );
+          const assignedShiftIds = new Set(userAssignments.map((a) => a.shiftId));
 
-        if (assignedShift) {
-          jobName = assignedShift.jobName;
-          program = (assignedShift as any).program || null;
+          console.log("Auto-detect results:", {
+            todayShiftsCount: todayShifts.length,
+            userAssignmentsCount: userAssignments.length,
+            assignedShiftIds: Array.from(assignedShiftIds)
+          });
+
+          // Find assigned shift for today
+          const assignedShift = todayShifts.find(
+            (shift) => assignedShiftIds.has(shift.id) && shift.jobName,
+          );
+
+          if (assignedShift) {
+            jobName = assignedShift.jobName;
+            program = (assignedShift as any).program || null;
+            console.log("Auto-detected shift:", { jobName, program });
+          } else {
+            console.log("No assigned shift found for today");
+          }
+        } catch (autoDetectError) {
+          console.error("Error auto-detecting shift:", autoDetectError);
+          // Continue without auto-detected shift data
         }
       }
 
@@ -408,7 +436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const entry = await storage.createTimeEntry({
+      // Prepare time entry data
+      const timeEntryData = {
         userId,
         shiftId,
         clockIn: new Date(),
@@ -418,9 +447,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hourlyRate,
         location: req.body.location || null,
         notes: req.body.notes || null,
-        status: "active",
+        status: "active" as const,
+        approvalStatus: "approved" as const,
         breakMinutes: 0,
+      };
+
+      console.log("Creating time entry with data:", {
+        ...timeEntryData,
+        clockIn: timeEntryData.clockIn.toISOString(),
+        hourlyRateType: typeof hourlyRate,
+        hourlyRateValue: hourlyRate,
       });
+
+      const entry = await storage.createTimeEntry(timeEntryData);
 
       await logAudit(
         userId,
@@ -434,7 +473,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(entry);
     } catch (error) {
-      res.status(500).json({ error: "Failed to clock in" });
+      console.error("Clock in error:", error);
+      console.error("Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: req.session.userId,
+        body: req.body
+      });
+      res.status(500).json({
+        error: "Failed to clock in",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
