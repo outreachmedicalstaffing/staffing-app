@@ -437,23 +437,23 @@ export default function Documents() {
 
   // Calculate document counts
   const approvedCount = documents.filter(doc => {
-    // For regular users, only count their own documents
-    if (!isAdmin && doc.userId !== currentUser?.id) return false;
+    // For regular users, only count their own documents that are visible to users
+    if (!isAdmin && (doc.userId !== currentUser?.id || !doc.visibleToUsers)) return false;
 
     return doc.status === "approved" &&
       (!doc.expirationDate || new Date(doc.expirationDate) >= new Date());
   }).length;
 
   const pendingCount = documents.filter(doc => {
-    // For regular users, only count their own documents
-    if (!isAdmin && doc.userId !== currentUser?.id) return false;
+    // For regular users, only count their own documents that are visible to users
+    if (!isAdmin && (doc.userId !== currentUser?.id || !doc.visibleToUsers)) return false;
 
     return doc.status === "pending";
   }).length;
 
   const expiredCount = documents.filter(doc => {
-    // For regular users, only count their own documents
-    if (!isAdmin && doc.userId !== currentUser?.id) return false;
+    // For regular users, only count their own documents that are visible to users
+    if (!isAdmin && (doc.userId !== currentUser?.id || !doc.visibleToUsers)) return false;
 
     return doc.expirationDate &&
       doc.status !== undefined &&
@@ -1170,8 +1170,8 @@ export default function Documents() {
                         // Admins only see requirements (no status = templates)
                         return !doc.status;
                       } else {
-                        // Users see: visible requirements OR their own uploaded documents
-                        return (!doc.status && doc.visibleToUsers) || (doc.status && doc.userId === currentUser?.id);
+                        // Users see: visible requirements OR their own uploaded documents (that are also marked as visible)
+                        return doc.visibleToUsers && (!doc.status || doc.userId === currentUser?.id);
                       }
                     })
                     .map((doc) => {
@@ -1466,8 +1466,8 @@ export default function Documents() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {documents
                     .filter(doc => {
-                      // Only show user's own uploaded documents that are expired
-                      if (!doc.status || doc.userId !== currentUser?.id) return false;
+                      // Only show user's own uploaded documents that are expired and visible
+                      if (!doc.status || doc.userId !== currentUser?.id || !doc.visibleToUsers) return false;
 
                       // Check if document is expired
                       const isExpired = doc.expirationDate
@@ -1483,8 +1483,8 @@ export default function Documents() {
                   ) : (
                     documents
                       .filter(doc => {
-                        // Only show user's own uploaded documents that are expired
-                        if (!doc.status || doc.userId !== currentUser?.id) return false;
+                        // Only show user's own uploaded documents that are expired and visible
+                        if (!doc.status || doc.userId !== currentUser?.id || !doc.visibleToUsers) return false;
 
                         // Check if document is expired
                         const isExpired = doc.expirationDate
