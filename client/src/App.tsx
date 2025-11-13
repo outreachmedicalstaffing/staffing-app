@@ -13,6 +13,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Clock from "@/pages/clock";
 import Schedule from "@/pages/schedule";
+import Timesheets from "@/pages/timesheets";
 import UserTimesheets from "@/pages/user-timesheets";
 import Documents from "@/pages/documents";
 import Knowledge from "@/pages/knowledge";
@@ -25,9 +26,20 @@ import Onboarding from "@/pages/onboarding";
 import type { User } from "@shared/schema";
 import { useEffect, useState } from "react";
 
+function TimesheetsRouter() {
+  const { data: user } = useQuery<User>({
+    queryKey: ['/api/auth/me'],
+  });
+
+  const isAdmin = user?.role?.toLowerCase() === "owner" || user?.role?.toLowerCase() === "admin";
+
+  // Show admin Timesheets for owners/admins, UserTimesheets for regular users
+  return isAdmin ? <Timesheets /> : <UserTimesheets />;
+}
+
 function AuthenticatedRouter() {
   const [location, setLocation] = useLocation();
-  
+
   const { data: user, isLoading, error } = useQuery<User>({
     queryKey: ['/api/auth/me'],
     retry: false,
@@ -56,7 +68,7 @@ function AuthenticatedRouter() {
       <Route path="/" component={Dashboard} />
       <Route path="/clock" component={Clock} />
       <Route path="/schedule" component={Schedule} />
-      <Route path="/timesheets" component={UserTimesheets} />
+      <Route path="/timesheets" component={TimesheetsRouter} />
       <Route path="/documents" component={Documents} />
       <Route path="/knowledge" component={Knowledge} />
       <Route path="/updates" component={Updates} />

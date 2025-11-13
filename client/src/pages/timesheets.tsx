@@ -163,7 +163,7 @@ export default function Timesheets() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="heading-timesheets">Time Clock</h1>
+          <h1 className="text-2xl font-semibold" data-testid="heading-timesheets">Timesheets</h1>
           <p className="text-muted-foreground">Review and approve employee time</p>
         </div>
         <div className="flex gap-2">
