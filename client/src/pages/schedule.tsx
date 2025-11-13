@@ -739,13 +739,16 @@ export default function Schedule() {
 
   const confirmShiftMutation = useMutation({
     mutationFn: async (data: { assignmentId: string }) => {
-      return apiRequest("POST", `/api/shift-assignments/${data.assignmentId}/confirm`);
+      const response = await apiRequest("POST", `/api/shift-assignments/${data.assignmentId}/confirm`);
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Shift confirmed, updated assignment:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/shift-assignments"] });
       toast({ title: "Shift confirmed successfully", description: "Your shift confirmation has been recorded." });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Failed to confirm shift:", error);
       toast({ title: "Failed to confirm shift", variant: "destructive" });
     },
   });
@@ -1496,11 +1499,14 @@ export default function Schedule() {
                                       );
                                       if (assignment?.confirmedAt) {
                                         return (
-                                          <Check
-                                            className="h-3 w-3 flex-shrink-0 bg-green-500 rounded-full p-0.5"
-                                            title="Shift confirmed"
+                                          <div
+                                            className="flex items-center gap-0.5 bg-white/95 text-green-600 rounded px-1 py-0.5"
+                                            title="You confirmed this shift"
                                             data-testid={`confirmed-${shift.id}`}
-                                          />
+                                          >
+                                            <Check className="h-3 w-3 flex-shrink-0 stroke-[3]" />
+                                            <span className="text-[9px] font-bold">CONFIRMED</span>
+                                          </div>
                                         );
                                       }
                                     } else {
@@ -1510,11 +1516,14 @@ export default function Schedule() {
                                       );
                                       if (assignment) {
                                         return (
-                                          <Check
-                                            className="h-3 w-3 flex-shrink-0 bg-green-500 rounded-full p-0.5"
-                                            title="Shift confirmed by user"
+                                          <div
+                                            className="flex items-center gap-0.5 bg-white/95 text-green-600 rounded px-1 py-0.5"
+                                            title={`Confirmed by ${user.fullName}`}
                                             data-testid={`confirmed-${shift.id}`}
-                                          />
+                                          >
+                                            <Check className="h-3 w-3 flex-shrink-0 stroke-[3]" />
+                                            <span className="text-[9px] font-bold">CONFIRMED</span>
+                                          </div>
                                         );
                                       }
                                     }
