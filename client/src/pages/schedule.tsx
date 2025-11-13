@@ -1657,7 +1657,7 @@ export default function Schedule() {
             )}
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Pay:</span>
+              <span className="text-muted-foreground">Pay Scheduled:</span>
               <span className="font-medium">${weekStats.labor.toFixed(2)}</span>
             </div>
           </div>
