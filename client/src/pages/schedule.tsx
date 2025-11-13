@@ -133,10 +133,10 @@ const saveJobInfo = (data: Record<string, JobInfo>) => {
     localStorage.setItem(JOB_STORE_KEY, JSON.stringify(data));
   } catch {}
 };
-type Shift = 'day' | 'night' | 'anytime';
+type AvailabilityShift = 'day' | 'night' | 'anytime';
 
 export default function Schedule() {
-  const [shiftByUserDay, setShiftByUserDay] = useState<Record<string, Record<string, Shift>>>({});
+  const [shiftByUserDay, setShiftByUserDay] = useState<Record<string, Record<string, AvailabilityShift>>>({});
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("week");
   const [searchQuery, setSearchQuery] = useState("");
@@ -796,7 +796,7 @@ export default function Schedule() {
     throw new Error('User needs a stable key (id, email, or name)');
   };
 
-  const shiftClasses = (shift: Shift, scheduled: boolean) => {
+  const shiftClasses = (shift: AvailabilityShift, scheduled: boolean) => {
     const base = {
       day:     'bg-green-100 text-green-900 border-green-300',
       night:   'bg-pink-100 text-pink-900 border-pink-300',
@@ -1451,7 +1451,7 @@ export default function Schedule() {
                                 </div>
                               </>
                             ) : (
-                              <div className={`rounded-md px-2 py-1 text-xs font-semibold ${shiftClasses((shiftByUserDay[userKey(user)]?.[dayKey(day)] ?? 'anytime') as Shift, userShifts.length > 0)}`}>
+                              <div className={`rounded-md px-2 py-1 text-xs font-semibold ${shiftClasses((shiftByUserDay[userKey(user)]?.[dayKey(day)] ?? 'anytime') as AvailabilityShift, userShifts.length > 0)}`}>
                                 {shiftByUserDay[userKey(user)]?.[dayKey(day)] ?? 'anytime'}
                               </div>
                             )}

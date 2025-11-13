@@ -164,7 +164,7 @@ export default function Clock() {
     if (activeEntry) {
       clockOutMutation.mutate();
     } else {
-      clockInMutation.mutate();
+      clockInMutation.mutate(undefined);
     }
   };
 
@@ -241,7 +241,7 @@ export default function Clock() {
                     </div>
                   </div>
                   <Button
-                    variant="link"
+                    variant="ghost"
                     className="h-auto p-0 text-sm"
                     onClick={() => setViewingShift(displayShift)}
                     data-testid="button-view-shift-details"
