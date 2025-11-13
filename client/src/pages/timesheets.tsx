@@ -101,7 +101,7 @@ export default function Timesheets() {
 
     return {
       user,
-      job: latestEntry?.location || '—',
+      job: (latestEntry as any)?.program || latestEntry?.jobName || latestEntry?.location || '—',
       clockIn: latestEntry ? format(new Date(latestEntry.clockIn), 'h:mm a') : '—',
       clockOut: latestEntry?.clockOut ? format(new Date(latestEntry.clockOut), 'h:mm a') : '—',
       totalHours,
@@ -227,7 +227,7 @@ export default function Timesheets() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[200px]">First name</TableHead>
-                      <TableHead>Job</TableHead>
+                      <TableHead>Program</TableHead>
                       <TableHead>Clock in</TableHead>
                       <TableHead>Clock out</TableHead>
                       <TableHead>Total hours</TableHead>
