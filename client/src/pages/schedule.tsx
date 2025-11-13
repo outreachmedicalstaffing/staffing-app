@@ -469,6 +469,12 @@ export default function Schedule() {
     queryKey: ["/api/users"],
   });
 
+  // Filter out owners and admins - only show staff/regular users on schedule
+  const staffUsers = users.filter(user => {
+    const role = user.role?.toLowerCase();
+    return role !== 'owner' && role !== 'admin';
+  });
+
   const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
     queryKey: ["/api/shifts"],
   });
@@ -767,7 +773,7 @@ export default function Schedule() {
     setCurrentDate(new Date());
   };
 
-  const unassignedUsers = users.slice(0, 10);
+  const unassignedUsers = staffUsers.slice(0, 10);
 
   const getShiftsForDay = (day: Date) => {
     return shifts.filter((s) => {
@@ -1363,7 +1369,7 @@ export default function Schedule() {
                 })}
               </div>
 
-              {users.map((user) => (
+              {staffUsers.map((user) => (
                 <div
                   key={user.id}
                   className="grid border-b last:border-b-0"
