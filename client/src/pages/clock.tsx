@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
-import { Clock as ClockIcon, Eye } from "lucide-react";
+import { Clock as ClockIcon, Pencil } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -374,14 +374,15 @@ export default function Clock() {
                           {(entry as any).program || entry.location || "—"}
                         </TableCell>
                         <TableCell>
-                          {isAdmin && entry.clockOut && (
+                          {entry.clockOut && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditEntry(entry)}
                               data-testid="button-edit-entry"
+                              title="Edit time entry"
                             >
-                              <Eye className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" />
                             </Button>
                           )}
                         </TableCell>
