@@ -2892,7 +2892,206 @@ export default function Schedule() {
           <DialogHeader>
             <DialogTitle>{isAdmin ? "Edit Shift" : "View Shift Details"}</DialogTitle>
           </DialogHeader>
-          {editingShift && (
+          {editingShift && !isAdmin && (
+            // Read-only view for regular users
+            <div className="space-y-4">
+              {/* Shift Title */}
+              <div className="pb-2 border-b">
+                <h3 className="text-xl font-semibold">{editingShift.title}</h3>
+              </div>
+
+              {/* Date & Time Section */}
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Date & Time</h4>
+                {(() => {
+                  const shiftStart = new Date(editingShift.startTime);
+                  const shiftEnd = new Date(editingShift.endTime);
+                  const crossesMidnight = shiftStart.toDateString() !== shiftEnd.toDateString();
+
+                  return (
+                    <div className="space-y-2">
+                      {crossesMidnight ? (
+                        <>
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Start</div>
+                            <div className="font-medium">
+                              {format(shiftStart, "EEEE, MMMM d, yyyy")} at {format(shiftStart, "h:mm a")}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">End</div>
+                            <div className="font-medium">
+                              {format(shiftEnd, "EEEE, MMMM d, yyyy")} at {format(shiftEnd, "h:mm a")}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Date</div>
+                            <div className="font-medium">{format(shiftStart, "EEEE, MMMM d, yyyy")}</div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <div className="text-xs text-muted-foreground mb-1">Start Time</div>
+                              <div className="font-medium">{format(shiftStart, "h:mm a")}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-muted-foreground mb-1">End Time</div>
+                              <div className="font-medium">{format(shiftEnd, "h:mm a")}</div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Duration</div>
+                        <div className="font-medium">
+                          {(() => {
+                            const hours = Math.floor(differenceInMinutes(shiftEnd, shiftStart) / 60);
+                            const minutes = differenceInMinutes(shiftEnd, shiftStart) % 60;
+                            return `${hours}h ${minutes}m`;
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Program & Job Section */}
+              {(editingShift.jobName || (editingShift as any).program) && (
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Program & Job</h4>
+                  <div className="space-y-3">
+                    {(editingShift as any).program && (
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Program</div>
+                        <div className="font-medium flex items-center gap-2">
+                          {(() => {
+                            const program = jobLocations.find(
+                              (j) => j.name === ((editingShift as any).program || "")
+                            );
+                            return (
+                              <>
+                                {program && (
+                                  <div
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: program.color }}
+                                  />
+                                )}
+                                {(editingShift as any).program}
+                              </>
+                            );
+                          })()}
+                        </div>
+                        {(() => {
+                          const program = jobLocations.find(
+                            (j) => j.name === ((editingShift as any).program || "")
+                          );
+                          const description = (program as any)?.description || jobInfo[(editingShift as any).program]?.description;
+                          if (description) {
+                            return (
+                              <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
+                                {description}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
+                    {editingShift.jobName && (
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Job</div>
+                        <div className="font-medium flex items-center gap-2">
+                          {(() => {
+                            const job = jobLocations.find((j) => j.name === editingShift.jobName);
+                            return (
+                              <>
+                                {job && (
+                                  <div
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: job.color }}
+                                  />
+                                )}
+                                {editingShift.jobName}
+                              </>
+                            );
+                          })()}
+                        </div>
+                        {(() => {
+                          const job = jobLocations.find((j) => j.name === editingShift.jobName);
+                          if (job && job.description) {
+                            return (
+                              <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
+                                {job.description}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Address Section */}
+              {editingShift.location && (
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Address</h4>
+                  <div className="font-medium flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <span>{editingShift.location}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes Section */}
+              {editingShift.notes && (
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Notes</h4>
+                  <div className="text-sm whitespace-pre-wrap">{editingShift.notes}</div>
+                </div>
+              )}
+
+              {/* Attachments */}
+              {editingShift.attachments && editingShift.attachments.length > 0 && (
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Attachments</h4>
+                  <div className="space-y-2">
+                    {editingShift.attachments.map((filename, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="flex items-center gap-2 p-2 border rounded-md w-full text-left hover:bg-accent transition-colors cursor-pointer"
+                        onClick={() => {
+                          window.open(`/api/files/${filename}`, "_blank");
+                        }}
+                        data-testid={`attachment-${index}`}
+                      >
+                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm flex-1">{filename}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingShift(null)}
+                  data-testid="button-cancel-edit"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+          {editingShift && isAdmin && (
+            // Editable form for admins
             <div className="space-y-4">
               {/* Shift Title */}
               <div>
@@ -2903,7 +3102,6 @@ export default function Schedule() {
                   onChange={(e) =>
                     setEditingShift({ ...editingShift, title: e.target.value })
                   }
-                  disabled={!isAdmin}
                   data-testid="input-edit-shift-title"
                 />
               </div>
@@ -2916,7 +3114,6 @@ export default function Schedule() {
                   onValueChange={(value) =>
                     setEditingShift({ ...editingShift, jobName: value })
                   }
-                  disabled={!isAdmin}
                 >
                   <SelectTrigger
                     id="edit-job-select"
@@ -2948,7 +3145,6 @@ export default function Schedule() {
                   onValueChange={(value) =>
                     setEditingShift({ ...editingShift, program: value } as any)
                   }
-                  disabled={!isAdmin}
                 >
                   <SelectTrigger id="edit-program-select" data-testid="select-edit-program">
                     <SelectValue placeholder="Select a program" />
@@ -3037,7 +3233,6 @@ export default function Schedule() {
                             <Button
                               variant="outline"
                               className="w-full justify-start text-left font-normal"
-                              disabled={!isAdmin}
                               data-testid="button-edit-shift-start-date"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -3061,7 +3256,6 @@ export default function Schedule() {
                                   });
                                 }
                               }}
-                              disabled={!isAdmin}
                               data-testid="calendar-edit-shift-start-date"
                             />
                           </PopoverContent>
@@ -3074,7 +3268,6 @@ export default function Schedule() {
                             <Button
                               variant="outline"
                               className="w-full justify-start text-left font-normal"
-                              disabled={!isAdmin}
                               data-testid="button-edit-shift-end-date"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -3098,7 +3291,6 @@ export default function Schedule() {
                                   });
                                 }
                               }}
-                              disabled={!isAdmin}
                               data-testid="calendar-edit-shift-end-date"
                             />
                           </PopoverContent>
@@ -3116,7 +3308,6 @@ export default function Schedule() {
                           <Button
                             variant="outline"
                             className="w-full justify-start text-left font-normal"
-                            disabled={!isAdmin}
                             data-testid="button-edit-shift-date"
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -3148,7 +3339,6 @@ export default function Schedule() {
                                 });
                               }
                             }}
-                            disabled={!isAdmin}
                             data-testid="calendar-edit-shift-date"
                           />
                         </PopoverContent>
@@ -3177,7 +3367,6 @@ export default function Schedule() {
                         });
                       }
                     }}
-                    disabled={!isAdmin}
                     data-testid="input-edit-start-time"
                   />
                 </div>
@@ -3198,7 +3387,6 @@ export default function Schedule() {
                         });
                       }
                     }}
-                    disabled={!isAdmin}
                     data-testid="input-edit-end-time"
                   />
                 </div>
@@ -3216,7 +3404,6 @@ export default function Schedule() {
                       location: e.target.value,
                     })
                   }
-                  disabled={!isAdmin}
                   data-testid="input-edit-address"
                 />
               </div>
@@ -3231,7 +3418,6 @@ export default function Schedule() {
                   onChange={(e) =>
                     setEditingShift({ ...editingShift, notes: e.target.value })
                   }
-                  disabled={!isAdmin}
                   data-testid="textarea-edit-notes"
                 />
               </div>
@@ -3262,48 +3448,46 @@ export default function Schedule() {
                 )}
 
               {/* Action Buttons */}
-              <div className={`flex ${isAdmin ? 'justify-between' : 'justify-end'} pt-4`}>
+              <div className="flex justify-between pt-4">
                 <Button
                   variant="outline"
                   onClick={() => setEditingShift(null)}
                   data-testid="button-cancel-edit"
                 >
-                  {isAdmin ? "Cancel" : "Close"}
+                  Cancel
                 </Button>
-                {isAdmin && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        deleteShiftMutation.mutate(editingShift.id);
-                        setEditingShift(null);
-                      }}
-                      data-testid="button-delete-shift"
-                    >
-                      Delete
-                    </Button>
-                    <Button
-                      variant="default"
-                      onClick={() => {
-                        updateShiftMutation.mutate({
-                          id: editingShift.id,
-                          data: {
-                            title: editingShift.title,
-                            jobName: editingShift.jobName,
-                            program: (editingShift as any).program,
-                            startTime: editingShift.startTime,
-                            endTime: editingShift.endTime,
-                            location: editingShift.location,
-                            notes: editingShift.notes,
-                          },
-                        });
-                      }}
-                      data-testid="button-save-shift"
-                    >
-                      Save Changes
-                    </Button>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      deleteShiftMutation.mutate(editingShift.id);
+                      setEditingShift(null);
+                    }}
+                    data-testid="button-delete-shift"
+                  >
+                    Delete
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      updateShiftMutation.mutate({
+                        id: editingShift.id,
+                        data: {
+                          title: editingShift.title,
+                          jobName: editingShift.jobName,
+                          program: (editingShift as any).program,
+                          startTime: editingShift.startTime,
+                          endTime: editingShift.endTime,
+                          location: editingShift.location,
+                          notes: editingShift.notes,
+                        },
+                      });
+                    }}
+                    data-testid="button-save-shift"
+                  >
+                    Save Changes
+                  </Button>
+                </div>
               </div>
             </div>
           )}
