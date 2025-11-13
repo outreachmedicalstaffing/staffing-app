@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
-import { Clock as ClockIcon, Pencil } from "lucide-react";
+import { Clock as ClockIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -18,9 +17,6 @@ export default function Clock() {
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [viewingShift, setViewingShift] = useState<Shift | null>(null);
-  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
-  const [editClockIn, setEditClockIn] = useState("");
-  const [editClockOut, setEditClockOut] = useState("");
 
   // Update current time every second
   useState(() => {
@@ -155,54 +151,6 @@ export default function Clock() {
     },
   });
 
-  // Update time entry mutation
-  const updateEntryMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<TimeEntry> }) => {
-      try {
-        console.log("Updating time entry:", { id, data });
-        const res = await apiRequest("PATCH", `/api/time/entries/${id}`, data);
-        const result = await res.json();
-        console.log("Update successful:", result);
-        return result;
-      } catch (error) {
-        console.error("Update failed:", error);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
-      setEditingEntry(null);
-      toast({
-        title: "Entry updated",
-        description: "Time entry has been updated successfully",
-      });
-    },
-    onError: (error: any) => {
-      console.error("Mutation error:", error);
-      // Parse error message more carefully
-      let errorMessage = "Failed to update time entry";
-      if (error?.message) {
-        // Extract JSON error if present
-        const match = error.message.match(/\{.*\}/);
-        if (match) {
-          try {
-            const errorObj = JSON.parse(match[0]);
-            errorMessage = errorObj.error || errorMessage;
-          } catch {
-            errorMessage = error.message;
-          }
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    },
-  });
-
   // Handle clock toggle
   const handleClockToggle = () => {
     if (activeEntry) {
@@ -210,64 +158,6 @@ export default function Clock() {
     } else {
       clockInMutation.mutate();
     }
-  };
-
-  // Open edit dialog
-  const handleEditEntry = (entry: TimeEntry) => {
-    if ((entry as any).locked) {
-      toast({
-        title: "Entry is locked",
-        description: "You cannot edit a locked entry",
-        variant: "destructive",
-      });
-      return;
-    }
-    setEditingEntry(entry);
-    setEditClockIn(format(new Date(entry.clockIn), "HH:mm"));
-    setEditClockOut(entry.clockOut ? format(new Date(entry.clockOut), "HH:mm") : "");
-  };
-
-  // Save edited entry
-  const handleSaveEdit = () => {
-    if (!editingEntry) {
-      console.log("No editing entry found");
-      return;
-    }
-
-    console.log("handleSaveEdit called", {
-      editingEntry,
-      editClockIn,
-      editClockOut,
-    });
-
-    const baseDate = new Date(editingEntry.clockIn);
-    const [inH, inM] = (editClockIn || "00:00").split(":").map(Number);
-    const newIn = new Date(baseDate);
-    newIn.setHours(inH || 0, inM || 0, 0, 0);
-
-    let outISO: string | null = null;
-    if (editClockOut) {
-      const [outH, outM] = editClockOut.split(":").map(Number);
-      const newOut = new Date(baseDate);
-      newOut.setHours(outH || 0, outM || 0, 0, 0);
-      if (newOut <= newIn) newOut.setDate(newOut.getDate() + 1); // Handle overnight shifts
-      outISO = newOut.toISOString();
-    }
-
-    const updateData = {
-      clockIn: newIn.toISOString(),
-      ...(outISO ? { clockOut: outISO } : {}),
-    };
-
-    console.log("Calling mutation with:", {
-      id: editingEntry.id,
-      data: updateData,
-    });
-
-    updateEntryMutation.mutate({
-      id: editingEntry.id,
-      data: updateData,
-    });
   };
 
   const isLoading = timeEntriesLoading || shiftsLoading;
@@ -382,7 +272,6 @@ export default function Clock() {
                     <TableHead>Clock Out</TableHead>
                     <TableHead>Total Hours</TableHead>
                     <TableHead>Program</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -413,19 +302,6 @@ export default function Clock() {
                         </TableCell>
                         <TableCell>
                           {(entry as any).program || entry.location || "—"}
-                        </TableCell>
-                        <TableCell>
-                          {entry.clockOut && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditEntry(entry)}
-                              data-testid="button-edit-entry"
-                              title="Edit time entry"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -514,51 +390,6 @@ export default function Clock() {
               </DialogFooter>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Time Entry Dialog */}
-      <Dialog
-        open={!!editingEntry}
-        onOpenChange={(open) => !open && setEditingEntry(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Time Entry</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="clock-in">Clock In</Label>
-                <Input
-                  id="clock-in"
-                  type="time"
-                  value={editClockIn}
-                  onChange={(e) => setEditClockIn(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="clock-out">Clock Out</Label>
-                <Input
-                  id="clock-out"
-                  type="time"
-                  value={editClockOut}
-                  onChange={(e) => setEditClockOut(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingEntry(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={updateEntryMutation.isPending}
-            >
-              {updateEntryMutation.isPending ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
