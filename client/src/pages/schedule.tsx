@@ -469,10 +469,22 @@ export default function Schedule() {
     queryKey: ["/api/users"],
   });
 
-  // Filter out owners and admins - only show staff/regular users on schedule
+  // Filter users based on role:
+  // - Admins/owners see all staff users (excluding other admins/owners)
+  // - Regular users only see themselves
   const staffUsers = users.filter(user => {
     const role = user.role?.toLowerCase();
-    return role !== 'owner' && role !== 'admin';
+    const isStaffUser = role !== 'owner' && role !== 'admin';
+
+    if (!isStaffUser) return false;
+
+    // If current user is not an admin, only show their own row
+    if (!isAdmin) {
+      return user.id === currentUser?.id;
+    }
+
+    // Admins see all staff users
+    return true;
   });
 
   const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
