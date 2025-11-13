@@ -30,16 +30,16 @@ import {
 import type { User } from "@shared/schema";
 
 const getMenuItems = (isAdmin: boolean) => [
-  { title: "Dashboard", url: "/", icon: Home, adminOnly: false },
-  { title: "Clock", url: "/clock", icon: Clock, adminOnly: false },
-  { title: "Schedule", url: "/schedule", icon: Calendar, adminOnly: false },
-  { title: "Timesheets", url: "/timesheets", icon: ClipboardList, adminOnly: false },
-  { title: "Documents", url: "/documents", icon: FileText, adminOnly: false },
-  { title: "Knowledge Base", url: "/knowledge", icon: BookOpen, adminOnly: false },
-  { title: "Updates", url: "/updates", icon: Bell, adminOnly: false },
-  { title: "Users", url: "/users", icon: Users, adminOnly: true },
-  { title: "Groups", url: "/groups", icon: UsersRound, adminOnly: true },
-  { title: "Settings", url: "/settings", icon: Settings, adminOnly: true },
+  { title: "Dashboard", url: "/", icon: Home, adminOnly: false, staffOnly: false },
+  { title: "Clock", url: "/clock", icon: Clock, adminOnly: false, staffOnly: true },
+  { title: "Schedule", url: "/schedule", icon: Calendar, adminOnly: false, staffOnly: false },
+  { title: "Timesheets", url: "/timesheets", icon: ClipboardList, adminOnly: false, staffOnly: false },
+  { title: "Documents", url: "/documents", icon: FileText, adminOnly: false, staffOnly: false },
+  { title: "Knowledge Base", url: "/knowledge", icon: BookOpen, adminOnly: false, staffOnly: false },
+  { title: "Updates", url: "/updates", icon: Bell, adminOnly: false, staffOnly: false },
+  { title: "Users", url: "/users", icon: Users, adminOnly: true, staffOnly: false },
+  { title: "Groups", url: "/groups", icon: UsersRound, adminOnly: true, staffOnly: false },
+  { title: "Settings", url: "/settings", icon: Settings, adminOnly: true, staffOnly: false },
 ];
 
 interface AppSidebarProps {
@@ -119,7 +119,7 @@ export function AppSidebar({ hipaaMode = false }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {getMenuItems(isAdmin)
-                .filter((item) => !item.adminOnly || isAdmin)
+                .filter((item) => (!item.adminOnly || isAdmin) && (!item.staffOnly || !isAdmin))
                 .map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={location === item.url}>
