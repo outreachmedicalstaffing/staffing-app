@@ -50,6 +50,11 @@ export default function Dashboard() {
     queryKey: ['/api/users'],
   });
 
+  // Fetch shift assignments (to see who is assigned to each shift)
+  const { data: shiftAssignments = [] } = useQuery<any[]>({
+    queryKey: ['/api/shift-assignments'],
+  });
+
   // Clock in/out logic
   const activeEntry = timeEntries.find((e) => !e.clockOut);
 
@@ -168,10 +173,14 @@ export default function Dashboard() {
     return shiftDate >= todayStart && shiftDate <= todayEnd;
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-  // Helper function to get user name by userId
-  const getUserName = (userId: string | undefined) => {
-    if (!userId) return 'Unassigned';
-    const shiftUser = users.find(u => u.id === userId);
+  // Helper function to get user name for a shift
+  const getUserNameForShift = (shiftId: string) => {
+    // Find assignment for this shift
+    const assignment = shiftAssignments.find(a => a.shiftId === shiftId);
+    if (!assignment) return 'Unassigned';
+
+    // Find the user assigned to this shift
+    const shiftUser = users.find(u => u.id === assignment.userId);
     return shiftUser?.fullName || 'Unknown User';
   };
 
@@ -296,7 +305,7 @@ export default function Dashboard() {
                       endTime={format(new Date(shift.endTime), 'h:mm a')}
                       location={shift.location || 'Unknown'}
                       status={shift.status as any}
-                      assignedTo={getUserName(shift.userId)}
+                      assignedTo={getUserNameForShift(shift.id)}
                       onView={() => setViewingShift(shift)}
                     />
                   ))}
