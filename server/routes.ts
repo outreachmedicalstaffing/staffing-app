@@ -654,48 +654,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Check if user owns this entry (or is admin)
         // Convert both IDs to strings for comparison to handle any type mismatches
-        const entryUserId = String(existing.userId);
-        const currentUserId = String(req.session.userId);
+        const entryUserId = String(existing.userId || '');
+        const currentUserId = String(req.session.userId || '');
 
         console.log("Authorization check:", {
           isAdmin,
           entryUserId,
           currentUserId,
+          entryUserIdType: typeof existing.userId,
+          currentUserIdType: typeof req.session.userId,
           match: entryUserId === currentUserId,
-          willAllow: isAdmin || entryUserId === currentUserId
+          willAllow: isAdmin || entryUserId === currentUserId,
+          entryLocked: existing.locked
         });
 
         // Allow admins to edit any entry, or users to edit their own entries
         if (!isAdmin && entryUserId !== currentUserId) {
-          console.log("Authorization DENIED: User can only edit their own time entries");
+          console.log("Authorization DENIED: User trying to edit another user's time entry");
+          console.log("Entry belongs to userId:", entryUserId, "but request from userId:", currentUserId);
           return res.status(403).json({
             error: "You can only edit your own time entries"
           });
         }
 
-        console.log("Authorization GRANTED: User can edit this time entry");
+        console.log("Authorization GRANTED: User", currentUserId, "can edit time entry for user", entryUserId);
 
-        // Check if entry is locked - prevent ANY edits to locked entries
+        // Check if entry is locked - prevent edits to locked entries (except admin unlock)
         if (existing.locked) {
           // Only allow unlocking if that's the ONLY change (and user is admin)
           if (req.body.locked === false && Object.keys(req.body).length === 1 && isAdmin) {
-            console.log("Admin unlocking time entry");
-            // Allow unlock-only request for admins
+            console.log("Admin unlocking time entry", entryId);
+            // Allow unlock-only request for admins - continue to update
           } else {
-            console.log("Locked entry edit DENIED:", {
+            console.log("Locked entry edit DENIED - 403 response:", {
               isAdmin,
               locked: existing.locked,
               unlockRequest: req.body.locked === false,
               bodyKeys: Object.keys(req.body),
-              entryId
+              entryId,
+              userId: currentUserId
             });
             return res.status(403).json({
               error: "This time entry is locked and cannot be edited. Please contact an administrator."
             });
           }
+        } else {
+          console.log("Entry is not locked, proceeding with update");
         }
-
-        console.log("Entry is not locked, proceeding with update");
 
         const entry = await storage.updateTimeEntry(entryId, data);
         if (!entry) {
