@@ -460,7 +460,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hourlyRateValue: hourlyRate,
       });
 
-      const entry = await storage.createTimeEntry(timeEntryData);
+      // Validate data through Zod schema before inserting
+      const validatedData = insertTimeEntrySchema.parse(timeEntryData);
+      const entry = await storage.createTimeEntry(validatedData);
 
       await logAudit(
         userId,
