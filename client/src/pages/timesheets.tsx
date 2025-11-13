@@ -147,10 +147,23 @@ export default function Timesheets() {
     return matchesSearch && matchesStatus;
   });
 
-  const filteredTodayData = todayByUser.filter(item => 
-    item.user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.user.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTodayData = todayByUser
+    .filter(item =>
+      item.user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.user.username.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Check if currently clocked in (has clock in but no clock out)
+      const aClockedIn = a.clockIn !== '—' && a.clockOut === '—';
+      const bClockedIn = b.clockIn !== '—' && b.clockOut === '—';
+
+      // If one is clocked in and the other isn't, clocked in comes first
+      if (aClockedIn && !bClockedIn) return -1;
+      if (!aClockedIn && bClockedIn) return 1;
+
+      // Otherwise, sort alphabetically by full name
+      return a.user.fullName.localeCompare(b.user.fullName);
+    });
 
   const totalRegular = timesheetsByUser.reduce((sum, item) => sum + item.regularHours, 0);
   const totalHours = timesheetsByUser.reduce((sum, item) => sum + item.totalHours, 0);
