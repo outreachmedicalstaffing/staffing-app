@@ -1,11 +1,23 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimeEntry, User } from "@shared/schema";
 import { format, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Pencil } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function UserTimesheets() {
+  const { toast } = useToast();
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [editClockIn, setEditClockIn] = useState("");
+  const [editClockOut, setEditClockOut] = useState("");
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
@@ -37,6 +49,52 @@ export default function UserTimesheets() {
     }
     return sum;
   }, 0);
+
+  // Update time entry mutation
+  const updateEntryMutation = useMutation({
+    mutationFn: async (data: { id: number; clockIn: string; clockOut: string | null }) => {
+      const res = await apiRequest("PUT", `/api/time/entries/${data.id}`, {
+        clockIn: data.clockIn,
+        clockOut: data.clockOut,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      toast({
+        title: "Success",
+        description: "Time entry updated successfully",
+      });
+      setEditingEntry(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle edit button click
+  const handleEditEntry = (entry: TimeEntry) => {
+    setEditingEntry(entry);
+    setEditClockIn(format(new Date(entry.clockIn), "yyyy-MM-dd'T'HH:mm"));
+    setEditClockOut(
+      entry.clockOut ? format(new Date(entry.clockOut), "yyyy-MM-dd'T'HH:mm") : ""
+    );
+  };
+
+  // Handle save edited entry
+  const handleSaveEntry = () => {
+    if (!editingEntry) return;
+
+    updateEntryMutation.mutate({
+      id: editingEntry.id,
+      clockIn: editClockIn,
+      clockOut: editClockOut || null,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -96,6 +154,7 @@ export default function UserTimesheets() {
                     <TableHead>Clock Out</TableHead>
                     <TableHead>Total Hours</TableHead>
                     <TableHead>Program</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -123,6 +182,16 @@ export default function UserTimesheets() {
                           {entry.clockOut ? hours.toFixed(2) : "—"}
                         </TableCell>
                         <TableCell>{entry.program || "—"}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditEntry(entry)}
+                            data-testid={`button-edit-entry-${entry.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -132,6 +201,56 @@ export default function UserTimesheets() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Time Entry Dialog */}
+      <Dialog
+        open={!!editingEntry}
+        onOpenChange={(open) => !open && setEditingEntry(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Time Entry</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-clock-in">Clock In</Label>
+              <Input
+                id="edit-clock-in"
+                type="datetime-local"
+                value={editClockIn}
+                onChange={(e) => setEditClockIn(e.target.value)}
+                data-testid="input-edit-clock-in"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-clock-out">Clock Out</Label>
+              <Input
+                id="edit-clock-out"
+                type="datetime-local"
+                value={editClockOut}
+                onChange={(e) => setEditClockOut(e.target.value)}
+                data-testid="input-edit-clock-out"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingEntry(null)}
+              data-testid="button-cancel-edit"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEntry}
+              disabled={updateEntryMutation.isPending}
+              data-testid="button-save-edit"
+            >
+              {updateEntryMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
