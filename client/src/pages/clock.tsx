@@ -387,8 +387,8 @@ export default function Clock() {
                 </div>
               )}
 
-              <DialogFooter>
-                {!isAdmin && !activeEntry && (
+              <DialogFooter className="flex justify-between">
+                {!isAdmin && !activeEntry ? (
                   <Button
                     className="bg-[#E91E63] hover:bg-[#C2185B] text-white"
                     onClick={() => clockInMutation.mutate(viewingShift)}
@@ -398,6 +398,8 @@ export default function Clock() {
                     <ClockIcon className="h-4 w-4 mr-2" />
                     {clockInMutation.isPending ? "Clocking In..." : "Clock In"}
                   </Button>
+                ) : (
+                  <div />
                 )}
                 <Button
                   variant="outline"
