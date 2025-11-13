@@ -33,6 +33,12 @@ export default function Timesheets() {
     queryKey: ['/api/time/entries'],
   });
 
+  // Filter out owners and admins - only show staff/regular users
+  const staffUsers = users.filter(user => {
+    const role = user.role?.toLowerCase();
+    return role !== 'owner' && role !== 'admin';
+  });
+
   // Calculate current week range
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const weekRangeDisplay = `${format(currentWeekStart, 'MM/dd')} - ${format(weekEnd, 'MM/dd')}`;
@@ -77,8 +83,8 @@ export default function Timesheets() {
     // if end is <= start in same-day minutes, it rolled into the next day
     return e <= s;
   };
-  // Group today's entries by user
-  const todayByUser = users.map(user => {
+  // Group today's entries by user (staff only)
+  const todayByUser = staffUsers.map(user => {
     const userEntries = todayEntries.filter(entry => entry.userId === user.id);
     const latestEntry = userEntries[0];
     
@@ -108,8 +114,8 @@ export default function Timesheets() {
     item.clockIn !== '—' && item.clockOut === '—'
   ).length;
 
-  // Group timesheets by user (filtered by selected week)
-  const timesheetsByUser = users.map(user => {
+  // Group timesheets by user (staff only, filtered by selected week)
+  const timesheetsByUser = staffUsers.map(user => {
     const userTimesheets = timesheets.filter(ts => {
       if (ts.userId !== user.id) return false;
       // Extract YYYY-MM-DD directly from ISO string to avoid timezone conversion
