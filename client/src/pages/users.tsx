@@ -54,9 +54,19 @@ export default function Users() {
     return null;
   }
 
-  // Show all non-archived users in the Users tab (including pending-onboarding)
-  const activeUsers = users.filter(u => u.status !== 'archived');
-  const adminUsers = users.filter(u => (u.role === 'Admin' || u.role === 'Owner') && u.status !== 'archived');
+  // Staff users: non-archived users who are NOT admins or owners
+  const activeUsers = users.filter(u => {
+    const role = u.role?.toLowerCase();
+    return u.status !== 'archived' && role !== 'admin' && role !== 'owner';
+  });
+
+  // Admin users: non-archived users who ARE admins or owners
+  const adminUsers = users.filter(u => {
+    const role = u.role?.toLowerCase();
+    return (role === 'admin' || role === 'owner') && u.status !== 'archived';
+  });
+
+  // Archived users: all users with archived status
   const archivedUsers = users.filter(u => u.status === 'archived');
 
   const filteredUsers = activeUsers.filter(user =>
