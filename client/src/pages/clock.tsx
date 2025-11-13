@@ -94,10 +94,11 @@ export default function Clock() {
 
   // Clock in mutation
   const clockInMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (shift?: Shift) => {
+      const shiftToUse = shift || displayShift;
       const res = await apiRequest("POST", "/api/time/clock-in", {
-        shiftId: displayShift?.id || null,
-        location: displayShift?.location || "Office",
+        shiftId: shiftToUse?.id || null,
+        location: shiftToUse?.location || "Office",
         notes: "",
       });
       return res.json();
@@ -107,8 +108,10 @@ export default function Clock() {
       const clockInTime = format(new Date(), "h:mm a");
       toast({
         title: "Clocked In",
-        description: `Successfully clocked in at ${clockInTime}${displayShift ? ` for ${displayShift.title || displayShift.location}` : ""}`,
+        description: `Successfully clocked in at ${clockInTime}`,
       });
+      // Close the shift details dialog if it was open
+      setViewingShift(null);
     },
     onError: (error: Error) => {
       toast({
@@ -385,6 +388,17 @@ export default function Clock() {
               )}
 
               <DialogFooter>
+                {!isAdmin && !activeEntry && (
+                  <Button
+                    className="bg-[#E91E63] hover:bg-[#C2185B] text-white"
+                    onClick={() => clockInMutation.mutate(viewingShift)}
+                    disabled={clockInMutation.isPending}
+                    data-testid="button-dialog-clock-in"
+                  >
+                    <ClockIcon className="h-4 w-4 mr-2" />
+                    {clockInMutation.isPending ? "Clocking In..." : "Clock In"}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => setViewingShift(null)}
