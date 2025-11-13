@@ -521,32 +521,36 @@ export default function Dashboard() {
 
               {/* Clock In/Out Buttons */}
               <div className="flex gap-2 pt-4 border-t">
-                {activeEntry ? (
-                  isClockedInToShift ? (
-                    <Button
-                      className="flex-1 bg-chart-2 hover:bg-chart-2/90 text-white"
-                      onClick={handleClockOut}
-                      disabled={clockOutMutation.isPending}
-                      data-testid="button-modal-clock-out"
-                    >
-                      <Clock className="h-4 w-4 mr-2" />
-                      {clockOutMutation.isPending ? "Clocking Out..." : "Clock Out"}
-                    </Button>
-                  ) : (
-                    <div className="flex-1 text-sm text-muted-foreground p-2">
-                      You're currently clocked in to a different shift
-                    </div>
-                  )
-                ) : (
-                  <Button
-                    className="flex-1"
-                    onClick={handleClockIn}
-                    disabled={clockInMutation.isPending}
-                    data-testid="button-modal-clock-in"
-                  >
-                    <Clock className="h-4 w-4 mr-2" />
-                    {clockInMutation.isPending ? "Clocking In..." : "Clock In"}
-                  </Button>
+                {!isAdmin && (
+                  <>
+                    {activeEntry ? (
+                      isClockedInToShift ? (
+                        <Button
+                          className="flex-1 bg-chart-2 hover:bg-chart-2/90 text-white"
+                          onClick={handleClockOut}
+                          disabled={clockOutMutation.isPending}
+                          data-testid="button-modal-clock-out"
+                        >
+                          <Clock className="h-4 w-4 mr-2" />
+                          {clockOutMutation.isPending ? "Clocking Out..." : "Clock Out"}
+                        </Button>
+                      ) : (
+                        <div className="flex-1 text-sm text-muted-foreground p-2">
+                          You're currently clocked in to a different shift
+                        </div>
+                      )
+                    ) : (
+                      <Button
+                        className="flex-1"
+                        onClick={handleClockIn}
+                        disabled={clockInMutation.isPending}
+                        data-testid="button-modal-clock-in"
+                      >
+                        <Clock className="h-4 w-4 mr-2" />
+                        {clockInMutation.isPending ? "Clocking In..." : "Clock In"}
+                      </Button>
+                    )}
+                  </>
                 )}
                 <Button
                   variant="outline"
