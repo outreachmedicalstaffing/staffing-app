@@ -792,7 +792,7 @@ export function UserTimesheetDetail({
                 <TableHeader>
                   <TableRow className="text-xs">
                     <TableHead className="w-[100px]">Date</TableHead>
-                    <TableHead>Job</TableHead>
+                    <TableHead>Program</TableHead>
                     <TableHead>Start</TableHead>
                     <TableHead>End</TableHead>
                     <TableHead>Total hours</TableHead>
@@ -878,7 +878,7 @@ export function UserTimesheetDetail({
                                         : undefined
                                     }
                                   >
-                                    {entry.location || "Select"}
+                                    {entry.program || entry.jobName || entry.location || "Select"}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                   </Button>
                                 </PopoverTrigger>
@@ -950,7 +950,7 @@ export function UserTimesheetDetail({
                               </Popover>
                             ) : (
                               <span className="text-sm">
-                                {entry.location || "—"}
+                                {entry.program || entry.jobName || entry.location || "—"}
                               </span>
                             )
                           ) : canEdit ? (
