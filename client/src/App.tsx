@@ -11,6 +11,7 @@ import { LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
+import Clock from "@/pages/clock";
 import Schedule from "@/pages/schedule";
 import UserTimesheets from "@/pages/user-timesheets";
 import Documents from "@/pages/documents";
@@ -53,6 +54,7 @@ function AuthenticatedRouter() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/clock" component={Clock} />
       <Route path="/schedule" component={Schedule} />
       <Route path="/timesheets" component={UserTimesheets} />
       <Route path="/documents" component={Documents} />
