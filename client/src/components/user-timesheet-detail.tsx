@@ -803,8 +803,8 @@ export function UserTimesheetDetail({
                     <TableHead>Regular</TableHead>
                     <TableHead>Holiday</TableHead>
                     <TableHead>Actions</TableHead>
-                    <TableHead>Relieving Nurse Si...</TableHead>
-                    <TableHead>Attach ALL shift n...</TableHead>
+                    <TableHead>Signature</TableHead>
+                    <TableHead>Shift Notes</TableHead>
                     <TableHead>Employee notes</TableHead>
                     <TableHead>Manager notes</TableHead>
                   </TableRow>
