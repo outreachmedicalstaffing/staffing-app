@@ -15,6 +15,11 @@ import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper function to remove "United States of America" from addresses
+const stripCountryFromAddress = (address: string): string => {
+  return address.replace(/, United States of America$/, '');
+};
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [viewingShift, setViewingShift] = useState<Shift | null>(null);
@@ -298,12 +303,12 @@ export default function Dashboard() {
                     <ShiftCard
                       key={shift.id}
                       id={shift.id}
-                      job={shift.location || 'Unknown Location'}
+                      job={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown Location'}
                       subJob={shift.notes || 'Shift'}
                       date={format(new Date(shift.startTime), 'MMM d, yyyy')}
                       startTime={format(new Date(shift.startTime), 'h:mm a')}
                       endTime={format(new Date(shift.endTime), 'h:mm a')}
-                      location={shift.location || 'Unknown'}
+                      location={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown'}
                       status={shift.status as any}
                       assignedTo={getUserNameForShift(shift.id)}
                       onView={() => setViewingShift(shift)}
@@ -329,12 +334,12 @@ export default function Dashboard() {
                     <ShiftCard
                       key={shift.id}
                       id={shift.id}
-                      job={shift.location || 'Unknown Location'}
+                      job={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown Location'}
                       subJob={shift.notes || 'Shift'}
                       date={format(new Date(shift.startTime), 'MMM d, yyyy')}
                       startTime={format(new Date(shift.startTime), 'h:mm a')}
                       endTime={format(new Date(shift.endTime), 'h:mm a')}
-                      location={shift.location || 'Unknown'}
+                      location={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown'}
                       status={shift.status as any}
                       assignedTo="You"
                       onView={() => setViewingShift(shift)}
@@ -467,7 +472,7 @@ export default function Dashboard() {
                   <Label className="text-muted-foreground">Location</Label>
                   <div className="flex items-center gap-2 mt-1">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-medium">{viewingShift.location}</p>
+                    <p className="text-sm font-medium">{stripCountryFromAddress(viewingShift.location)}</p>
                   </div>
                 </div>
               )}

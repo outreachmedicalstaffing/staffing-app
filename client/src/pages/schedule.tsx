@@ -257,6 +257,11 @@ export default function Schedule() {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper function to remove "United States of America" from addresses
+  const stripCountryFromAddress = (address: string): string => {
+    return address.replace(/, United States of America$/, '');
+  };
+
   const fetchAddressSuggestions = async (query: string) => {
     if (!query || query.length < 3) {
       setAddressSuggestions([]);
@@ -304,7 +309,9 @@ export default function Schedule() {
   };
 
   const selectAddress = (address: string) => {
-    setShiftFormData({ ...shiftFormData, address });
+    // Strip ", United States of America" from the address before storing
+    const cleanedAddress = stripCountryFromAddress(address);
+    setShiftFormData({ ...shiftFormData, address: cleanedAddress });
     setShowAddressSuggestions(false);
     setAddressSuggestions([]);
   };
@@ -2617,7 +2624,7 @@ export default function Schedule() {
                         >
                           <div className="flex items-start gap-2">
                             <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                            <span>{suggestion.formatted}</span>
+                            <span>{stripCountryFromAddress(suggestion.formatted)}</span>
                           </div>
                         </div>
                       ))}
@@ -2977,7 +2984,7 @@ export default function Schedule() {
                   <h4 className="font-semibold text-sm text-[#E91E63] uppercase tracking-wide">Address</h4>
                   <div className="font-medium flex items-start gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <span>{editingShift.location}</span>
+                    <span>{stripCountryFromAddress(editingShift.location)}</span>
                   </div>
                 </div>
               )}

@@ -13,6 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User, TimeEntry, Shift } from "@shared/schema";
 
+// Helper function to remove "United States of America" from addresses
+const stripCountryFromAddress = (address: string): string => {
+  return address.replace(/, United States of America$/, '');
+};
+
 export default function Clock() {
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -223,7 +228,7 @@ export default function Clock() {
                         {displayShift.title || "Shift"}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {displayShift.location || "No location"}
+                        {displayShift.location ? stripCountryFromAddress(displayShift.location) : "No location"}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {format(new Date(displayShift.startTime), "EEE, MMM d")} ·{" "}
@@ -366,7 +371,7 @@ export default function Clock() {
               {viewingShift.location && (
                 <div>
                   <Label className="text-muted-foreground">Location</Label>
-                  <p className="text-sm font-medium mt-1">{viewingShift.location}</p>
+                  <p className="text-sm font-medium mt-1">{stripCountryFromAddress(viewingShift.location)}</p>
                 </div>
               )}
 
