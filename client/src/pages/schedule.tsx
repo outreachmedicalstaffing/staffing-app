@@ -1488,8 +1488,9 @@ export default function Schedule() {
                                       />
                                     )}
                                   {(() => {
-                                    // Show confirmed badge for non-admin users
+                                    // Show confirmed badge for users and admins
                                     if (!isAdmin) {
+                                      // For regular users: show if they confirmed their shift
                                       const assignment = shiftAssignments.find(
                                         (a) => a.shiftId === shift.id && a.userId === currentUser?.id
                                       );
@@ -1498,6 +1499,20 @@ export default function Schedule() {
                                           <Check
                                             className="h-3 w-3 flex-shrink-0 bg-green-500 rounded-full p-0.5"
                                             title="Shift confirmed"
+                                            data-testid={`confirmed-${shift.id}`}
+                                          />
+                                        );
+                                      }
+                                    } else {
+                                      // For admins: show if any user for this shift has confirmed
+                                      const assignment = shiftAssignments.find(
+                                        (a) => a.shiftId === shift.id && a.userId === user.id && a.confirmedAt
+                                      );
+                                      if (assignment) {
+                                        return (
+                                          <Check
+                                            className="h-3 w-3 flex-shrink-0 bg-green-500 rounded-full p-0.5"
+                                            title="Shift confirmed by user"
                                             data-testid={`confirmed-${shift.id}`}
                                           />
                                         );
