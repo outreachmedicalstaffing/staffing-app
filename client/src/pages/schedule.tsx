@@ -739,17 +739,26 @@ export default function Schedule() {
 
   const confirmShiftMutation = useMutation({
     mutationFn: async (data: { assignmentId: string }) => {
+      console.log("Confirming shift assignment:", data.assignmentId);
       const response = await apiRequest("POST", `/api/shift-assignments/${data.assignmentId}/confirm`);
       return response.json();
     },
     onSuccess: (data) => {
-      console.log("Shift confirmed, updated assignment:", data);
+      console.log("Shift confirmed successfully, updated assignment:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/shift-assignments"] });
-      toast({ title: "Shift confirmed successfully", description: "Your shift confirmation has been recorded." });
+      toast({
+        title: "Shift confirmed successfully",
+        description: "Your shift confirmation has been recorded."
+      });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Failed to confirm shift:", error);
-      toast({ title: "Failed to confirm shift", variant: "destructive" });
+      console.error("Error message:", error.message);
+      toast({
+        title: "Failed to confirm shift",
+        description: error.message || "Please try again",
+        variant: "destructive"
+      });
     },
   });
 

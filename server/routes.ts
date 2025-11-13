@@ -1240,27 +1240,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/shift-assignments/:id/confirm", requireAuth, async (req, res) => {
     try {
       const assignmentId = req.params.id;
-      const currentUser = await storage.getUser(req.session.userId!);
+      console.log("Confirming shift assignment:", assignmentId);
 
+      const currentUser = await storage.getUser(req.session.userId!);
       if (!currentUser) {
+        console.error("User not found:", req.session.userId);
         return res.status(404).json({ error: "User not found" });
       }
 
       // Get the shift assignment
       const assignment = await storage.getShiftAssignment(assignmentId);
       if (!assignment) {
+        console.error("Shift assignment not found:", assignmentId);
         return res.status(404).json({ error: "Shift assignment not found" });
       }
 
+      console.log("Found assignment:", {
+        id: assignment.id,
+        shiftId: assignment.shiftId,
+        userId: assignment.userId,
+        currentUserId: req.session.userId,
+      });
+
       // Only the assigned user can confirm their own shift
       if (assignment.userId !== req.session.userId) {
+        console.error("Permission denied: User", req.session.userId, "trying to confirm assignment for user", assignment.userId);
         return res.status(403).json({ error: "You can only confirm your own shifts" });
       }
 
       // Update the assignment with confirmedAt timestamp
+      const now = new Date();
+      console.log("Updating assignment with confirmedAt:", now.toISOString());
+
       const updatedAssignment = await storage.updateShiftAssignment(assignmentId, {
-        confirmedAt: new Date(),
-      });
+        confirmedAt: now,
+      } as any);
+
+      if (!updatedAssignment) {
+        console.error("Failed to update assignment - no result returned");
+        return res.status(500).json({ error: "Failed to update shift assignment" });
+      }
+
+      console.log("Successfully updated assignment:", updatedAssignment);
 
       await logAudit(
         req.session.userId,
@@ -1276,7 +1297,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedAssignment);
     } catch (error) {
       console.error("Error confirming shift:", error);
-      res.status(500).json({ error: "Failed to confirm shift" });
+      console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+      res.status(500).json({
+        error: "Failed to confirm shift",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
