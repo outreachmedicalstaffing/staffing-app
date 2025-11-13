@@ -1008,7 +1008,34 @@ export default function Schedule() {
     };
   };
 
-  const weekStats = calculateWeekStats();
+  // Calculate stats based on user role
+  const weekStats = (() => {
+    if (!currentUser) {
+      return { hours: "0.0", shifts: 0, users: 0, labor: 0 };
+    }
+
+    if (isAdmin) {
+      // Admins see stats for all users in the current week
+      return calculateWeekStats();
+    } else {
+      // Regular users see only their own stats for the current week
+      const userStats = calculateUserWeekStats(currentUser.id);
+      const userShifts = shifts.filter((s) => {
+        const assignment = shiftAssignments.find(
+          (a) => a.shiftId === s.id && a.userId === currentUser.id,
+        );
+        const shiftDate = new Date(s.startTime);
+        return assignment && shiftDate >= weekStart && shiftDate <= weekEnd;
+      });
+
+      return {
+        hours: userStats.hours.toFixed(1),
+        shifts: userShifts.length,
+        users: 1, // Regular users only see themselves
+        labor: userStats.labor,
+      };
+    }
+  })();
 
   if (usersLoading || shiftsLoading) {
     return (
