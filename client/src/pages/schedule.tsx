@@ -1345,27 +1345,31 @@ export default function Schedule() {
                                   align="end"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      duplicateShiftMutation.mutate(shift);
-                                    }}
-                                    data-testid={`menu-item-duplicate-${shift.id}`}
-                                  >
-                                    <Copy className="h-4 w-4 mr-2" />
-                                    Duplicate
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteShiftMutation.mutate(shift.id);
-                                    }}
-                                    className="text-destructive"
-                                    data-testid={`menu-item-delete-${shift.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
+                                  {isAdmin && (
+                                    <>
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          duplicateShiftMutation.mutate(shift);
+                                        }}
+                                        data-testid={`menu-item-duplicate-${shift.id}`}
+                                      >
+                                        <Copy className="h-4 w-4 mr-2" />
+                                        Duplicate
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteShiftMutation.mutate(shift.id);
+                                        }}
+                                        className="text-destructive"
+                                        data-testid={`menu-item-delete-${shift.id}`}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -1605,27 +1609,31 @@ export default function Schedule() {
                                     align="end"
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        duplicateShiftMutation.mutate(shift);
-                                      }}
-                                      data-testid={`menu-item-duplicate-${shift.id}`}
-                                    >
-                                      <Copy className="h-4 w-4 mr-2" />
-                                      Duplicate
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteShiftMutation.mutate(shift.id);
-                                      }}
-                                      className="text-destructive"
-                                      data-testid={`menu-item-delete-${shift.id}`}
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
+                                    {isAdmin && (
+                                      <>
+                                        <DropdownMenuItem
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            duplicateShiftMutation.mutate(shift);
+                                          }}
+                                          data-testid={`menu-item-duplicate-${shift.id}`}
+                                        >
+                                          <Copy className="h-4 w-4 mr-2" />
+                                          Duplicate
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteShiftMutation.mutate(shift.id);
+                                          }}
+                                          className="text-destructive"
+                                          data-testid={`menu-item-delete-${shift.id}`}
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
