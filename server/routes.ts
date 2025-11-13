@@ -1231,6 +1231,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to list shift assignments" });
     }
   });
+
+  // Confirm shift assignment
+  app.post("/api/shift-assignments/:id/confirm", requireAuth, async (req, res) => {
+    try {
+      const assignmentId = req.params.id;
+      const currentUser = await storage.getUser(req.session.userId!);
+
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Get the shift assignment
+      const assignment = await storage.getShiftAssignment(assignmentId);
+      if (!assignment) {
+        return res.status(404).json({ error: "Shift assignment not found" });
+      }
+
+      // Only the assigned user can confirm their own shift
+      if (assignment.userId !== req.session.userId) {
+        return res.status(403).json({ error: "You can only confirm your own shifts" });
+      }
+
+      // Update the assignment with confirmedAt timestamp
+      const updatedAssignment = await storage.updateShiftAssignment(assignmentId, {
+        confirmedAt: new Date(),
+      });
+
+      await logAudit(
+        req.session.userId,
+        "update",
+        "shift_assignment",
+        assignmentId,
+        false,
+        [],
+        {},
+        req.ip,
+      );
+
+      res.json(updatedAssignment);
+    } catch (error) {
+      console.error("Error confirming shift:", error);
+      res.status(500).json({ error: "Failed to confirm shift" });
+    }
+  });
+
   // ✅ Duplicate a shift and copy its attachments
   app.post("/api/shifts/:id/duplicate", requireAuth, async (req, res) => {
     const { id: oldId } = req.params;

@@ -46,6 +46,7 @@ import {
   Trash2,
   Moon,
   Copy,
+  Check,
 } from "lucide-react";
 import {
   Select,
@@ -726,6 +727,19 @@ export default function Schedule() {
     },
     onError: () => {
       toast({ title: "Failed to duplicate shift", variant: "destructive" });
+    },
+  });
+
+  const confirmShiftMutation = useMutation({
+    mutationFn: async (data: { assignmentId: string }) => {
+      return apiRequest("POST", `/api/shift-assignments/${data.assignmentId}/confirm`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-assignments"] });
+      toast({ title: "Shift confirmed successfully", description: "Your shift confirmation has been recorded." });
+    },
+    onError: () => {
+      toast({ title: "Failed to confirm shift", variant: "destructive" });
     },
   });
 
@@ -1455,6 +1469,24 @@ export default function Schedule() {
                                         data-testid={`paperclip-${shift.id}`}
                                       />
                                     )}
+                                  {(() => {
+                                    // Show confirmed badge for non-admin users
+                                    if (!isAdmin) {
+                                      const assignment = shiftAssignments.find(
+                                        (a) => a.shiftId === shift.id && a.userId === currentUser?.id
+                                      );
+                                      if (assignment?.confirmedAt) {
+                                        return (
+                                          <Check
+                                            className="h-3 w-3 flex-shrink-0 bg-green-500 rounded-full p-0.5"
+                                            title="Shift confirmed"
+                                            data-testid={`confirmed-${shift.id}`}
+                                          />
+                                        );
+                                      }
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger
@@ -1474,7 +1506,7 @@ export default function Schedule() {
                                     align="end"
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    {isAdmin && (
+                                    {isAdmin ? (
                                       <>
                                         <DropdownMenuItem
                                           onClick={(e) => {
@@ -1497,6 +1529,33 @@ export default function Schedule() {
                                           <Trash2 className="h-4 w-4 mr-2" />
                                           Delete
                                         </DropdownMenuItem>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {(() => {
+                                          // Find the assignment for this shift and current user
+                                          const assignment = shiftAssignments.find(
+                                            (a) => a.shiftId === shift.id && a.userId === currentUser?.id
+                                          );
+
+                                          // Only show confirm option if user is assigned and hasn't confirmed yet
+                                          if (assignment && !assignment.confirmedAt) {
+                                            return (
+                                              <DropdownMenuItem
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  confirmShiftMutation.mutate({ assignmentId: assignment.id });
+                                                }}
+                                                className="text-green-600"
+                                                data-testid={`menu-item-confirm-${shift.id}`}
+                                              >
+                                                <Check className="h-4 w-4 mr-2" />
+                                                Confirm Shift
+                                              </DropdownMenuItem>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
                                       </>
                                     )}
                                   </DropdownMenuContent>

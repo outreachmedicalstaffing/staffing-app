@@ -231,6 +231,7 @@ export const shiftAssignments = pgTable("shift_assignments", {
   status: text("status").notNull().default("assigned"), // assigned, accepted, rejected, completed
   assignedAt: timestamp("assigned_at").notNull().defaultNow(),
   acceptedAt: timestamp("accepted_at"),
+  confirmedAt: timestamp("confirmed_at"),
   notes: text("notes"),
 });
 
