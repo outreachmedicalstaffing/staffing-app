@@ -96,16 +96,17 @@ export default function Clock() {
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/time/clock-in", {
         shiftId: displayShift?.id || null,
-        location: "Office",
+        location: displayShift?.location || "Office",
         notes: "",
       });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      const clockInTime = format(new Date(), "h:mm a");
       toast({
         title: "Clocked In",
-        description: "You have successfully clocked in",
+        description: `Successfully clocked in at ${clockInTime}${displayShift ? ` for ${displayShift.title || displayShift.location}` : ""}`,
       });
     },
     onError: (error: Error) => {
@@ -127,11 +128,22 @@ export default function Clock() {
       const text = await res.text();
       return text ? JSON.parse(text) : {};
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+
+      // Calculate hours worked if we have the active entry
+      let hoursWorked = "";
+      if (activeEntry) {
+        const clockInTime = new Date(activeEntry.clockIn);
+        const clockOutTime = new Date();
+        const hours = (clockOutTime.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
+        hoursWorked = ` - ${hours.toFixed(2)} hours worked`;
+      }
+
+      const clockOutTime = format(new Date(), "h:mm a");
       toast({
         title: "Clocked Out",
-        description: "You have successfully clocked out",
+        description: `Successfully clocked out at ${clockOutTime}${hoursWorked}`,
       });
     },
     onError: (error: Error) => {
@@ -255,11 +267,7 @@ export default function Clock() {
           <CardContent className="space-y-4">
             <Button
               size="lg"
-              className={`w-full min-h-16 text-lg font-semibold ${
-                activeEntry
-                  ? "bg-chart-2 hover:bg-chart-2/90 text-white"
-                  : "bg-destructive hover:bg-destructive/90 text-white"
-              }`}
+              className="w-full min-h-16 text-lg font-semibold bg-destructive hover:bg-destructive/90 text-white"
               onClick={handleClockToggle}
               disabled={clockInMutation.isPending || clockOutMutation.isPending}
               data-testid={activeEntry ? "button-clock-out" : "button-clock-in"}
