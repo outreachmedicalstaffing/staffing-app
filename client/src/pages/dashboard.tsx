@@ -64,10 +64,10 @@ export default function Dashboard() {
 
   // Clock in mutation
   const clockInMutation = useMutation({
-    mutationFn: async (shiftId: string) => {
+    mutationFn: async (shift: { id: string; location?: string | null }) => {
       const res = await apiRequest("POST", "/api/time/clock-in", {
-        shiftId,
-        location: "Office",
+        shiftId: shift.id,
+        location: shift.location || "Office",
         notes: "",
       });
       return res.json();
@@ -119,7 +119,7 @@ export default function Dashboard() {
   // Handle clock in for the viewing shift
   const handleClockIn = () => {
     if (viewingShift) {
-      clockInMutation.mutate(viewingShift.id);
+      clockInMutation.mutate(viewingShift);
     }
   };
 
