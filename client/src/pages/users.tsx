@@ -54,8 +54,9 @@ export default function Users() {
     return null;
   }
 
-  const activeUsers = users.filter(u => u.status === 'active' && u.role !== 'Admin' && u.role !== 'Owner');
-  const adminUsers = users.filter(u => (u.role === 'Admin' || u.role === 'Owner') && u.status === 'active');
+  // Show all non-archived users in the Users tab (including pending-onboarding)
+  const activeUsers = users.filter(u => u.status !== 'archived');
+  const adminUsers = users.filter(u => (u.role === 'Admin' || u.role === 'Owner') && u.status !== 'archived');
   const archivedUsers = users.filter(u => u.status === 'archived');
 
   const filteredUsers = activeUsers.filter(user =>
@@ -98,7 +99,7 @@ export default function Users() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="users" data-testid="tab-users">
-            Users ({activeUsers.length}/{users.filter(u => u.status === 'active').length})
+            All Users ({activeUsers.length})
           </TabsTrigger>
           <TabsTrigger value="admins" data-testid="tab-admins">
             Admins ({adminUsers.length})
@@ -161,10 +162,10 @@ export default function Users() {
                       const customFields = user.customFields as any || {};
                       const [firstName, ...lastNameParts] = user.fullName.split(' ');
                       const lastName = lastNameParts.join(' ');
-                      
+
                       return (
-                        <TableRow 
-                          key={user.id} 
+                        <TableRow
+                          key={user.id}
                           data-testid={`row-user-${user.id}`}
                           className="cursor-pointer hover-elevate"
                           onClick={() => setSelectedUser(user)}
@@ -177,7 +178,12 @@ export default function Users() {
                                   {user.fullName.split(' ').map(n => n[0]).join('')}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="font-medium">{firstName}</span>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{firstName}</span>
+                                {user.status === 'pending-onboarding' && (
+                                  <Badge variant="secondary" className="text-xs w-fit mt-0.5">Pending</Badge>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>{lastName}</TableCell>
@@ -259,10 +265,10 @@ export default function Users() {
                       const customFields = user.customFields as any || {};
                       const [firstName, ...lastNameParts] = user.fullName.split(' ');
                       const lastName = lastNameParts.join(' ');
-                      
+
                       return (
-                        <TableRow 
-                          key={user.id} 
+                        <TableRow
+                          key={user.id}
                           data-testid={`row-admin-${user.id}`}
                           className="cursor-pointer hover-elevate"
                           onClick={() => setSelectedUser(user)}
@@ -275,7 +281,12 @@ export default function Users() {
                                   {user.fullName.split(' ').map(n => n[0]).join('')}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="font-medium">{firstName}</span>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{firstName}</span>
+                                {user.status === 'pending-onboarding' && (
+                                  <Badge variant="secondary" className="text-xs w-fit mt-0.5">Pending</Badge>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>{lastName}</TableCell>
