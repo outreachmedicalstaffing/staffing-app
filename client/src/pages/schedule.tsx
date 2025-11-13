@@ -992,9 +992,20 @@ export default function Schedule() {
   };
 
   const calculateWeekStats = () => {
+    // Get IDs of displayed staff users
+    const displayedUserIds = new Set(staffUsers.map((u) => u.id));
+
+    // Filter shifts to only those in the current week AND assigned to displayed users
     const weekShifts = shifts.filter((s) => {
       const shiftDate = new Date(s.startTime);
-      return shiftDate >= weekStart && shiftDate <= weekEnd;
+      const isInWeek = shiftDate >= weekStart && shiftDate <= weekEnd;
+
+      // Check if shift is assigned to any displayed user
+      const isAssignedToDisplayedUser = shiftAssignments.some(
+        (a) => a.shiftId === s.id && displayedUserIds.has(a.userId)
+      );
+
+      return isInWeek && isAssignedToDisplayedUser;
     });
 
     const totalShifts = weekShifts.length;
@@ -1005,7 +1016,7 @@ export default function Schedule() {
 
     const assignedUsers = new Set(
       shiftAssignments
-        .filter((a) => weekShifts.some((s) => s.id === a.shiftId))
+        .filter((a) => weekShifts.some((s) => s.id === a.shiftId) && displayedUserIds.has(a.userId))
         .map((a) => a.userId),
     );
 
