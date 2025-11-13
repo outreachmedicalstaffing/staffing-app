@@ -198,7 +198,7 @@ export default function Clock() {
           <CardContent className="space-y-4">
             <Button
               size="lg"
-              className="w-full min-h-16 text-lg font-semibold bg-destructive hover:bg-destructive/90 text-white"
+              className="w-full min-h-16 text-lg font-semibold bg-[#2196F3] hover:bg-[#1976D2] border-2 border-[#E91E63] text-white"
               onClick={handleClockToggle}
               disabled={clockInMutation.isPending || clockOutMutation.isPending}
               data-testid={activeEntry ? "button-clock-out" : "button-clock-in"}
