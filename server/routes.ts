@@ -437,20 +437,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Prepare time entry data
-      const timeEntryData = {
+      const timeEntryData: Record<string, any> = {
         userId,
-        shiftId,
         clockIn: new Date(),
-        clockOut: null,
-        jobName,
-        program,
-        hourlyRate,
-        location: req.body.location || null,
-        notes: req.body.notes || null,
-        status: "active" as const,
-        approvalStatus: "approved" as const,
+        status: "active",
+        approvalStatus: "approved",
         breakMinutes: 0,
       };
+
+      // Add optional fields only if they have values
+      if (shiftId) timeEntryData.shiftId = shiftId;
+      if (jobName) timeEntryData.jobName = jobName;
+      if (program) timeEntryData.program = program;
+      if (hourlyRate) timeEntryData.hourlyRate = hourlyRate;
+      if (req.body.location) timeEntryData.location = req.body.location;
+      if (req.body.notes) timeEntryData.notes = req.body.notes;
 
       console.log("Creating time entry with data:", {
         ...timeEntryData,
