@@ -657,35 +657,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const entryUserId = String(existing.userId);
         const currentUserId = String(req.session.userId);
 
+        console.log("Authorization check:", {
+          isAdmin,
+          entryUserId,
+          currentUserId,
+          match: entryUserId === currentUserId,
+          willAllow: isAdmin || entryUserId === currentUserId
+        });
+
+        // Allow admins to edit any entry, or users to edit their own entries
         if (!isAdmin && entryUserId !== currentUserId) {
-          console.log("Authorization check failed:", {
-            isAdmin,
-            entryUserId,
-            currentUserId,
-            match: entryUserId === currentUserId
-          });
+          console.log("Authorization DENIED: User can only edit their own time entries");
           return res.status(403).json({
             error: "You can only edit your own time entries"
           });
         }
 
+        console.log("Authorization GRANTED: User can edit this time entry");
+
         // Check if entry is locked - prevent ANY edits to locked entries
         if (existing.locked) {
           // Only allow unlocking if that's the ONLY change (and user is admin)
           if (req.body.locked === false && Object.keys(req.body).length === 1 && isAdmin) {
+            console.log("Admin unlocking time entry");
             // Allow unlock-only request for admins
           } else {
-            console.log("Locked entry edit attempted:", {
+            console.log("Locked entry edit DENIED:", {
               isAdmin,
               locked: existing.locked,
               unlockRequest: req.body.locked === false,
-              bodyKeys: Object.keys(req.body)
+              bodyKeys: Object.keys(req.body),
+              entryId
             });
             return res.status(403).json({
-              error: "This time entry is locked and cannot be edited. Please contact an administrator.",
+              error: "This time entry is locked and cannot be edited. Please contact an administrator."
             });
           }
         }
+
+        console.log("Entry is not locked, proceeding with update");
 
         const entry = await storage.updateTimeEntry(entryId, data);
         if (!entry) {
@@ -763,6 +773,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { changes: data },
           req.ip,
         );
+
+        console.log("Time entry update SUCCESSFUL:", {
+          entryId: entry.id,
+          userId: entry.userId,
+          updatedFields: Object.keys(data)
+        });
+
         res.json(entry);
       } catch (error) {
         if (error instanceof z.ZodError) {
