@@ -2890,7 +2890,7 @@ export default function Schedule() {
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Shift</DialogTitle>
+            <DialogTitle>{isAdmin ? "Edit Shift" : "View Shift Details"}</DialogTitle>
           </DialogHeader>
           {editingShift && (
             <div className="space-y-4">
@@ -2903,6 +2903,7 @@ export default function Schedule() {
                   onChange={(e) =>
                     setEditingShift({ ...editingShift, title: e.target.value })
                   }
+                  disabled={!isAdmin}
                   data-testid="input-edit-shift-title"
                 />
               </div>
@@ -2915,6 +2916,7 @@ export default function Schedule() {
                   onValueChange={(value) =>
                     setEditingShift({ ...editingShift, jobName: value })
                   }
+                  disabled={!isAdmin}
                 >
                   <SelectTrigger
                     id="edit-job-select"
@@ -2946,6 +2948,7 @@ export default function Schedule() {
                   onValueChange={(value) =>
                     setEditingShift({ ...editingShift, program: value } as any)
                   }
+                  disabled={!isAdmin}
                 >
                   <SelectTrigger id="edit-program-select" data-testid="select-edit-program">
                     <SelectValue placeholder="Select a program" />
@@ -3034,6 +3037,7 @@ export default function Schedule() {
                             <Button
                               variant="outline"
                               className="w-full justify-start text-left font-normal"
+                              disabled={!isAdmin}
                               data-testid="button-edit-shift-start-date"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -3057,6 +3061,7 @@ export default function Schedule() {
                                   });
                                 }
                               }}
+                              disabled={!isAdmin}
                               data-testid="calendar-edit-shift-start-date"
                             />
                           </PopoverContent>
@@ -3069,6 +3074,7 @@ export default function Schedule() {
                             <Button
                               variant="outline"
                               className="w-full justify-start text-left font-normal"
+                              disabled={!isAdmin}
                               data-testid="button-edit-shift-end-date"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -3092,6 +3098,7 @@ export default function Schedule() {
                                   });
                                 }
                               }}
+                              disabled={!isAdmin}
                               data-testid="calendar-edit-shift-end-date"
                             />
                           </PopoverContent>
@@ -3109,6 +3116,7 @@ export default function Schedule() {
                           <Button
                             variant="outline"
                             className="w-full justify-start text-left font-normal"
+                            disabled={!isAdmin}
                             data-testid="button-edit-shift-date"
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -3140,6 +3148,7 @@ export default function Schedule() {
                                 });
                               }
                             }}
+                            disabled={!isAdmin}
                             data-testid="calendar-edit-shift-date"
                           />
                         </PopoverContent>
@@ -3168,6 +3177,7 @@ export default function Schedule() {
                         });
                       }
                     }}
+                    disabled={!isAdmin}
                     data-testid="input-edit-start-time"
                   />
                 </div>
@@ -3188,6 +3198,7 @@ export default function Schedule() {
                         });
                       }
                     }}
+                    disabled={!isAdmin}
                     data-testid="input-edit-end-time"
                   />
                 </div>
@@ -3205,6 +3216,7 @@ export default function Schedule() {
                       location: e.target.value,
                     })
                   }
+                  disabled={!isAdmin}
                   data-testid="input-edit-address"
                 />
               </div>
@@ -3219,6 +3231,7 @@ export default function Schedule() {
                   onChange={(e) =>
                     setEditingShift({ ...editingShift, notes: e.target.value })
                   }
+                  disabled={!isAdmin}
                   data-testid="textarea-edit-notes"
                 />
               </div>
@@ -3249,46 +3262,48 @@ export default function Schedule() {
                 )}
 
               {/* Action Buttons */}
-              <div className="flex justify-between pt-4">
+              <div className={`flex ${isAdmin ? 'justify-between' : 'justify-end'} pt-4`}>
                 <Button
                   variant="outline"
                   onClick={() => setEditingShift(null)}
                   data-testid="button-cancel-edit"
                 >
-                  Cancel
+                  {isAdmin ? "Cancel" : "Close"}
                 </Button>
-                <div className="flex gap-2">
-                  <Button
-                    variant="destructive"
-                    onClick={() => {
-                      deleteShiftMutation.mutate(editingShift.id);
-                      setEditingShift(null);
-                    }}
-                    data-testid="button-delete-shift"
-                  >
-                    Delete
-                  </Button>
-                  <Button
-                    variant="default"
-                    onClick={() => {
-                      updateShiftMutation.mutate({
-                        id: editingShift.id,
-                        data: {
-                          title: editingShift.title,
-                          jobName: editingShift.jobName,
-                          program: (editingShift as any).program,
-                          startTime: editingShift.startTime,
-                          endTime: editingShift.endTime,
-                          location: editingShift.location,
-                          notes: editingShift.notes,
-                        },
-                      });
-                    }}
-                    data-testid="button-save-shift"
-                  >
-                    Save Changes
-                  </Button>
-                </div>
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        deleteShiftMutation.mutate(editingShift.id);
+                        setEditingShift(null);
+                      }}
+                      data-testid="button-delete-shift"
+                    >
+                      Delete
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={() => {
+                        updateShiftMutation.mutate({
+                          id: editingShift.id,
+                          data: {
+                            title: editingShift.title,
+                            jobName: editingShift.jobName,
+                            program: (editingShift as any).program,
+                            startTime: editingShift.startTime,
+                            endTime: editingShift.endTime,
+                            location: editingShift.location,
+                            notes: editingShift.notes,
+                          },
+                        });
+                      }}
+                      data-testid="button-save-shift"
+                    >
+                      Save Changes
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
