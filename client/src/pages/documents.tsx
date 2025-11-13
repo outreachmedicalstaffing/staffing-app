@@ -769,7 +769,7 @@ export default function Documents() {
 
       {/* User Documents Modal */}
       <Dialog open={showUserDocumentsModal} onOpenChange={setShowUserDocumentsModal}>
-        <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
+        <DialogContent className="sm:max-w-[800px] max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>
               {selectedUser?.fullName}'s Documents
@@ -779,14 +779,61 @@ export default function Documents() {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue="pending" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="pending">Pending Upload</TabsTrigger>
-              <TabsTrigger value="uploaded">Uploaded</TabsTrigger>
-            </TabsList>
+          <Tabs defaultValue="all" className="w-full">
+            {(() => {
+              // Calculate counts for each tab
+              const allRequirements = documents.filter(d => !d.status);
+              const userDocs = documents.filter(d => d.status && d.userId === selectedUser?.id);
 
-            {/* Pending Upload Tab */}
-            <TabsContent value="pending" className="space-y-4 py-4 overflow-y-auto max-h-[60vh]">
+              const pendingUploadDocs = allRequirements.filter(requirement => {
+                return !userDocs.some(doc => doc.title === requirement.title);
+              });
+
+              const pendingApprovalDocs = userDocs.filter(doc => doc.status === "pending");
+
+              const noApprovalDocs = userDocs.filter(doc => {
+                const requirement = allRequirements.find(r => r.title === doc.title);
+                return doc.status === "approved" && requirement && !requirement.requireReview;
+              });
+
+              const approvedDocs = userDocs.filter(doc => {
+                const requirement = allRequirements.find(r => r.title === doc.title);
+                const isExpired = doc.expirationDate && new Date(doc.expirationDate) < new Date();
+                return doc.status === "approved" && requirement && requirement.requireReview && !isExpired;
+              });
+
+              const expiringExpiredDocs = userDocs.filter(doc => {
+                return doc.expirationDate && new Date(doc.expirationDate) < new Date();
+              });
+
+              const allDocsCount = pendingUploadDocs.length + userDocs.length;
+
+              return (
+                <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-1">
+                  <TabsTrigger value="all" className="text-xs">
+                    All ({allDocsCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="pending-upload" className="text-xs">
+                    Pending Upload ({pendingUploadDocs.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="pending-approval" className="text-xs">
+                    Pending Approval ({pendingApprovalDocs.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="no-approval" className="text-xs">
+                    No Approval ({noApprovalDocs.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="approved" className="text-xs">
+                    Approved ({approvedDocs.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="expiring" className="text-xs">
+                    Expiring/Expired ({expiringExpiredDocs.length})
+                  </TabsTrigger>
+                </TabsList>
+              );
+            })()}
+
+            {/* All Tab */}
+            <TabsContent value="all" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
               {documents.filter(d => !d.status).length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   No document requirements created yet
@@ -804,8 +851,20 @@ export default function Documents() {
 
                     const hasBeenUploaded = !!userDoc;
 
-                    // Only show documents that haven't been uploaded yet
-                    if (hasBeenUploaded) return null;
+                    const formatDate = (dateString: string) => {
+                      if (!dateString) return "N/A";
+                      const [year, month, day] = dateString.split('-').map(Number);
+                      const date = new Date(year, month - 1, day);
+                      return date.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      });
+                    };
+
+                    const isExpired = userDoc?.expirationDate && userDoc.status !== undefined
+                      ? new Date(userDoc.expirationDate) < new Date()
+                      : false;
 
                     return (
                       <Card key={requirement.id}>
@@ -815,7 +874,7 @@ export default function Documents() {
                               <div className="flex items-start space-x-3 flex-1">
                                 <FileText className="h-6 w-6 text-blue-600 mt-1" />
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <h3 className="font-semibold">{requirement.title}</h3>
                                     {!requirement.visibleToUsers && (
                                       <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
@@ -824,13 +883,149 @@ export default function Documents() {
                                       </Badge>
                                     )}
                                   </div>
-                                  <p className="text-sm text-amber-600 mt-1">
+                                  {hasBeenUploaded && userDoc ? (
+                                    <>
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        Uploaded: {formatDate(userDoc.uploadedDate)}
+                                      </p>
+                                      {userDoc.expirationDate && (
+                                        <p className={`text-sm mt-1 ${isExpired ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                          Expires: {formatDate(userDoc.expirationDate)}
+                                        </p>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <p className="text-sm text-amber-600 mt-1">
+                                      Not uploaded yet
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {hasBeenUploaded && userDoc && (
+                                <Badge
+                                  className={
+                                    isExpired
+                                      ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                      : userDoc.status === "rejected"
+                                      ? "bg-orange-100 text-orange-800 hover:bg-orange-100"
+                                      : userDoc.status === "pending"
+                                      ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                      : "bg-green-100 text-green-800 hover:bg-green-100"
+                                  }
+                                >
+                                  {isExpired ? "Expired" : userDoc.status === "rejected" ? "Rejected" : userDoc.status === "pending" ? "Pending Review" : "Approved"}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {hasBeenUploaded && userDoc?.status === "rejected" && userDoc.rejectionReason && (
+                              <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                                <p className="text-sm font-medium text-orange-800 mb-1">
+                                  Rejection Reason
+                                </p>
+                                <p className="text-sm text-orange-700">
+                                  {userDoc.rejectionReason}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="flex gap-2 pt-2 border-t">
+                              {hasBeenUploaded && userDoc ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleViewDocument(userDoc)}
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View
+                                  </Button>
+                                  {userDoc.status === "pending" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleApproveDocument(userDoc.id)}
+                                        className="bg-green-600 hover:bg-green-700"
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleInitiateReject(userDoc)}
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <X className="h-4 w-4 mr-2" />
+                                        Reject
+                                      </Button>
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setDocumentToUpload(requirement);
+                                    setShowUploadModal(true);
+                                  }}
+                                  className="w-full"
+                                >
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Upload for User
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+              )}
+            </TabsContent>
+
+            {/* Pending Upload Tab */}
+            <TabsContent value="pending-upload" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents.filter(d => !d.status).length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No document requirements created yet
+                </div>
+              ) : (
+                documents
+                  .filter(d => !d.status)
+                  .filter(requirement => {
+                    const userDoc = documents.find(d =>
+                      d.status &&
+                      d.userId === selectedUser?.id &&
+                      d.title === requirement.title
+                    );
+                    return !userDoc;
+                  })
+                  .map((requirement) => {
+                    return (
+                      <Card key={requirement.id}>
+                        <CardContent className="pt-4">
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start space-x-3 flex-1">
+                                <FileText className="h-6 w-6 text-amber-600 mt-1" />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="font-semibold">{requirement.title}</h3>
+                                    {!requirement.visibleToUsers && (
+                                      <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                        <EyeOff className="h-3 w-3 mr-1" />
+                                        Admin Only
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-amber-600 mt-1 font-medium">
                                     Not uploaded yet
                                   </p>
                                 </div>
                               </div>
                             </div>
-
                             <div className="flex gap-2 pt-2 border-t">
                               <Button
                                 size="sm"
@@ -850,140 +1045,366 @@ export default function Documents() {
                       </Card>
                     );
                   })
-                  .filter(Boolean)
+              )}
+              {documents.filter(d => !d.status).filter(requirement => {
+                const userDoc = documents.find(d =>
+                  d.status &&
+                  d.userId === selectedUser?.id &&
+                  d.title === requirement.title
+                );
+                return !userDoc;
+              }).length === 0 && documents.filter(d => !d.status).length > 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  All documents have been uploaded
+                </div>
               )}
             </TabsContent>
 
-            {/* Uploaded Tab */}
-            <TabsContent value="uploaded" className="space-y-4 py-4 overflow-y-auto max-h-[60vh]">
-              {documents.filter(d => !d.status).length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  No document requirements created yet
-                </div>
-              ) : (
-                documents
-                  .filter(d => !d.status) // Get all requirements (templates)
-                  .map((requirement) => {
-                    // Find if this user has uploaded this document
-                    const userDoc = documents.find(d =>
-                      d.status &&
-                      d.userId === selectedUser?.id &&
-                      d.title === requirement.title
-                    );
+            {/* Pending Approval Tab */}
+            <TabsContent value="pending-approval" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents
+                .filter(d => d.status === "pending" && d.userId === selectedUser?.id)
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
 
-                    const hasBeenUploaded = !!userDoc;
+                  const requirement = documents.find(d => !d.status && d.title === doc.title);
 
-                    // Only show documents that have been uploaded
-                    if (!hasBeenUploaded) return null;
-
-                    const doc = userDoc!; // We know userDoc exists here
-
-                    const formatDate = (dateString: string) => {
-                      if (!dateString) return "N/A";
-                      // Parse YYYY-MM-DD as local date to avoid timezone issues
-                      const [year, month, day] = dateString.split('-').map(Number);
-                      const date = new Date(year, month - 1, day);
-                      return date.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      });
-                    };
-
-                    const isExpired = doc.expirationDate && doc.status !== undefined
-                      ? new Date(doc.expirationDate) < new Date()
-                      : false;
-
-                    return (
-                      <Card key={requirement.id}>
-                        <CardContent className="pt-4">
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start space-x-3 flex-1">
-                                <FileText className="h-6 w-6 text-blue-600 mt-1" />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold">{doc.title}</h3>
-                                    {!requirement.visibleToUsers && (
-                                      <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
-                                        <EyeOff className="h-3 w-3 mr-1" />
-                                        Admin Only
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    Uploaded: {formatDate(doc.uploadedDate)}
-                                  </p>
-                                  {doc.expirationDate && (
-                                    <p className={`text-sm mt-1 ${isExpired ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
-                                      Expires: {formatDate(doc.expirationDate)}
-                                    </p>
+                  return (
+                    <Card key={doc.id}>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <Clock className="h-6 w-6 text-blue-600 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold">{doc.title}</h3>
+                                  {requirement && !requirement.visibleToUsers && (
+                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Admin Only
+                                    </Badge>
                                   )}
                                 </div>
-                              </div>
-                              <Badge
-                                className={
-                                  isExpired
-                                    ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                    : doc.status === "rejected"
-                                    ? "bg-orange-100 text-orange-800 hover:bg-orange-100"
-                                    : doc.status === "pending"
-                                    ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
-                                    : "bg-green-100 text-green-800 hover:bg-green-100"
-                                }
-                              >
-                                {isExpired ? "Expired" : doc.status === "rejected" ? "Rejected" : doc.status === "pending" ? "Pending Review" : "Approved"}
-                              </Badge>
-                            </div>
-
-                            {doc.status === "rejected" && doc.rejectionReason && (
-                              <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
-                                <p className="text-sm font-medium text-orange-800 mb-1">
-                                  Rejection Reason
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
                                 </p>
-                                <p className="text-sm text-orange-700">
-                                  {doc.rejectionReason}
-                                </p>
+                                {doc.expirationDate && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
                               </div>
-                            )}
-
-                            <div className="flex gap-2 pt-2 border-t">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleViewDocument(doc)}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View
-                              </Button>
-                              {doc.status === "pending" && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleApproveDocument(doc.id)}
-                                    className="bg-green-600 hover:bg-green-700"
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleInitiateReject(doc)}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <X className="h-4 w-4 mr-2" />
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
                             </div>
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                              Pending Review
+                            </Badge>
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                  .filter(Boolean)
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleApproveDocument(doc.id)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleInitiateReject(doc)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+              {documents.filter(d => d.status === "pending" && d.userId === selectedUser?.id).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No documents pending approval
+                </div>
+              )}
+            </TabsContent>
+
+            {/* No Approval Needed Tab */}
+            <TabsContent value="no-approval" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents
+                .filter(d => {
+                  if (d.status !== "approved" || d.userId !== selectedUser?.id) return false;
+                  const requirement = documents.find(r => !r.status && r.title === d.title);
+                  return requirement && !requirement.requireReview;
+                })
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
+
+                  const requirement = documents.find(d => !d.status && d.title === doc.title);
+                  const isExpired = doc.expirationDate && new Date(doc.expirationDate) < new Date();
+
+                  return (
+                    <Card key={doc.id}>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <CheckCircle className="h-6 w-6 text-green-600 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold">{doc.title}</h3>
+                                  {requirement && !requirement.visibleToUsers && (
+                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Admin Only
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className={`text-sm mt-1 ${isExpired ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge className={isExpired ? "bg-red-100 text-red-800 hover:bg-red-100" : "bg-green-100 text-green-800 hover:bg-green-100"}>
+                              {isExpired ? "Expired" : "Auto-Approved"}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+              {documents.filter(d => {
+                if (d.status !== "approved" || d.userId !== selectedUser?.id) return false;
+                const requirement = documents.find(r => !r.status && r.title === d.title);
+                return requirement && !requirement.requireReview;
+              }).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No auto-approved documents
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Approved Tab */}
+            <TabsContent value="approved" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents
+                .filter(d => {
+                  if (d.status !== "approved" || d.userId !== selectedUser?.id) return false;
+                  const requirement = documents.find(r => !r.status && r.title === d.title);
+                  const isExpired = d.expirationDate && new Date(d.expirationDate) < new Date();
+                  return requirement && requirement.requireReview && !isExpired;
+                })
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
+
+                  const requirement = documents.find(d => !d.status && d.title === doc.title);
+
+                  return (
+                    <Card key={doc.id}>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <CheckCircle className="h-6 w-6 text-green-600 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold">{doc.title}</h3>
+                                  {requirement && !requirement.visibleToUsers && (
+                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Admin Only
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                              Approved
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+              {documents.filter(d => {
+                if (d.status !== "approved" || d.userId !== selectedUser?.id) return false;
+                const requirement = documents.find(r => !r.status && r.title === d.title);
+                const isExpired = d.expirationDate && new Date(d.expirationDate) < new Date();
+                return requirement && requirement.requireReview && !isExpired;
+              }).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No approved documents
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Expiring/Expired Tab */}
+            <TabsContent value="expiring" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents
+                .filter(d => {
+                  if (!d.status || d.userId !== selectedUser?.id) return false;
+                  return d.expirationDate && new Date(d.expirationDate) < new Date();
+                })
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
+
+                  const requirement = documents.find(d => !d.status && d.title === doc.title);
+
+                  return (
+                    <Card key={doc.id} className="border-red-200 bg-red-50/30">
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <AlertTriangle className="h-6 w-6 text-red-600 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold">{doc.title}</h3>
+                                  {requirement && !requirement.visibleToUsers && (
+                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Admin Only
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className="text-sm text-red-600 font-medium mt-1">
+                                    Expired: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                              Expired
+                            </Badge>
+                          </div>
+                          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                            <p className="text-sm text-red-800">
+                              This document has expired and needs renewal
+                            </p>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                if (requirement) {
+                                  setDocumentToUpload(requirement);
+                                  setShowUploadModal(true);
+                                }
+                              }}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload Renewal
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+              {documents.filter(d => {
+                if (!d.status || d.userId !== selectedUser?.id) return false;
+                return d.expirationDate && new Date(d.expirationDate) < new Date();
+              }).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No expired documents
+                </div>
               )}
             </TabsContent>
           </Tabs>
