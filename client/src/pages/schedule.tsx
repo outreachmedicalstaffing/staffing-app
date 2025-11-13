@@ -2754,19 +2754,19 @@ export default function Schedule() {
         onOpenChange={(open) => !open && setEditingShift(null)}
       >
         <DialogContent className="max-w-2xl">
-          <DialogHeader className={!isAdmin && editingShift ? "border-b-4 border-[#2196F3] pb-4" : ""}>
-            <DialogTitle className={!isAdmin && editingShift ? "text-[#2196F3]" : ""}>{isAdmin ? "Edit Shift" : "View Shift Details"}</DialogTitle>
+          <DialogHeader className={!isAdmin && editingShift ? "border-b-4 border-[#1565C0] pb-4" : ""}>
+            <DialogTitle className={!isAdmin && editingShift ? "text-[#1565C0]" : ""}>{isAdmin ? "Edit Shift" : "View Shift Details"}</DialogTitle>
           </DialogHeader>
           {editingShift && !isAdmin && (
             // Read-only view for regular users
             <div className="space-y-4">
               {/* Shift Title */}
-              <div className="pb-2 border-b-2 border-[#2196F3]">
+              <div className="pb-2 border-b-2 border-[#1565C0]">
                 <h3 className="text-xl font-semibold">{editingShift.title}</h3>
               </div>
 
               {/* Date & Time Section */}
-              <div className="rounded-lg border border-l-4 border-l-[#2196F3] bg-muted/30 p-4 space-y-3">
+              <div className="rounded-lg border border-l-4 border-l-[#1565C0] bg-muted/30 p-4 space-y-3">
                 <h4 className="font-semibold text-sm text-[#E91E63] uppercase tracking-wide">Date & Time</h4>
                 {(() => {
                   const shiftStart = new Date(editingShift.startTime);
@@ -2825,7 +2825,7 @@ export default function Schedule() {
 
               {/* Program & Job Section */}
               {(editingShift.jobName || (editingShift as any).program) && (
-                <div className="rounded-lg border border-l-4 border-l-[#2196F3] bg-muted/30 p-4 space-y-3">
+                <div className="rounded-lg border border-l-4 border-l-[#1565C0] bg-muted/30 p-4 space-y-3">
                   <h4 className="font-semibold text-sm text-[#E91E63] uppercase tracking-wide">Program & Job</h4>
                   <div className="space-y-3">
                     {(editingShift as any).program && (
@@ -2903,7 +2903,7 @@ export default function Schedule() {
 
               {/* Address Section */}
               {editingShift.location && (
-                <div className="rounded-lg border border-l-4 border-l-[#2196F3] bg-muted/30 p-4 space-y-2">
+                <div className="rounded-lg border border-l-4 border-l-[#1565C0] bg-muted/30 p-4 space-y-2">
                   <h4 className="font-semibold text-sm text-[#E91E63] uppercase tracking-wide">Address</h4>
                   <div className="font-medium flex items-start gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -2914,7 +2914,7 @@ export default function Schedule() {
 
               {/* Notes Section */}
               {editingShift.notes && (
-                <div className="rounded-lg border border-l-4 border-l-[#2196F3] bg-muted/30 p-4 space-y-2">
+                <div className="rounded-lg border border-l-4 border-l-[#1565C0] bg-muted/30 p-4 space-y-2">
                   <h4 className="font-semibold text-sm text-[#E91E63] uppercase tracking-wide">Notes</h4>
                   <div className="text-sm whitespace-pre-wrap">{editingShift.notes}</div>
                 </div>
@@ -2922,7 +2922,7 @@ export default function Schedule() {
 
               {/* Attachments */}
               {editingShift.attachments && editingShift.attachments.length > 0 && (
-                <div className="rounded-lg border border-l-4 border-l-[#2196F3] bg-muted/30 p-4 space-y-2">
+                <div className="rounded-lg border border-l-4 border-l-[#1565C0] bg-muted/30 p-4 space-y-2">
                   <h4 className="font-semibold text-sm text-[#E91E63] uppercase tracking-wide">Attachments</h4>
                   <div className="space-y-2">
                     {editingShift.attachments.map((filename, index) => (
