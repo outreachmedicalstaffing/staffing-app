@@ -2952,6 +2952,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Upload multiple shift note photos
+  app.post(
+    "/api/upload/shift-notes",
+    requireAuth,
+    upload.array("photos", 10), // Allow up to 10 photos
+    async (req, res) => {
+      try {
+        if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+          return res.status(400).json({ error: "No photos uploaded" });
+        }
+
+        // Log each uploaded file
+        for (const file of req.files) {
+          await logAudit(
+            req.session.userId,
+            "upload",
+            "shift_note_photo",
+            file.filename,
+            false,
+            [],
+            {
+              originalName: file.originalname,
+              size: file.size,
+              mimetype: file.mimetype,
+            },
+            req.ip,
+          );
+        }
+
+        // Return array of uploaded files
+        const uploadedFiles = req.files.map((file) => ({
+          filename: file.filename,
+          originalName: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+        }));
+
+        res.json({
+          success: true,
+          files: uploadedFiles,
+        });
+      } catch (error) {
+        console.error("Shift note photos upload error:", error);
+        res.status(500).json({ error: "Failed to upload shift note photos" });
+      }
+    },
+  );
+
   // Download/view file
   app.get("/api/files/:filename", requireAuth, async (req, res) => {
     try {

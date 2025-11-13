@@ -1139,47 +1139,83 @@ export function UserTimesheetDetail({
                           {entry?.shiftNoteAttachments?.length
                             ? (() => {
                                 // Make an array of URLs from the attachments in this row
-                                const urls = (
-                                  entry.shiftNoteAttachments as any[]
-                                )
-                                  .map((a) =>
-                                    typeof a === "string" ? a : a?.url,
-                                  )
+                                const attachments = entry.shiftNoteAttachments as any[];
+                                if (!attachments || attachments.length === 0) return "—";
+
+                                const urls = attachments
+                                  .map((a) => typeof a === "string" ? a : a?.url)
                                   .filter(Boolean) as string[];
 
+                                if (urls.length === 0) return "—";
+
+                                // Convert filename to full URL path
+                                const getImageUrl = (filename: string) => {
+                                  if (filename.startsWith('http')) return filename;
+                                  return `/api/files/${filename}`;
+                                };
+
                                 return (
-                                  <div className="flex items-center gap-2">
-                                    {/* Open the preview dialog and show the first image */}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => openPreview(urls, 0)}
-                                      title="Open in a new tab"
-                                    >
-                                      <ExternalLink className="h-4 w-4 mr-1" />
-                                      Open
-                                    </Button>
-
-                                    {/* These use your existing download helpers which read previewImages */}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={downloadCurrent}
-                                      title="Download this image"
-                                    >
-                                      <Download className="h-4 w-4 mr-1" />
-                                      Download
-                                    </Button>
-
-                                    {urls.length > 1 && (
+                                  <div className="flex flex-col gap-2">
+                                    {/* Thumbnail grid */}
+                                    <div className="flex flex-wrap gap-2">
+                                      {urls.slice(0, 3).map((url, idx) => (
+                                        <button
+                                          key={idx}
+                                          onClick={() => openPreview(urls.map(getImageUrl), idx)}
+                                          className="relative w-16 h-16 rounded border-2 border-gray-200 hover:border-blue-500 overflow-hidden bg-gray-100 transition-all cursor-pointer"
+                                          title="Click to view full size"
+                                        >
+                                          <img
+                                            src={getImageUrl(url)}
+                                            alt={`Shift note ${idx + 1}`}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                              // Fallback to icon if image fails to load
+                                              e.currentTarget.style.display = 'none';
+                                            }}
+                                          />
+                                        </button>
+                                      ))}
+                                      {urls.length > 3 && (
+                                        <button
+                                          onClick={() => openPreview(urls.map(getImageUrl), 0)}
+                                          className="w-16 h-16 rounded border-2 border-gray-200 hover:border-blue-500 bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600 cursor-pointer"
+                                        >
+                                          +{urls.length - 3}
+                                        </button>
+                                      )}
+                                    </div>
+                                    {/* Download buttons */}
+                                    <div className="flex gap-1">
                                       <Button
-                                        variant="ghost"
-                                        onClick={downloadAll}
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => openPreview(urls.map(getImageUrl), 0)}
+                                        title="View all photos"
                                       >
-                                        <Download className="h-4 w-4 mr-1" />
-                                        Download all
+                                        <ExternalLink className="h-3 w-3 mr-1" />
+                                        View
                                       </Button>
-                                    )}
+                                      {urls.length > 1 && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            urls.forEach((url, i) => {
+                                              const fullUrl = getImageUrl(url);
+                                              const a = document.createElement("a");
+                                              a.href = fullUrl;
+                                              a.download = url.split("/").pop() || `photo-${i + 1}`;
+                                              a.click();
+                                            });
+                                          }}
+                                          title="Download all photos"
+                                        >
+                                          <Download className="h-3 w-3 mr-1" />
+                                          All
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })()

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User, TimeEntry, Shift } from "@shared/schema";
+import { ClockOutDialog } from "@/components/clock-out-dialog";
 
 // Helper function to remove "United States of America" from addresses
 const stripCountryFromAddress = (address: string): string => {
@@ -22,6 +23,7 @@ export default function Clock() {
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [viewingShift, setViewingShift] = useState<Shift | null>(null);
+  const [showClockOutDialog, setShowClockOutDialog] = useState(false);
 
   // Update current time every second
   useState(() => {
@@ -124,9 +126,9 @@ export default function Clock() {
 
   // Clock out mutation
   const clockOutMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (photoFilenames: string[]) => {
       const res = await apiRequest("POST", "/api/time/clock-out", {
-        shiftNoteAttachments: [],
+        shiftNoteAttachments: photoFilenames,
         relievingNurseSignature: null,
       });
       const text = await res.text();
@@ -149,6 +151,9 @@ export default function Clock() {
         title: "Clocked Out",
         description: `Successfully clocked out at ${clockOutTime}${hoursWorked}`,
       });
+
+      // Close the dialog
+      setShowClockOutDialog(false);
     },
     onError: (error: Error) => {
       toast({
@@ -156,16 +161,24 @@ export default function Clock() {
         description: error.message,
         variant: "destructive",
       });
+      // Close the dialog on error too
+      setShowClockOutDialog(false);
     },
   });
 
   // Handle clock toggle
   const handleClockToggle = () => {
     if (activeEntry) {
-      clockOutMutation.mutate();
+      // Open the clock out dialog to upload shift notes
+      setShowClockOutDialog(true);
     } else {
       clockInMutation.mutate(undefined);
     }
+  };
+
+  // Handle clock out with photo filenames
+  const handleClockOut = (photoFilenames: string[]) => {
+    clockOutMutation.mutate(photoFilenames);
   };
 
   const isLoading = timeEntriesLoading || shiftsLoading;
@@ -413,6 +426,14 @@ export default function Clock() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Clock Out Dialog with Photo Upload */}
+      <ClockOutDialog
+        open={showClockOutDialog}
+        onOpenChange={setShowClockOutDialog}
+        onClockOut={handleClockOut}
+        isLoading={clockOutMutation.isPending}
+      />
     </div>
   );
 }
