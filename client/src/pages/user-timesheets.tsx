@@ -53,7 +53,7 @@ export default function UserTimesheets() {
   // Update time entry mutation
   const updateEntryMutation = useMutation({
     mutationFn: async (data: { id: number; clockIn: string; clockOut: string | null }) => {
-      const res = await apiRequest("PUT", `/api/time/entries/${data.id}`, {
+      const res = await apiRequest("PATCH", `/api/time/entries/${data.id}`, {
         clockIn: data.clockIn,
         clockOut: data.clockOut,
       });
