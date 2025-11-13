@@ -158,8 +158,16 @@ export default function Clock() {
   // Update time entry mutation
   const updateEntryMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<TimeEntry> }) => {
-      const res = await apiRequest("PATCH", `/api/time/entries/${id}`, data);
-      return res.json();
+      try {
+        console.log("Updating time entry:", { id, data });
+        const res = await apiRequest("PATCH", `/api/time/entries/${id}`, data);
+        const result = await res.json();
+        console.log("Update successful:", result);
+        return result;
+      } catch (error) {
+        console.error("Update failed:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
@@ -169,10 +177,27 @@ export default function Clock() {
         description: "Time entry has been updated successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      console.error("Mutation error:", error);
+      // Parse error message more carefully
+      let errorMessage = "Failed to update time entry";
+      if (error?.message) {
+        // Extract JSON error if present
+        const match = error.message.match(/\{.*\}/);
+        if (match) {
+          try {
+            const errorObj = JSON.parse(match[0]);
+            errorMessage = errorObj.error || errorMessage;
+          } catch {
+            errorMessage = error.message;
+          }
+        } else {
+          errorMessage = error.message;
+        }
+      }
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -204,7 +229,16 @@ export default function Clock() {
 
   // Save edited entry
   const handleSaveEdit = () => {
-    if (!editingEntry) return;
+    if (!editingEntry) {
+      console.log("No editing entry found");
+      return;
+    }
+
+    console.log("handleSaveEdit called", {
+      editingEntry,
+      editClockIn,
+      editClockOut,
+    });
 
     const baseDate = new Date(editingEntry.clockIn);
     const [inH, inM] = (editClockIn || "00:00").split(":").map(Number);
@@ -220,12 +254,19 @@ export default function Clock() {
       outISO = newOut.toISOString();
     }
 
+    const updateData = {
+      clockIn: newIn.toISOString(),
+      ...(outISO ? { clockOut: outISO } : {}),
+    };
+
+    console.log("Calling mutation with:", {
+      id: editingEntry.id,
+      data: updateData,
+    });
+
     updateEntryMutation.mutate({
       id: editingEntry.id,
-      data: {
-        clockIn: newIn.toISOString(),
-        ...(outISO ? { clockOut: outISO } : {}),
-      },
+      data: updateData,
     });
   };
 
