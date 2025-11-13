@@ -2626,6 +2626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userData = {
         username: baseUsername,
         password: tempPassword, // Required by InsertUser schema
+        passwordHash, // Add the hashed password for database storage
         email: tempEmail,
         fullName,
         phoneNumber,
@@ -2657,7 +2658,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Failed to create user:", error);
-      res.status(500).json({ error: "Failed to create user" });
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        stack: error.stack,
+      });
+      res.status(500).json({
+        error: "Failed to create user",
+        details: error.message || "Unknown error"
+      });
     }
   });
 
