@@ -226,7 +226,7 @@ export default function Timesheets() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[200px]">First name</TableHead>
+                      <TableHead className="w-[200px]">Name</TableHead>
                       <TableHead>Program</TableHead>
                       <TableHead>Clock in</TableHead>
                       <TableHead>Clock out</TableHead>
