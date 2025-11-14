@@ -11,16 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, X, ChevronDown } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 interface CustomFields {
   birthday?: string;
   shiftPreference?: string;
   facility?: string;
-  allergies?: string | string[];
   address?: string;
   apartmentUnit?: string;
 }
@@ -41,7 +37,6 @@ export default function Profile() {
   const [birthday, setBirthday] = useState("");
   const [shiftPreference, setShiftPreference] = useState("");
   const [facility, setFacility] = useState("");
-  const [allergies, setAllergies] = useState<string[]>([]);
   const [address, setAddress] = useState("");
   const [apartmentUnit, setApartmentUnit] = useState("");
 
@@ -61,9 +56,6 @@ export default function Profile() {
     queryKey: ["/api/auth/me"],
   });
 
-  // Allergy options for multi-select - only these are valid
-  const allergyOptions = ["Cat", "Dog", "Smoke", "Other"];
-
   // Initialize form with user data
   useEffect(() => {
     if (currentUser) {
@@ -81,43 +73,10 @@ export default function Profile() {
       setBirthday(customFields.birthday || "");
       setShiftPreference(customFields.shiftPreference || "");
       setFacility(customFields.facility || "");
-
-      // Handle allergies - migrate from string to array if needed
-      // Filter to only include valid allergy options
-      if (Array.isArray(customFields.allergies)) {
-        const validAllergies = customFields.allergies.filter(a =>
-          allergyOptions.includes(a)
-        );
-        setAllergies(validAllergies);
-      } else if (customFields.allergies) {
-        // Migrate old string data - split by comma if present, filter to valid options only
-        const allergiesArray = customFields.allergies
-          .split(',')
-          .map(a => a.trim())
-          .filter(a => a.length > 0 && allergyOptions.includes(a));
-        setAllergies(allergiesArray);
-      } else {
-        setAllergies([]);
-      }
-
       setAddress(customFields.address || "");
       setApartmentUnit(customFields.apartmentUnit || "");
     }
-  }, [currentUser, allergyOptions]);
-
-  // Handle allergy selection toggle
-  const toggleAllergy = (allergy: string, checked: boolean) => {
-    setAllergies(prev =>
-      checked
-        ? [...prev, allergy]
-        : prev.filter(a => a !== allergy)
-    );
-  };
-
-  // Remove individual allergy badge
-  const removeAllergy = (allergy: string) => {
-    setAllergies(prev => prev.filter(a => a !== allergy));
-  };
+  }, [currentUser]);
 
   // Helper function to remove "United States of America" from addresses
   const stripCountryFromAddress = (address: string): string => {
@@ -238,14 +197,10 @@ export default function Profile() {
       return;
     }
 
-    // Filter allergies to only include valid options before saving
-    const validAllergies = allergies.filter(a => allergyOptions.includes(a));
-
     const customFields: CustomFields = {
       birthday,
       shiftPreference,
       facility,
-      allergies: validAllergies,
       address,
       apartmentUnit,
     };
@@ -484,81 +439,6 @@ export default function Profile() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Medical Information</CardTitle>
-          <CardDescription>
-            Provide any relevant medical information
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <Label>Allergies</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between"
-                  data-testid="button-allergies-select"
-                >
-                  <span className="text-muted-foreground">
-                    {allergies.length === 0 ? "Select allergies" : `${allergies.length} selected`}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-3" align="start">
-                <div className="space-y-2">
-                  {allergyOptions.map((option) => (
-                    <div
-                      key={option}
-                      className="flex items-center space-x-2"
-                    >
-                      <Checkbox
-                        id={`allergy-${option}`}
-                        checked={allergies.includes(option)}
-                        onCheckedChange={(checked) => toggleAllergy(option, checked === true)}
-                        data-testid={`checkbox-allergy-${option.toLowerCase()}`}
-                      />
-                      <label
-                        htmlFor={`allergy-${option}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        {option}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* Display selected allergies as badges */}
-            {allergies.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {allergies.map((allergy) => (
-                  <Badge
-                    key={allergy}
-                    variant="secondary"
-                    className="pl-2 pr-1 py-1"
-                    data-testid={`badge-allergy-${allergy.toLowerCase()}`}
-                  >
-                    {allergy}
-                    <button
-                      type="button"
-                      className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5"
-                      onClick={() => removeAllergy(allergy)}
-                      data-testid={`remove-allergy-${allergy.toLowerCase()}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
