@@ -529,7 +529,7 @@ export default function UserTimesheets() {
                     {/* Right: Pay Amount and Action */}
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-primary">{formattedPay}</p>
+                        <p className="text-lg font-semibold text-green-600">{formattedPay}</p>
                         <p className="text-xs text-muted-foreground">Total Pay</p>
                       </div>
                       <Button
