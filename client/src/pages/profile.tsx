@@ -20,6 +20,7 @@ interface CustomFields {
   facility?: string;
   allergies?: string;
   address?: string;
+  apartmentUnit?: string;
 }
 
 export default function Profile() {
@@ -42,6 +43,7 @@ export default function Profile() {
   const [facility, setFacility] = useState("");
   const [allergies, setAllergies] = useState("");
   const [address, setAddress] = useState("");
+  const [apartmentUnit, setApartmentUnit] = useState("");
 
   // Address autocomplete state
   const [addressSuggestions, setAddressSuggestions] = useState<
@@ -80,6 +82,7 @@ export default function Profile() {
       setFacility(customFields.facility || "");
       setAllergies(customFields.allergies || "");
       setAddress(customFields.address || "");
+      setApartmentUnit(customFields.apartmentUnit || "");
     }
   }, [currentUser]);
 
@@ -210,6 +213,7 @@ export default function Profile() {
       facility,
       allergies,
       address,
+      apartmentUnit,
     };
 
     updateProfileMutation.mutate({
@@ -396,6 +400,17 @@ export default function Profile() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="apartmentUnit">Apt/Unit (Optional)</Label>
+            <Input
+              id="apartmentUnit"
+              value={apartmentUnit}
+              onChange={(e) => setApartmentUnit(e.target.value)}
+              placeholder="e.g., Apt 101, Unit B"
+              data-testid="input-apartment-unit"
+            />
           </div>
         </CardContent>
       </Card>
