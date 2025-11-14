@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { MapPin } from "lucide-react";
 
 interface CustomFields {
   birthday?: string;
@@ -42,6 +43,18 @@ export default function Profile() {
   const [allergies, setAllergies] = useState("");
   const [address, setAddress] = useState("");
 
+  // Address autocomplete state
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    Array<{
+      formatted: string;
+      lat: number;
+      lon: number;
+    }>
+  >([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const addressInputRef = useRef<HTMLTextAreaElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const { data: currentUser, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
@@ -69,6 +82,66 @@ export default function Profile() {
       setAddress(customFields.address || "");
     }
   }, [currentUser]);
+
+  // Helper function to remove "United States of America" from addresses
+  const stripCountryFromAddress = (address: string): string => {
+    return address.replace(/, United States of America$/, '');
+  };
+
+  // Address autocomplete with Geoapify
+  const fetchAddressSuggestions = async (query: string) => {
+    if (!query || query.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      return;
+    }
+
+    try {
+      const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY;
+      if (!apiKey) {
+        console.warn("Geoapify API key not configured");
+        return;
+      }
+
+      const response = await fetch(
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}&apiKey=${apiKey}&limit=5`,
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const suggestions =
+          data.features?.map((feature: any) => ({
+            formatted: feature.properties.formatted,
+            lat: feature.properties.lat,
+            lon: feature.properties.lon,
+          })) || [];
+        setAddressSuggestions(suggestions);
+        setShowAddressSuggestions(suggestions.length > 0);
+      }
+    } catch (error) {
+      console.error("Error fetching address suggestions:", error);
+    }
+  };
+
+  const handleAddressChange = (value: string) => {
+    setAddress(value);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      fetchAddressSuggestions(value);
+    }, 300);
+  };
+
+  const selectAddress = (selectedAddress: string) => {
+    // Strip ", United States of America" from the address before storing
+    const cleanedAddress = stripCountryFromAddress(selectedAddress);
+    setAddress(cleanedAddress);
+    setShowAddressSuggestions(false);
+    setAddressSuggestions([]);
+  };
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
@@ -278,13 +351,51 @@ export default function Profile() {
 
           <div>
             <Label htmlFor="address">Address</Label>
-            <Textarea
-              id="address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              data-testid="input-address"
-              rows={3}
-            />
+            <div className="relative">
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                <Textarea
+                  ref={addressInputRef}
+                  id="address"
+                  className="pl-9"
+                  value={address}
+                  onChange={(e) => handleAddressChange(e.target.value)}
+                  onFocus={() => {
+                    if (addressSuggestions.length > 0) {
+                      setShowAddressSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowAddressSuggestions(false), 200);
+                  }}
+                  data-testid="input-address"
+                  rows={3}
+                  placeholder="Enter address"
+                  autoComplete="off"
+                />
+              </div>
+
+              {showAddressSuggestions && addressSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                  {addressSuggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      className="px-3 py-2 hover-elevate cursor-pointer text-sm"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectAddress(suggestion.formatted);
+                      }}
+                      data-testid={`address-suggestion-${index}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span>{stripCountryFromAddress(suggestion.formatted)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
