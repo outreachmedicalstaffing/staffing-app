@@ -15,8 +15,6 @@ import { MapPin } from "lucide-react";
 
 interface CustomFields {
   birthday?: string;
-  emergencyContactName?: string;
-  emergencyContactNumber?: string;
   shiftPreference?: string;
   facility?: string;
   allergies?: string;
@@ -38,8 +36,6 @@ export default function Profile() {
   const [username, setUsername] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [birthday, setBirthday] = useState("");
-  const [emergencyContactName, setEmergencyContactName] = useState("");
-  const [emergencyContactNumber, setEmergencyContactNumber] = useState("");
   const [shiftPreference, setShiftPreference] = useState("");
   const [facility, setFacility] = useState("");
   const [allergies, setAllergies] = useState("");
@@ -77,8 +73,6 @@ export default function Profile() {
       // Parse customFields if it exists
       const customFields = (currentUser.customFields as CustomFields) || {};
       setBirthday(customFields.birthday || "");
-      setEmergencyContactName(customFields.emergencyContactName || "");
-      setEmergencyContactNumber(customFields.emergencyContactNumber || "");
       setShiftPreference(customFields.shiftPreference || "");
       setFacility(customFields.facility || "");
       setAllergies(customFields.allergies || "");
@@ -208,8 +202,6 @@ export default function Profile() {
 
     const customFields: CustomFields = {
       birthday,
-      emergencyContactName,
-      emergencyContactNumber,
       shiftPreference,
       facility,
       allergies,
@@ -412,38 +404,6 @@ export default function Profile() {
               placeholder="e.g., Apt 101, Unit B"
               data-testid="input-apartment-unit"
             />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Emergency Contact</CardTitle>
-          <CardDescription>
-            Provide emergency contact information
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="emergencyContactName">Contact Name</Label>
-              <Input
-                id="emergencyContactName"
-                value={emergencyContactName}
-                onChange={(e) => setEmergencyContactName(e.target.value)}
-                data-testid="input-emergency-contact-name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="emergencyContactNumber">Contact Number</Label>
-              <Input
-                id="emergencyContactNumber"
-                type="tel"
-                value={emergencyContactNumber}
-                onChange={(e) => setEmergencyContactNumber(e.target.value)}
-                data-testid="input-emergency-contact-number"
-              />
-            </div>
           </div>
         </CardContent>
       </Card>
