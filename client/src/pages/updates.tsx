@@ -138,9 +138,18 @@ export default function Updates() {
   const isAdmin = user && ["Admin", "Owner"].includes(user.role);
 
   // Fetch all updates
-  const { data: updates = [], isLoading } = useQuery<Update[]>({
+  const { data: updatesRaw = [], isLoading } = useQuery<Update[]>({
     queryKey: ["/api/updates"],
   });
+
+  // Sort updates by createdAt descending (newest first) as a safety measure
+  const updates = useMemo(() => {
+    return [...updatesRaw].sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA; // Descending order (newest first)
+    });
+  }, [updatesRaw]);
 
   // Fetch users for targeting
   const { data: users = [] } = useQuery<User[]>({
