@@ -802,6 +802,7 @@ export function UserTimesheetDetail({
                     <TableHead>Weekly total</TableHead>
                     <TableHead>Regular</TableHead>
                     <TableHead>Holiday</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                     <TableHead>Signature</TableHead>
                     <TableHead>Shift Notes</TableHead>
@@ -1098,6 +1099,26 @@ export function UserTimesheetDetail({
                           {hours > 0 ? hours.toFixed(2) : "—"}
                         </TableCell>
                         <TableCell>—</TableCell>
+
+                        {/* Status */}
+                        <TableCell>
+                          {entry?.approvalStatus === "pending" && (
+                            <Badge variant="outline" className="border-orange-500 text-orange-700 text-xs">
+                              Pending
+                            </Badge>
+                          )}
+                          {entry?.approvalStatus === "approved" && (
+                            <Badge variant="outline" className="border-green-500 text-green-700 text-xs">
+                              Approved
+                            </Badge>
+                          )}
+                          {entry?.approvalStatus === "rejected" && (
+                            <Badge variant="outline" className="border-red-500 text-red-700 text-xs">
+                              Rejected
+                            </Badge>
+                          )}
+                          {!entry?.approvalStatus && "—"}
+                        </TableCell>
 
                         {/* Actions */}
                         <TableCell>

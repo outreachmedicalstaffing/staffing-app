@@ -755,6 +755,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Entry is not locked, proceeding with update");
         }
 
+        // If user (not admin) is editing clock times, store original times and set to pending approval
+        const isEditingTimes = (data.clockIn || data.clockOut) && !isAdmin;
+        if (isEditingTimes) {
+          // Store original times if not already stored
+          if (!existing.originalClockIn) {
+            data.originalClockIn = existing.clockIn;
+          }
+          if (!existing.originalClockOut && existing.clockOut) {
+            data.originalClockOut = existing.clockOut;
+          }
+          // Set to pending approval
+          data.approvalStatus = "pending";
+          console.log("User editing times - setting to pending approval", {
+            entryId,
+            originalClockIn: existing.clockIn,
+            originalClockOut: existing.clockOut
+          });
+        }
+
         const entry = await storage.updateTimeEntry(entryId, data);
         if (!entry) {
           return res.status(404).json({ error: "Time entry not found" });
@@ -805,14 +824,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 year: 'numeric'
               });
 
+              // Include entry ID in metadata for approval actions
+              const metadata = {
+                type: 'time_entry_edit',
+                entryId: entry.id,
+                userId: entry.userId,
+                userName: currentUser.fullName,
+                needsApproval: isEditingTimes
+              };
+
               await storage.db.insert(schema.updates).values({
-                title: `Time Entry Edited: ${currentUser.fullName}`,
-                content: `${currentUser.fullName} edited their time entry for ${entryDate}:\n\n${changes.join('\n')}`,
+                title: isEditingTimes
+                  ? `${currentUser.fullName} edited their time entry for ${entryDate} - Pending Approval`
+                  : `Time Entry Edited: ${currentUser.fullName}`,
+                content: `${currentUser.fullName} edited their time entry for ${entryDate}:\n\n${changes.join('\n')}\n\n${isEditingTimes ? '⏳ This edit requires approval from an owner or admin.' : ''}`,
                 publishDate: new Date(),
                 createdBy: req.session.userId!,
                 visibility: "specific_users",
                 targetUserIds: adminUserIds,
                 status: "published",
+                metadata: JSON.stringify(metadata),
               });
             }
           } catch (notifError) {
@@ -844,6 +875,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: error.errors });
         }
         res.status(500).json({ error: "Failed to update time entry" });
+      }
+    },
+  );
+
+  // Approve time entry edit
+  app.post(
+    "/api/time/entries/:id/approve",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const entryId = req.params.id;
+        const entry = await storage.getTimeEntry(entryId);
+
+        if (!entry) {
+          return res.status(404).json({ error: "Time entry not found" });
+        }
+
+        // Update approval status to approved
+        const updatedEntry = await storage.updateTimeEntry(entryId, {
+          approvalStatus: "approved",
+        });
+
+        // Find and delete the notification for this approval
+        const allUpdates = await storage.db
+          .select()
+          .from(schema.updates)
+          .orderBy(desc(schema.updates.publishDate));
+
+        const relatedUpdate = allUpdates.find((update) => {
+          if (!update.metadata) return false;
+          try {
+            const metadata = JSON.parse(update.metadata);
+            return metadata.type === 'time_entry_edit' && metadata.entryId === entryId;
+          } catch {
+            return false;
+          }
+        });
+
+        if (relatedUpdate) {
+          await storage.db
+            .delete(schema.updates)
+            .where(eq(schema.updates.id, relatedUpdate.id));
+        }
+
+        // Notify the user that their edit was approved
+        const user = await storage.getUser(entry.userId);
+        if (user) {
+          const entryDate = new Date(entry.clockIn).toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+
+          await storage.db.insert(schema.updates).values({
+            title: `Time Entry Edit Approved`,
+            content: `Your time entry edit for ${entryDate} has been approved by an administrator.`,
+            publishDate: new Date(),
+            createdBy: req.session.userId!,
+            visibility: "specific_users",
+            targetUserIds: [entry.userId],
+            status: "published",
+          });
+        }
+
+        await logAudit(
+          req.session.userId,
+          "approve",
+          "time_entry",
+          entryId,
+          false,
+          [],
+          {},
+          req.ip,
+        );
+
+        res.json(updatedEntry);
+      } catch (error) {
+        console.error("Approve time entry error:", error);
+        res.status(500).json({ error: "Failed to approve time entry" });
+      }
+    },
+  );
+
+  // Reject time entry edit
+  app.post(
+    "/api/time/entries/:id/reject",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const entryId = req.params.id;
+        const { reason } = req.body;
+        const entry = await storage.getTimeEntry(entryId);
+
+        if (!entry) {
+          return res.status(404).json({ error: "Time entry not found" });
+        }
+
+        // Revert to original times and mark as rejected
+        const updateData: any = {
+          approvalStatus: "rejected",
+          rejectionReason: reason || "Edit rejected by administrator",
+        };
+
+        // Revert to original times if they exist
+        if (entry.originalClockIn) {
+          updateData.clockIn = entry.originalClockIn;
+        }
+        if (entry.originalClockOut) {
+          updateData.clockOut = entry.originalClockOut;
+        }
+
+        const updatedEntry = await storage.updateTimeEntry(entryId, updateData);
+
+        // Find and delete the notification for this approval
+        const allUpdates = await storage.db
+          .select()
+          .from(schema.updates)
+          .orderBy(desc(schema.updates.publishDate));
+
+        const relatedUpdate = allUpdates.find((update) => {
+          if (!update.metadata) return false;
+          try {
+            const metadata = JSON.parse(update.metadata);
+            return metadata.type === 'time_entry_edit' && metadata.entryId === entryId;
+          } catch {
+            return false;
+          }
+        });
+
+        if (relatedUpdate) {
+          await storage.db
+            .delete(schema.updates)
+            .where(eq(schema.updates.id, relatedUpdate.id));
+        }
+
+        // Notify the user that their edit was rejected
+        const user = await storage.getUser(entry.userId);
+        if (user) {
+          const entryDate = new Date(entry.clockIn).toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+
+          await storage.db.insert(schema.updates).values({
+            title: `Time Entry Edit Rejected`,
+            content: `Your time entry edit for ${entryDate} was rejected.\n\nReason: ${reason || 'No reason provided'}\n\nYour time entry has been reverted to the original times.`,
+            publishDate: new Date(),
+            createdBy: req.session.userId!,
+            visibility: "specific_users",
+            targetUserIds: [entry.userId],
+            status: "published",
+          });
+        }
+
+        await logAudit(
+          req.session.userId,
+          "reject",
+          "time_entry",
+          entryId,
+          false,
+          [],
+          { reason },
+          req.ip,
+        );
+
+        res.json(updatedEntry);
+      } catch (error) {
+        console.error("Reject time entry error:", error);
+        res.status(500).json({ error: "Failed to reject time entry" });
       }
     },
   );

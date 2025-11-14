@@ -177,6 +177,7 @@ export default function UserTimesheets() {
                     <TableHead>Clock Out</TableHead>
                     <TableHead>Total Hours</TableHead>
                     <TableHead>Program</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -205,6 +206,23 @@ export default function UserTimesheets() {
                           {entry.clockOut ? hours.toFixed(2) : "—"}
                         </TableCell>
                         <TableCell>{entry.program || "—"}</TableCell>
+                        <TableCell>
+                          {(entry as any).approvalStatus === "pending" && (
+                            <Badge variant="outline" className="border-orange-500 text-orange-700">
+                              Pending Approval
+                            </Badge>
+                          )}
+                          {(entry as any).approvalStatus === "approved" && (
+                            <Badge variant="outline" className="border-green-500 text-green-700">
+                              Approved
+                            </Badge>
+                          )}
+                          {(entry as any).approvalStatus === "rejected" && (
+                            <Badge variant="outline" className="border-red-500 text-red-700">
+                              Rejected
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"

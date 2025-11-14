@@ -43,6 +43,9 @@ import {
   Users,
   Check,
   ChevronsUpDown,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -69,6 +72,7 @@ interface Update {
   targetUserIds: string[] | null;
   targetGroupIds: string[] | null;
   status: string;
+  metadata: string | null;
   createdAt: string;
   viewCount: number;
   likeCount: number;
@@ -276,6 +280,66 @@ export default function Updates() {
     },
   });
 
+  // Approve time entry mutation
+  const approveTimeEntryMutation = useMutation({
+    mutationFn: async (entryId: string) => {
+      const res = await apiRequest("POST", `/api/time/entries/${entryId}/approve`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/updates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      toast({
+        title: "Time entry approved",
+        description: "The time entry edit has been approved",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to approve time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reject time entry mutation
+  const rejectTimeEntryMutation = useMutation({
+    mutationFn: async ({ entryId, reason }: { entryId: string; reason?: string }) => {
+      const res = await apiRequest("POST", `/api/time/entries/${entryId}/reject`, { reason });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/updates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
+      toast({
+        title: "Time entry rejected",
+        description: "The time entry edit has been rejected and reverted",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reject time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Filter pending approval updates
+  const pendingApprovals = useMemo(() => {
+    if (!isAdmin) return [];
+    return updates.filter((update) => {
+      if (!update.metadata) return false;
+      try {
+        const metadata = JSON.parse(update.metadata);
+        return metadata.type === 'time_entry_edit' && metadata.needsApproval;
+      } catch {
+        return false;
+      }
+    });
+  }, [updates, isAdmin]);
+
   const resetForm = () => {
     setFormData({
       title: "",
@@ -335,6 +399,11 @@ export default function Updates() {
         <div>
           <h1 className="text-2xl font-semibold" data-testid="heading-updates">
             Updates
+            {isAdmin && pendingApprovals.length > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingApprovals.length} Pending
+              </Badge>
+            )}
           </h1>
           <p className="text-muted-foreground">
             Company announcements and updates
@@ -350,6 +419,74 @@ export default function Updates() {
           </Button>
         )}
       </div>
+
+      {/* Pending Approvals Section */}
+      {isAdmin && pendingApprovals.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-900">
+              <Clock className="h-5 w-5" />
+              Pending Time Entry Approvals
+              <Badge variant="destructive">{pendingApprovals.length}</Badge>
+            </CardTitle>
+            <CardDescription>
+              The following time entry edits require your approval
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pendingApprovals.map((update) => {
+              const metadata = JSON.parse(update.metadata || '{}');
+              return (
+                <div
+                  key={update.id}
+                  className="bg-white rounded-lg border p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-sm">{update.title}</h4>
+                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
+                        {update.content}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        <Calendar className="h-3 w-3 inline mr-1" />
+                        {format(new Date(update.publishDate), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-2 border-t">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => approveTimeEntryMutation.mutate(metadata.entryId)}
+                      disabled={approveTimeEntryMutation.isPending}
+                      data-testid={`button-approve-${metadata.entryId}`}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        const reason = prompt("Reason for rejection (optional):");
+                        rejectTimeEntryMutation.mutate({
+                          entryId: metadata.entryId,
+                          reason: reason || undefined
+                        });
+                      }}
+                      disabled={rejectTimeEntryMutation.isPending}
+                      data-testid={`button-reject-${metadata.entryId}`}
+                    >
+                      <XCircle className="h-4 w-4 mr-1" />
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Updates Feed */}
       <div className="space-y-4">

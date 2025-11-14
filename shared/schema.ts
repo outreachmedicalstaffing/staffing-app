@@ -99,6 +99,9 @@ export const timeEntries = pgTable(
     status: text("status").notNull().default("active"), // active, completed, auto-clocked-out
     locked: boolean("locked").default(false), // locked days prevent editing
     approvalStatus: text("approval_status").notNull().default("approved"), // approved, pending, rejected
+    originalClockIn: timestamp("original_clock_in"), // Original clock in time before edit (for reversion)
+    originalClockOut: timestamp("original_clock_out"), // Original clock out time before edit (for reversion)
+    rejectionReason: text("rejection_reason"), // Reason for rejection
     relievingNurseSignature: text("relieving_nurse_signature"), // Signature obtained at clock out
     shiftNoteAttachments: text("shift_note_attachments").array(), // Photos/files uploaded at clock out
     employeeNotes: text("employee_notes"), // Notes from employee
@@ -420,6 +423,7 @@ export const updates = pgTable("updates", {
   targetUserIds: text("target_user_ids").array(), // For specific users
   targetGroupIds: text("target_group_ids").array(), // For specific groups
   status: text("status").notNull().default("draft"), // draft, published, archived
+  metadata: text("metadata"), // JSON metadata for special update types (e.g., time entry approval)
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
