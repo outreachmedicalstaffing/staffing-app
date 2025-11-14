@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
@@ -31,6 +32,8 @@ import {
   Moon,
   CornerLeftDown,
   CornerRightUp,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimeEntry, User } from "@shared/schema";
@@ -119,6 +122,10 @@ export function UserTimesheetDetail({
     clockOut: "",
     location: "",
   });
+  // Rejection dialog state
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedEntryForReject, setSelectedEntryForReject] = useState<TimeEntry | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   // Image preview state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
@@ -316,6 +323,71 @@ export function UserTimesheetDetail({
       }
     },
   });
+  // Approve time entry mutation
+  const approveTimeEntryMutation = useMutation({
+    mutationFn: async (entryId: string) => {
+      const res = await apiRequest("POST", `/api/time/entries/${entryId}/approve`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0]?.toString().startsWith("/api/time/entries") ??
+          false,
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0]?.toString().startsWith("/api/timesheets") ??
+          false,
+      });
+      toast({
+        title: "Time entry approved",
+        description: "The time entry edit has been approved",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to approve time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reject time entry mutation
+  const rejectTimeEntryMutation = useMutation({
+    mutationFn: async ({ entryId, reason }: { entryId: string; reason?: string }) => {
+      const res = await apiRequest("POST", `/api/time/entries/${entryId}/reject`, { reason });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0]?.toString().startsWith("/api/time/entries") ??
+          false,
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0]?.toString().startsWith("/api/timesheets") ??
+          false,
+      });
+      toast({
+        title: "Time entry rejected",
+        description: "The time entry edit has been rejected and reverted",
+      });
+      setRejectDialogOpen(false);
+      setSelectedEntryForReject(null);
+      setRejectionReason("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reject time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
   const queueSaveNotes = useCallback(
     (entryId: string, value: string) => {
       // clear previous timer for this entry
@@ -1103,22 +1175,60 @@ export function UserTimesheetDetail({
 
                         {/* Status */}
                         <TableCell>
-                          {entry?.approvalStatus === "pending" && (
-                            <Badge variant="outline" className="border-orange-500 text-orange-700 text-xs">
-                              Pending
-                            </Badge>
-                          )}
-                          {entry?.approvalStatus === "approved" && (
-                            <Badge variant="outline" className="border-green-500 text-green-700 text-xs">
-                              Approved
-                            </Badge>
-                          )}
-                          {entry?.approvalStatus === "rejected" && (
-                            <Badge variant="outline" className="border-red-500 text-red-700 text-xs">
-                              Rejected
-                            </Badge>
-                          )}
-                          {!entry?.approvalStatus && "—"}
+                          <div className="flex items-center gap-2">
+                            {entry?.approvalStatus === "pending" && (
+                              <>
+                                <Badge variant="outline" className="border-orange-500 text-orange-700 text-xs">
+                                  Pending
+                                </Badge>
+                                {canEdit && (
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      onClick={() => approveTimeEntryMutation.mutate(entry.id)}
+                                      disabled={approveTimeEntryMutation.isPending}
+                                      title="Approve"
+                                    >
+                                      <CheckCircle className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() => {
+                                        setSelectedEntryForReject(entry);
+                                        setRejectDialogOpen(true);
+                                      }}
+                                      disabled={rejectTimeEntryMutation.isPending}
+                                      title="Reject"
+                                    >
+                                      <XCircle className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {entry?.approvalStatus === "approved" && (
+                              <Badge variant="outline" className="border-green-500 text-green-700 text-xs">
+                                Approved
+                              </Badge>
+                            )}
+                            {entry?.approvalStatus === "rejected" && (
+                              <div className="flex flex-col gap-1">
+                                <Badge variant="outline" className="border-red-500 text-red-700 text-xs">
+                                  Rejected
+                                </Badge>
+                                {entry.rejectionReason && (
+                                  <span className="text-[10px] text-muted-foreground max-w-[150px] truncate" title={entry.rejectionReason}>
+                                    {entry.rejectionReason}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {!entry?.approvalStatus && "—"}
+                          </div>
                         </TableCell>
 
                         {/* Actions */}
@@ -1555,6 +1665,54 @@ export function UserTimesheetDetail({
               }
             >
               {createEntryMutation.isPending ? "Creating..." : "Create Entry"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Rejection Dialog */}
+      <AlertDialog
+        open={rejectDialogOpen}
+        onOpenChange={setRejectDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Reject Time Entry Edit
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Please provide a reason for rejecting this time entry edit. The times will be reverted to their original values.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Enter rejection reason (optional)..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="min-h-[100px]"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setRejectDialogOpen(false);
+              setSelectedEntryForReject(null);
+              setRejectionReason("");
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (selectedEntryForReject) {
+                  rejectTimeEntryMutation.mutate({
+                    entryId: selectedEntryForReject.id,
+                    reason: rejectionReason || undefined
+                  });
+                }
+              }}
+              disabled={rejectTimeEntryMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {rejectTimeEntryMutation.isPending ? "Rejecting..." : "Reject"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
