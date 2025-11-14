@@ -205,17 +205,20 @@ export default function Dashboard() {
     return shiftUser?.fullName || 'Unknown User';
   };
 
-  // Expired documents
+  // Expired documents - only count user's uploaded documents that have expired
   const expiredDocs = documents.filter(doc => {
-    if (!doc.expiryDate || doc.userId !== user?.id) return false;
-    const expiryDate = new Date(doc.expiryDate);
-    return isBefore(expiryDate, now);
+    // Only count user's own uploaded documents (must have status) that are visible
+    if (!doc.status || doc.userId !== user?.id || !doc.visibleToUsers) return false;
+    // Check if document has expired
+    return doc.expirationDate && new Date(doc.expirationDate) < now;
   });
 
-  // Pending items
+  // Pending items - expiring soon (within 30 days)
   const expiringDocs = documents.filter(doc => {
-    if (!doc.expiryDate || doc.userId !== user?.id) return false;
-    const expiryDate = new Date(doc.expiryDate);
+    // Only count user's own uploaded documents (must have status) that are visible
+    if (!doc.status || doc.userId !== user?.id || !doc.visibleToUsers) return false;
+    if (!doc.expirationDate) return false;
+    const expiryDate = new Date(doc.expirationDate);
     const daysUntilExpiry = differenceInDays(expiryDate, now);
     return daysUntilExpiry > 0 && daysUntilExpiry <= 30;
   });
@@ -384,7 +387,7 @@ export default function Dashboard() {
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 {expiringDocs.slice(0, 2).map(doc => {
-                  const daysUntilExpiry = differenceInDays(new Date(doc.expiryDate!), now);
+                  const daysUntilExpiry = differenceInDays(new Date(doc.expirationDate!), now);
                   return (
                     <div key={doc.id} className="flex items-start gap-3 p-3 rounded-md border hover-elevate">
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs shrink-0 mt-0.5">
