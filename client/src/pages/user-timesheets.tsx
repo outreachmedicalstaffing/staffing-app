@@ -4,14 +4,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimeEntry, User, Timesheet } from "@shared/schema";
-import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay, parseISO, addWeeks, subWeeks } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Pencil, Download } from "lucide-react";
+import { Pencil, Download, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -22,6 +24,7 @@ export default function UserTimesheets() {
   const [editClockIn, setEditClockIn] = useState("");
   const [editClockOut, setEditClockOut] = useState("");
   const [viewingTimesheet, setViewingTimesheet] = useState<Timesheet | null>(null);
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
@@ -188,10 +191,40 @@ export default function UserTimesheets() {
     return totalHolidayHours;
   };
 
+  // Navigation handlers
+  const handlePreviousWeek = () => {
+    setSelectedWeekStart(subWeeks(selectedWeekStart, 1));
+  };
+
+  const handleNextWeek = () => {
+    setSelectedWeekStart(addWeeks(selectedWeekStart, 1));
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedWeekStart(startOfWeek(date, { weekStartsOn: 1 }));
+    }
+  };
+
+  // Calculate the selected week's end date
+  const selectedWeekEnd = endOfWeek(selectedWeekStart, { weekStartsOn: 1 });
+
   // Filter and sort timesheets for current user (most recent first)
-  const userTimesheets = timesheets
+  const allUserTimesheets = timesheets
     .filter((ts) => ts.userId === currentUser?.id)
     .sort((a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime());
+
+  // Filter timesheet for the selected week
+  const selectedWeekTimesheet = allUserTimesheets.find((ts) => {
+    const tsStart = new Date(ts.periodStart);
+    const tsEnd = new Date(ts.periodEnd);
+    // Check if the timesheet period overlaps with the selected week
+    return (
+      (tsStart <= selectedWeekEnd && tsEnd >= selectedWeekStart) ||
+      isSameDay(tsStart, selectedWeekStart) ||
+      isSameDay(tsEnd, selectedWeekEnd)
+    );
+  });
 
   if (isLoading || timesheetsLoading) {
     return (
@@ -337,10 +370,57 @@ export default function UserTimesheets() {
                 View your payslips from each pay period
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {userTimesheets.length === 0 ? (
+            <CardContent className="space-y-4">
+              {/* Week Navigation */}
+              <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/30">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handlePreviousWeek}
+                  data-testid="button-previous-week"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {format(selectedWeekStart, "MMM d")} - {format(selectedWeekEnd, "MMM d, yyyy")}
+                  </span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid="button-calendar-picker"
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="center">
+                      <Calendar
+                        mode="single"
+                        selected={selectedWeekStart}
+                        onSelect={handleDateSelect}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNextWeek}
+                  data-testid="button-next-week"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Payslip Table or Empty State */}
+              {!selectedWeekTimesheet ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  No payslips available yet
+                  No payslip for this period
                 </p>
               ) : (
                 <Table>
@@ -356,7 +436,8 @@ export default function UserTimesheets() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {userTimesheets.map((timesheet) => {
+                    {(() => {
+                      const timesheet = selectedWeekTimesheet;
                       // Calculate holiday hours for this pay period
                       const holidayHours = calculateHolidayHours(
                         timesheet.periodStart,
@@ -440,7 +521,7 @@ export default function UserTimesheets() {
                           </TableCell>
                         </TableRow>
                       );
-                    })}
+                    })()}
                   </TableBody>
                 </Table>
               )}
