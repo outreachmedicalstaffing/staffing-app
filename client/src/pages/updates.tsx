@@ -362,7 +362,13 @@ export default function Updates() {
       return;
     }
 
-    createMutation.mutate(formData);
+    // Convert publishDate from date string to ISO timestamp
+    const publishDateTimestamp = new Date(formData.publishDate).toISOString();
+
+    createMutation.mutate({
+      ...formData,
+      publishDate: publishDateTimestamp,
+    });
   };
 
   const handleViewUpdate = async (update: Update) => {
