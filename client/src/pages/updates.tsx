@@ -46,6 +46,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Pencil,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -116,6 +117,7 @@ export default function Updates() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [selectedUpdate, setSelectedUpdate] = useState<Update | null>(null);
+  const [editingUpdate, setEditingUpdate] = useState<Update | null>(null);
   const [newComment, setNewComment] = useState("");
   const [openUserSelect, setOpenUserSelect] = useState(false);
   const [openGroupSelect, setOpenGroupSelect] = useState(false);
@@ -207,6 +209,31 @@ export default function Updates() {
       toast({
         title: "Error",
         description: "Failed to create update",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update/edit mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      const res = await apiRequest("PATCH", `/api/updates/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/updates"] });
+      toast({
+        title: "Update saved",
+        description: "Your update has been saved successfully",
+      });
+      setShowCreateDialog(false);
+      setEditingUpdate(null);
+      resetForm();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save update",
         variant: "destructive",
       });
     },
@@ -364,11 +391,32 @@ export default function Updates() {
 
     // Convert publishDate from date string to ISO timestamp
     const publishDateTimestamp = new Date(formData.publishDate).toISOString();
-
-    createMutation.mutate({
+    const dataToSend = {
       ...formData,
       publishDate: publishDateTimestamp,
+    };
+
+    if (editingUpdate) {
+      // Update existing update
+      updateMutation.mutate({ id: editingUpdate.id, data: dataToSend });
+    } else {
+      // Create new update
+      createMutation.mutate(dataToSend);
+    }
+  };
+
+  const handleEditUpdate = (update: Update) => {
+    setEditingUpdate(update);
+    setFormData({
+      title: update.title,
+      content: update.content,
+      publishDate: update.publishDate ? new Date(update.publishDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      visibility: update.visibility,
+      targetUserIds: update.targetUserIds || [],
+      targetGroupIds: update.targetGroupIds || [],
+      status: update.status,
     });
+    setShowCreateDialog(true);
   };
 
   const handleViewUpdate = async (update: Update) => {
@@ -534,17 +582,30 @@ export default function Updates() {
                     </CardDescription>
                   </div>
                   {isAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteMutation.mutate(update.id);
-                      }}
-                      data-testid={`button-delete-update-${update.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditUpdate(update);
+                        }}
+                        data-testid={`button-edit-update-${update.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteMutation.mutate(update.id);
+                        }}
+                        data-testid={`button-delete-update-${update.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -580,13 +641,19 @@ export default function Updates() {
         )}
       </div>
 
-      {/* Create Update Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      {/* Create/Edit Update Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open);
+        if (!open) {
+          setEditingUpdate(null);
+          resetForm();
+        }
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create New Update</DialogTitle>
+            <DialogTitle>{editingUpdate ? "Edit Update" : "Create New Update"}</DialogTitle>
             <DialogDescription>
-              Share an announcement or update with your team
+              {editingUpdate ? "Update the announcement details" : "Share an announcement or update with your team"}
             </DialogDescription>
           </DialogHeader>
 
@@ -816,10 +883,12 @@ export default function Updates() {
             </Button>
             <Button
               onClick={handleCreateUpdate}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending}
               data-testid="button-save-update"
             >
-              {createMutation.isPending ? "Creating..." : "Create Update"}
+              {editingUpdate
+                ? (updateMutation.isPending ? "Saving..." : "Save Changes")
+                : (createMutation.isPending ? "Creating..." : "Create Update")}
             </Button>
           </DialogFooter>
         </DialogContent>
