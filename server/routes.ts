@@ -758,19 +758,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If user (not admin) is editing clock times, store original times and set to pending approval
         const isEditingTimes = (data.clockIn || data.clockOut) && !isAdmin;
         if (isEditingTimes) {
-          // Store original times if not already stored
-          if (!existing.originalClockIn) {
+          // Store original times if not already stored (or if re-editing after rejection)
+          if (!existing.originalClockIn || existing.approvalStatus === "rejected") {
             data.originalClockIn = existing.clockIn;
           }
-          if (!existing.originalClockOut && existing.clockOut) {
+          if ((!existing.originalClockOut && existing.clockOut) || existing.approvalStatus === "rejected") {
             data.originalClockOut = existing.clockOut;
           }
-          // Set to pending approval
+          // Set to pending approval and clear any rejection reason
           data.approvalStatus = "pending";
+          data.rejectionReason = null;
           console.log("User editing times - setting to pending approval", {
             entryId,
             originalClockIn: existing.clockIn,
-            originalClockOut: existing.clockOut
+            originalClockOut: existing.clockOut,
+            previousStatus: existing.approvalStatus
           });
         }
 
