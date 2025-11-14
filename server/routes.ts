@@ -2432,7 +2432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allUpdates = await storage.db
         .select()
         .from(schema.updates)
-        .orderBy(desc(schema.updates.publishDate));
+        .orderBy(desc(schema.updates.createdAt));
 
       // Helper function to check if user is in a group
       const isUserInGroup = (groupId: string): boolean => {
