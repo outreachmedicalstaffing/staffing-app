@@ -61,6 +61,9 @@ export default function Profile() {
     queryKey: ["/api/auth/me"],
   });
 
+  // Allergy options for multi-select - only these are valid
+  const allergyOptions = ["Cat", "Dog", "Smoke", "Other"];
+
   // Initialize form with user data
   useEffect(() => {
     if (currentUser) {
@@ -80,14 +83,18 @@ export default function Profile() {
       setFacility(customFields.facility || "");
 
       // Handle allergies - migrate from string to array if needed
+      // Filter to only include valid allergy options
       if (Array.isArray(customFields.allergies)) {
-        setAllergies(customFields.allergies);
+        const validAllergies = customFields.allergies.filter(a =>
+          allergyOptions.includes(a)
+        );
+        setAllergies(validAllergies);
       } else if (customFields.allergies) {
-        // Migrate old string data - split by comma if present, otherwise keep as single item
+        // Migrate old string data - split by comma if present, filter to valid options only
         const allergiesArray = customFields.allergies
           .split(',')
           .map(a => a.trim())
-          .filter(a => a.length > 0);
+          .filter(a => a.length > 0 && allergyOptions.includes(a));
         setAllergies(allergiesArray);
       } else {
         setAllergies([]);
@@ -96,10 +103,7 @@ export default function Profile() {
       setAddress(customFields.address || "");
       setApartmentUnit(customFields.apartmentUnit || "");
     }
-  }, [currentUser]);
-
-  // Allergy options for multi-select
-  const allergyOptions = ["Cat", "Dog", "Smoke", "Other"];
+  }, [currentUser, allergyOptions]);
 
   // Handle allergy selection toggle
   const toggleAllergy = (allergy: string) => {
@@ -234,11 +238,14 @@ export default function Profile() {
       return;
     }
 
+    // Filter allergies to only include valid options before saving
+    const validAllergies = allergies.filter(a => allergyOptions.includes(a));
+
     const customFields: CustomFields = {
       birthday,
       shiftPreference,
       facility,
-      allergies,
+      allergies: validAllergies,
       address,
       apartmentUnit,
     };
