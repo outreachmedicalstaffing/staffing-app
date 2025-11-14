@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimeEntry, User, Timesheet } from "@shared/schema";
-import { format, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
+import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay, parseISO } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,17 @@ export default function UserTimesheets() {
   const { data: timesheets = [], isLoading: timesheetsLoading } = useQuery<Timesheet[]>({
     queryKey: ["/api/timesheets"],
   });
+
+  // Fetch holidays from settings
+  const { data: holidaysData } = useQuery({
+    queryKey: ["/api/settings/holidays"],
+    retry: (failureCount, error: any) => {
+      if (error?.message?.includes("404")) return false;
+      return failureCount < 3;
+    },
+  });
+
+  const holidays = (holidaysData?.value || []) as Array<{ id: string; name: string; date: string }>;
 
   // Current payroll week (Mon–Sun)
   const payrollStart = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -124,6 +135,42 @@ export default function UserTimesheets() {
       clockIn: clockInDate.toISOString(),
       clockOut: clockOutDate ? clockOutDate.toISOString() : null,
     });
+  };
+
+  // Function to calculate holiday hours for a given timesheet period
+  const calculateHolidayHours = (periodStart: string, periodEnd: string): number => {
+    // Find holidays that fall within this pay period
+    const periodStartDate = new Date(periodStart);
+    const periodEndDate = new Date(periodEnd);
+
+    const holidaysInPeriod = holidays.filter((holiday) => {
+      const holidayDate = parseISO(holiday.date);
+      return isWithinInterval(holidayDate, { start: periodStartDate, end: periodEndDate });
+    });
+
+    // For each holiday, find time entries on that date and sum the hours
+    let totalHolidayHours = 0;
+
+    for (const holiday of holidaysInPeriod) {
+      const holidayDate = parseISO(holiday.date);
+
+      // Find all time entries for this user on this holiday
+      const holidayEntries = timeEntries.filter((entry) => {
+        if (entry.userId !== currentUser?.id) return false;
+        const entryDate = new Date(entry.clockIn);
+        return isSameDay(entryDate, holidayDate);
+      });
+
+      // Sum up hours from these entries
+      for (const entry of holidayEntries) {
+        if (entry.clockOut) {
+          const hours = (new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) / (1000 * 60 * 60);
+          totalHolidayHours += hours;
+        }
+      }
+    }
+
+    return totalHolidayHours;
   };
 
   // Filter and sort timesheets for current user (most recent first)
@@ -287,20 +334,26 @@ export default function UserTimesheets() {
                       <TableHead>Pay Period</TableHead>
                       <TableHead>Total Hours</TableHead>
                       <TableHead>Regular Hours</TableHead>
-                      <TableHead>Overtime Hours</TableHead>
+                      <TableHead>Holiday Hours</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {userTimesheets.map((timesheet) => {
+                      // Calculate holiday hours for this pay period
+                      const holidayHours = calculateHolidayHours(
+                        timesheet.periodStart,
+                        timesheet.periodEnd
+                      );
+
                       // Calculate gross pay based on user's default hourly rate
                       const defaultRate = currentUser?.defaultHourlyRate
                         ? parseFloat(currentUser.defaultHourlyRate)
                         : 0;
                       const regularPay = parseFloat(timesheet.regularHours) * defaultRate;
-                      const overtimePay = parseFloat(timesheet.overtimeHours) * defaultRate * 1.5;
-                      const grossPay = regularPay + overtimePay;
+                      const holidayPay = holidayHours * defaultRate * 1.5; // Holiday pay at 1.5x rate
+                      const grossPay = regularPay + holidayPay;
 
                       return (
                         <TableRow key={timesheet.id}>
@@ -309,7 +362,7 @@ export default function UserTimesheets() {
                           </TableCell>
                           <TableCell>{parseFloat(timesheet.totalHours).toFixed(2)}</TableCell>
                           <TableCell>{parseFloat(timesheet.regularHours).toFixed(2)}</TableCell>
-                          <TableCell>{parseFloat(timesheet.overtimeHours).toFixed(2)}</TableCell>
+                          <TableCell>{holidayHours.toFixed(2)}</TableCell>
                           <TableCell>
                             {timesheet.status === "pending" && (
                               <Badge variant="outline" className="border-yellow-500 text-yellow-700">
