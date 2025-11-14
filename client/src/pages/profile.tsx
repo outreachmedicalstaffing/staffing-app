@@ -106,11 +106,11 @@ export default function Profile() {
   }, [currentUser, allergyOptions]);
 
   // Handle allergy selection toggle
-  const toggleAllergy = (allergy: string) => {
+  const toggleAllergy = (allergy: string, checked: boolean) => {
     setAllergies(prev =>
-      prev.includes(allergy)
-        ? prev.filter(a => a !== allergy)
-        : [...prev, allergy]
+      checked
+        ? [...prev, allergy]
+        : prev.filter(a => a !== allergy)
     );
   };
 
@@ -521,7 +521,7 @@ export default function Profile() {
                       <Checkbox
                         id={`allergy-${option}`}
                         checked={allergies.includes(option)}
-                        onCheckedChange={() => toggleAllergy(option)}
+                        onCheckedChange={(checked) => toggleAllergy(option, checked === true)}
                         data-testid={`checkbox-allergy-${option.toLowerCase()}`}
                       />
                       <label
