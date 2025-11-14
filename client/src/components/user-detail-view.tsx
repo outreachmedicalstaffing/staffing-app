@@ -49,7 +49,7 @@ import {
 } from "lucide-react";
 import type { User } from "@shared/schema";
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -147,6 +147,13 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
   const [editingPayRate, setEditingPayRate] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Get current viewing user to check their role
+  const { data: currentUser } = useQuery<User>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  const isViewerAdminOrOwner = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
 
   // Initialize with safe defaults, then use actual user data below
   const customFields = (user?.customFields as any) || {};
@@ -440,14 +447,16 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     <Pencil className="h-4 w-4 mr-2" />
                     Edit details
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    data-testid="button-send-reward"
-                  >
-                    <Gift className="h-4 w-4 mr-2" />
-                    Send reward
-                  </Button>
+                  {!isViewerAdminOrOwner && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      data-testid="button-send-reward"
+                    >
+                      <Gift className="h-4 w-4 mr-2" />
+                      Send reward
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -935,36 +944,38 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                       </div>
                     </div>
 
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Direct manager
-                      </Label>
-                      <Select
-                        value={formData.directManager}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, directManager: value })
-                        }
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger
-                          className="mt-1 h-9"
-                          data-testid="select-direct-manager"
+                    {!isViewerAdminOrOwner && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">
+                          Direct manager
+                        </Label>
+                        <Select
+                          value={formData.directManager}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, directManager: value })
+                          }
+                          disabled={!isEditing}
                         >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="amanda">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage src="https://api.dicebear.com/7.x/initials/svg?seed=Amanda Ecklind" />
-                                <AvatarFallback>AE</AvatarFallback>
-                              </Avatar>
-                              <span>Amanda Ecklind</span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                          <SelectTrigger
+                            className="mt-1 h-9"
+                            data-testid="select-direct-manager"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="amanda">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src="https://api.dicebear.com/7.x/initials/svg?seed=Amanda Ecklind" />
+                                  <AvatarFallback>AE</AvatarFallback>
+                                </Avatar>
+                                <span>Amanda Ecklind</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                           </div>
                         </div>
                       </div>
