@@ -5,6 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { User, TimeEntry, Shift, Document, Timesheet } from "@shared/schema";
+
+interface Update {
+  id: string;
+  title: string;
+  content: string;
+  publishDate: string;
+  createdAt: string;
+  visibility: string;
+  status: string;
+}
 import { format, isAfter, isBefore, startOfWeek, endOfWeek, differenceInDays, addDays, startOfDay, endOfDay } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
@@ -58,6 +68,11 @@ export default function Dashboard() {
   // Fetch shift assignments (to see who is assigned to each shift)
   const { data: shiftAssignments = [] } = useQuery<any[]>({
     queryKey: ['/api/shift-assignments'],
+  });
+
+  // Fetch updates
+  const { data: updates = [] } = useQuery<Update[]>({
+    queryKey: ['/api/updates'],
   });
 
   // Clock in/out logic
@@ -359,56 +374,99 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Tasks & Reminders</CardTitle>
-            <CardDescription>Action items requiring attention</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              {expiringDocs.slice(0, 2).map(doc => {
-                const daysUntilExpiry = differenceInDays(new Date(doc.expiryDate!), now);
-                return (
-                  <div key={doc.id} className="flex items-start gap-3 p-3 rounded-md border hover-elevate">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs shrink-0 mt-0.5">
+{isAdmin ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Tasks & Reminders</CardTitle>
+              <CardDescription>Action items requiring attention</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                {expiringDocs.slice(0, 2).map(doc => {
+                  const daysUntilExpiry = differenceInDays(new Date(doc.expiryDate!), now);
+                  return (
+                    <div key={doc.id} className="flex items-start gap-3 p-3 rounded-md border hover-elevate">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs shrink-0 mt-0.5">
+                        !
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium">{doc.title} Expiring</p>
+                        <p className="text-sm text-muted-foreground">Expires in {daysUntilExpiry} days</p>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {pendingTimesheets.slice(0, 2).map(ts => (
+                  <div key={ts.id} className="flex items-start gap-3 p-3 rounded-md border hover-elevate">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white text-xs shrink-0 mt-0.5">
                       !
                     </div>
                     <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium">{doc.title} Expiring</p>
-                      <p className="text-sm text-muted-foreground">Expires in {daysUntilExpiry} days</p>
+                      <p className="text-sm font-medium">Pending Timesheet Approval</p>
+                      <p className="text-sm text-muted-foreground">
+                        Week ending {format(new Date(ts.periodEnd), 'MMM d, yyyy')}
+                      </p>
                     </div>
                   </div>
-                );
-              })}
+                ))}
 
-              {pendingTimesheets.slice(0, 2).map(ts => (
-                <div key={ts.id} className="flex items-start gap-3 p-3 rounded-md border hover-elevate">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white text-xs shrink-0 mt-0.5">
-                    !
+                {expiringDocs.length === 0 && pendingTimesheets.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">No pending items</p>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                data-testid="button-view-all-tasks"
+                onClick={() => setLocation('/documents')}
+              >
+                View All Reminders
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Updates</CardTitle>
+              <CardDescription>Latest announcements and news</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                {updates.slice(0, 5).map(update => (
+                  <div
+                    key={update.id}
+                    className="p-3 rounded-md border hover-elevate cursor-pointer"
+                    onClick={() => setLocation('/updates')}
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{update.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(update.publishDate), 'MMM d, yyyy')}
+                      </p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {update.content.substring(0, 100)}
+                        {update.content.length > 100 ? '...' : ''}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium">Pending Timesheet Approval</p>
-                    <p className="text-sm text-muted-foreground">
-                      Week ending {format(new Date(ts.periodEnd), 'MMM d, yyyy')}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))}
 
-              {expiringDocs.length === 0 && pendingTimesheets.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">No pending items</p>
-              )}
-            </div>
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              data-testid="button-view-all-tasks"
-              onClick={() => setLocation('/documents')}
-            >
-              View All Reminders
-            </Button>
-          </CardContent>
-        </Card>
+                {updates.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">No updates available</p>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                data-testid="button-view-all-updates"
+                onClick={() => setLocation('/updates')}
+              >
+                View All Updates
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Shift Details Dialog */}
