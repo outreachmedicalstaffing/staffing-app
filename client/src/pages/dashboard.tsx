@@ -33,6 +33,7 @@ const stripCountryFromAddress = (address: string): string => {
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [viewingShift, setViewingShift] = useState<Shift | null>(null);
+  const [viewingUpdate, setViewingUpdate] = useState<Update | null>(null);
   const { toast } = useToast();
 
   // Fetch current user
@@ -437,7 +438,7 @@ export default function Dashboard() {
                   <div
                     key={update.id}
                     className="p-3 rounded-md border-2 border-red-500 bg-[#1565C0] hover-elevate cursor-pointer"
-                    onClick={() => setLocation('/updates')}
+                    onClick={() => setViewingUpdate(update)}
                   >
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-white">{update.title}</p>
@@ -619,6 +620,53 @@ export default function Dashboard() {
                   variant="outline"
                   onClick={() => setViewingShift(null)}
                   data-testid="button-close-shift-details"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Details Dialog */}
+      <Dialog
+        open={!!viewingUpdate}
+        onOpenChange={(open) => !open && setViewingUpdate(null)}
+      >
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Update Details</DialogTitle>
+          </DialogHeader>
+          {viewingUpdate && (
+            <div className="space-y-4">
+              {/* Title */}
+              <div>
+                <h3 className="text-lg font-semibold">{viewingUpdate.title}</h3>
+              </div>
+
+              {/* Date */}
+              <div>
+                <Label className="text-muted-foreground">Published Date</Label>
+                <p className="text-sm mt-1">
+                  {format(new Date(viewingUpdate.publishDate), 'MMMM d, yyyy')}
+                </p>
+              </div>
+
+              {/* Content */}
+              <div>
+                <Label className="text-muted-foreground">Details</Label>
+                <div className="mt-2 p-4 bg-muted/30 rounded-md text-sm whitespace-pre-wrap">
+                  {viewingUpdate.content}
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setViewingUpdate(null)}
+                  data-testid="button-close-update-details"
                 >
                   Close
                 </Button>
