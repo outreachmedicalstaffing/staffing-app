@@ -89,10 +89,33 @@ export default function UserTimesheets() {
   const handleSaveEntry = () => {
     if (!editingEntry) return;
 
+    // Convert datetime-local strings to ISO date strings
+    const clockInDate = new Date(editClockIn);
+    const clockOutDate = editClockOut ? new Date(editClockOut) : null;
+
+    // Validate dates
+    if (isNaN(clockInDate.getTime())) {
+      toast({
+        title: "Invalid clock in time",
+        description: "Please enter a valid clock in time",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editClockOut && clockOutDate && isNaN(clockOutDate.getTime())) {
+      toast({
+        title: "Invalid clock out time",
+        description: "Please enter a valid clock out time",
+        variant: "destructive",
+      });
+      return;
+    }
+
     updateEntryMutation.mutate({
       id: editingEntry.id,
-      clockIn: editClockIn,
-      clockOut: editClockOut || null,
+      clockIn: clockInDate.toISOString(),
+      clockOut: clockOutDate ? clockOutDate.toISOString() : null,
     });
   };
 
