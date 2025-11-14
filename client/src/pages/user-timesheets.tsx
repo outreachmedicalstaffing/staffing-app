@@ -363,170 +363,193 @@ export default function UserTimesheets() {
         </TabsContent>
 
         <TabsContent value="payslips" className="space-y-4 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payslips</CardTitle>
-              <CardDescription>
-                View your payslips from each pay period
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Week Navigation */}
-              <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/30">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handlePreviousWeek}
-                  data-testid="button-previous-week"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+          {/* Compact Week Navigation Bar */}
+          <div className="flex items-center justify-between px-2 py-1 rounded-md border bg-card">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handlePreviousWeek}
+              data-testid="button-previous-week"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {format(selectedWeekStart, "MMM d")} - {format(selectedWeekEnd, "MMM d, yyyy")}
-                  </span>
-                  <Popover>
-                    <PopoverTrigger asChild>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {format(selectedWeekStart, "MMM d")} - {format(selectedWeekEnd, "d, yyyy")}
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    data-testid="button-calendar-picker"
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedWeekStart}
+                    onSelect={handleDateSelect}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleNextWeek}
+              data-testid="button-next-week"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Summary Stats */}
+          {selectedWeekTimesheet && (() => {
+            const timesheet = selectedWeekTimesheet;
+            const holidayHours = calculateHolidayHours(
+              timesheet.periodStart,
+              timesheet.periodEnd
+            );
+            const regularHours = parseFloat(timesheet.regularHours);
+
+            return (
+              <Card className="bg-muted/30">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-4">
+                      <span className="text-muted-foreground">
+                        <span className="font-semibold text-foreground">{regularHours.toFixed(1)}</span> Regular
+                      </span>
+                      <span className="text-muted-foreground">
+                        <span className="font-semibold text-foreground">{holidayHours.toFixed(1)}</span> Holiday
+                      </span>
+                      <span className="text-muted-foreground">
+                        <span className="font-semibold text-foreground">{parseFloat(timesheet.totalHours).toFixed(1)}</span> Total Hours
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* Payslip Card or Empty State */}
+          {!selectedWeekTimesheet ? (
+            <Card>
+              <CardContent className="p-12">
+                <p className="text-sm text-muted-foreground text-center">
+                  No payslip for this period
+                </p>
+              </CardContent>
+            </Card>
+          ) : (() => {
+            const timesheet = selectedWeekTimesheet;
+            // Calculate holiday hours for this pay period
+            const holidayHours = calculateHolidayHours(
+              timesheet.periodStart,
+              timesheet.periodEnd
+            );
+
+            // Calculate total pay based on user's default hourly rate
+            const defaultRate = currentUser?.defaultHourlyRate
+              ? parseFloat(currentUser.defaultHourlyRate)
+              : 0;
+
+            // Calculate regular pay
+            const regularPay = parseFloat(timesheet.regularHours) * defaultRate;
+
+            // Calculate holiday pay based on pay rules
+            let holidayPayRate = defaultRate;
+            if (holidayRateType === "additional") {
+              holidayPayRate = defaultRate * (1 + holidayAdditionalRate);
+            } else {
+              holidayPayRate = defaultRate * holidayCustomRate;
+            }
+            const holidayPay = holidayHours * holidayPayRate;
+
+            // Calculate total pay
+            const totalPay = regularPay + holidayPay;
+
+            // Format as currency
+            const formattedPay = new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+            }).format(totalPay);
+
+            return (
+              <Card key={timesheet.id} className="hover-elevate cursor-pointer" onClick={() => setViewingTimesheet(timesheet)}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    {/* Left: Pay Period and Hours */}
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-semibold text-base">
+                          {format(new Date(timesheet.periodStart), "MMM d")} - {format(new Date(timesheet.periodEnd), "MMM d, yyyy")}
+                        </h3>
+                        {timesheet.status === "pending" && (
+                          <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                            Pending
+                          </Badge>
+                        )}
+                        {timesheet.status === "submitted" && (
+                          <Badge variant="outline" className="border-blue-500 text-blue-700">
+                            Submitted
+                          </Badge>
+                        )}
+                        {timesheet.status === "approved" && (
+                          <Badge variant="outline" className="border-green-500 text-green-700">
+                            Approved
+                          </Badge>
+                        )}
+                        {timesheet.status === "rejected" && (
+                          <Badge variant="outline" className="border-red-500 text-red-700">
+                            Rejected
+                          </Badge>
+                        )}
+                        {timesheet.status === "exported" && (
+                          <Badge variant="outline" className="border-purple-500 text-purple-700">
+                            Paid
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {parseFloat(timesheet.totalHours).toFixed(1)} hours worked
+                      </p>
+                    </div>
+
+                    {/* Right: Pay Amount and Action */}
+                    <div className="flex items-center gap-6">
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">{formattedPay}</p>
+                        <p className="text-xs text-muted-foreground">Total Pay</p>
+                      </div>
                       <Button
                         variant="ghost"
                         size="sm"
-                        data-testid="button-calendar-picker"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewingTimesheet(timesheet);
+                        }}
+                        data-testid={`button-view-payslip-${timesheet.id}`}
                       >
-                        <CalendarIcon className="h-4 w-4" />
+                        <Download className="h-4 w-4 mr-2" />
+                        View
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="center">
-                      <Calendar
-                        mode="single"
-                        selected={selectedWeekStart}
-                        onSelect={handleDateSelect}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleNextWeek}
-                  data-testid="button-next-week"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Payslip Table or Empty State */}
-              {!selectedWeekTimesheet ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No payslip for this period
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Pay Period</TableHead>
-                      <TableHead>Total Hours</TableHead>
-                      <TableHead>Regular Hours</TableHead>
-                      <TableHead>Holiday Hours</TableHead>
-                      <TableHead>Total Pay</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(() => {
-                      const timesheet = selectedWeekTimesheet;
-                      // Calculate holiday hours for this pay period
-                      const holidayHours = calculateHolidayHours(
-                        timesheet.periodStart,
-                        timesheet.periodEnd
-                      );
-
-                      // Calculate total pay based on user's default hourly rate
-                      const defaultRate = currentUser?.defaultHourlyRate
-                        ? parseFloat(currentUser.defaultHourlyRate)
-                        : 0;
-
-                      // Calculate regular pay
-                      const regularPay = parseFloat(timesheet.regularHours) * defaultRate;
-
-                      // Calculate holiday pay based on pay rules
-                      let holidayPayRate = defaultRate;
-                      if (holidayRateType === "additional") {
-                        // Additional rate: base rate + additional amount
-                        holidayPayRate = defaultRate * (1 + holidayAdditionalRate);
-                      } else {
-                        // Custom rate: multiply base rate by custom multiplier
-                        holidayPayRate = defaultRate * holidayCustomRate;
-                      }
-                      const holidayPay = holidayHours * holidayPayRate;
-
-                      // Calculate total pay
-                      const totalPay = regularPay + holidayPay;
-
-                      // Format as currency
-                      const formattedPay = new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                      }).format(totalPay);
-
-                      return (
-                        <TableRow key={timesheet.id}>
-                          <TableCell>
-                            {format(new Date(timesheet.periodStart), "MMM d")} - {format(new Date(timesheet.periodEnd), "MMM d, yyyy")}
-                          </TableCell>
-                          <TableCell>{parseFloat(timesheet.totalHours).toFixed(2)}</TableCell>
-                          <TableCell>{parseFloat(timesheet.regularHours).toFixed(2)}</TableCell>
-                          <TableCell>{holidayHours.toFixed(2)}</TableCell>
-                          <TableCell className="font-semibold">{formattedPay}</TableCell>
-                          <TableCell>
-                            {timesheet.status === "pending" && (
-                              <Badge variant="outline" className="border-yellow-500 text-yellow-700">
-                                Pending
-                              </Badge>
-                            )}
-                            {timesheet.status === "submitted" && (
-                              <Badge variant="outline" className="border-blue-500 text-blue-700">
-                                Submitted
-                              </Badge>
-                            )}
-                            {timesheet.status === "approved" && (
-                              <Badge variant="outline" className="border-green-500 text-green-700">
-                                Approved
-                              </Badge>
-                            )}
-                            {timesheet.status === "rejected" && (
-                              <Badge variant="outline" className="border-red-500 text-red-700">
-                                Rejected
-                              </Badge>
-                            )}
-                            {timesheet.status === "exported" && (
-                              <Badge variant="outline" className="border-purple-500 text-purple-700">
-                                Paid
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setViewingTimesheet(timesheet)}
-                              data-testid={`button-view-payslip-${timesheet.id}`}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })()}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 
