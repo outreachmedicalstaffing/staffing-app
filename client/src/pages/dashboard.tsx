@@ -436,15 +436,15 @@ export default function Dashboard() {
                 {updates.slice(0, 5).map(update => (
                   <div
                     key={update.id}
-                    className="p-3 rounded-md border hover-elevate cursor-pointer"
+                    className="p-3 rounded-md border-2 border-red-500 bg-[#1565C0] hover-elevate cursor-pointer"
                     onClick={() => setLocation('/updates')}
                   >
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">{update.title}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm font-medium text-white">{update.title}</p>
+                      <p className="text-xs text-white/80">
                         {format(new Date(update.publishDate), 'MMM d, yyyy')}
                       </p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p className="text-sm text-white/90 line-clamp-2">
                         {update.content.substring(0, 100)}
                         {update.content.length > 100 ? '...' : ''}
                       </p>
