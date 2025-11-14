@@ -26,7 +26,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash, User as UserIcon, Download, EyeOff } from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash, User as UserIcon, Download, EyeOff, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Document {
   id: string;
@@ -76,6 +77,9 @@ export default function Documents() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [documentToReject, setDocumentToReject] = useState<Document | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const { toast } = useToast();
 
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
@@ -140,84 +144,149 @@ export default function Documents() {
 
   const handleSaveDocument = async () => {
     if (!documentTitle.trim()) {
-      alert("Please enter a document title");
+      toast({
+        title: "Error",
+        description: "Please enter a document title",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Convert file to base64 if a new file was uploaded
-    let fileData: string | undefined = undefined;
-    let fileType: string | undefined = undefined;
-
-    if (uploadFile) {
-      fileData = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(uploadFile);
+    // Validate file size (5MB limit for localStorage)
+    if (uploadFile && uploadFile.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "File size must be less than 5MB. Please choose a smaller file.",
+        variant: "destructive",
       });
-      fileType = uploadFile.type;
+      return;
     }
 
-    if (isEditMode && editingDocumentId) {
-      // Update existing document
-      const updatedDocuments = documents.map(doc => {
-        if (doc.id === editingDocumentId) {
-          return {
-            ...doc,
-            title: documentTitle,
-            description: documentDescription,
-            hasExpiration: hasExpiration,
-            expirationDate: hasExpiration ? expirationDate : "",
-            fileName: uploadFile?.name || doc.fileName,
-            fileData: fileData || doc.fileData,
-            fileType: fileType || doc.fileType,
-            notes: notes,
-            visibleToUsers: visibleToUsers,
-            enableUserUpload: enableUserUpload,
-            requireReview: requireReview,
-          };
+    setIsUploading(true);
+
+    try {
+      // Convert file to base64 if a new file was uploaded
+      let fileData: string | undefined = undefined;
+      let fileType: string | undefined = undefined;
+
+      if (uploadFile) {
+        try {
+          fileData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.readAsDataURL(uploadFile);
+          });
+          fileType = uploadFile.type;
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to read file. Please try again.",
+            variant: "destructive",
+          });
+          setIsUploading(false);
+          return;
         }
-        return doc;
+      }
+
+      if (isEditMode && editingDocumentId) {
+        // Update existing document
+        const updatedDocuments = documents.map(doc => {
+          if (doc.id === editingDocumentId) {
+            return {
+              ...doc,
+              title: documentTitle,
+              description: documentDescription,
+              hasExpiration: hasExpiration,
+              expirationDate: hasExpiration ? expirationDate : "",
+              fileName: uploadFile?.name || doc.fileName,
+              fileData: fileData || doc.fileData,
+              fileType: fileType || doc.fileType,
+              notes: notes,
+              visibleToUsers: visibleToUsers,
+              enableUserUpload: enableUserUpload,
+              requireReview: requireReview,
+            };
+          }
+          return doc;
+        });
+
+        setDocuments(updatedDocuments);
+        try {
+          localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+          toast({
+            title: "Success",
+            description: "Document updated successfully",
+          });
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Storage quota exceeded. Please delete some documents or reduce file sizes.",
+            variant: "destructive",
+          });
+          setIsUploading(false);
+          return;
+        }
+      } else {
+        // Get current local date in YYYY-MM-DD format
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const currentDate = `${year}-${month}-${day}`;
+
+        // Create new document object (no status - this is a requirement/template, not an uploaded document)
+        const newDocument: Document = {
+          id: Date.now().toString(),
+          title: documentTitle,
+          description: documentDescription,
+          hasExpiration: hasExpiration,
+          expirationDate: hasExpiration ? expirationDate : "",
+          uploadedDate: currentDate,
+          fileName: uploadFile?.name,
+          fileData: fileData,
+          fileType: fileType,
+          notes: notes,
+          visibleToUsers: visibleToUsers,
+          enableUserUpload: enableUserUpload,
+          requireReview: requireReview,
+        };
+
+        // Add to documents array
+        const updatedDocuments = [...documents, newDocument];
+        setDocuments(updatedDocuments);
+
+        // Save to localStorage
+        try {
+          localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+          toast({
+            title: "Success",
+            description: "Document requirement created successfully",
+          });
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Storage quota exceeded. Please delete some documents or reduce file sizes.",
+            variant: "destructive",
+          });
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      // Reset form and close modal
+      resetForm();
+      setShowCreateModal(false);
+    } catch (error) {
+      console.error("Error saving document:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save document. Please try again.",
+        variant: "destructive",
       });
-
-      setDocuments(updatedDocuments);
-      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
-    } else {
-      // Get current local date in YYYY-MM-DD format
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const currentDate = `${year}-${month}-${day}`;
-
-      // Create new document object (no status - this is a requirement/template, not an uploaded document)
-      const newDocument: Document = {
-        id: Date.now().toString(),
-        title: documentTitle,
-        description: documentDescription,
-        hasExpiration: hasExpiration,
-        expirationDate: hasExpiration ? expirationDate : "",
-        uploadedDate: currentDate,
-        fileName: uploadFile?.name,
-        fileData: fileData,
-        fileType: fileType,
-        notes: notes,
-        visibleToUsers: visibleToUsers,
-        enableUserUpload: enableUserUpload,
-        requireReview: requireReview,
-      };
-
-      // Add to documents array
-      const updatedDocuments = [...documents, newDocument];
-      setDocuments(updatedDocuments);
-
-      // Save to localStorage
-      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+    } finally {
+      setIsUploading(false);
     }
-
-    // Reset form and close modal
-    resetForm();
-    setShowCreateModal(false);
   };
 
   const handleInitiateDelete = (documentId: string) => {
@@ -255,65 +324,145 @@ export default function Documents() {
 
   const handleSaveUpload = async () => {
     if (!uploadModalFile) {
-      alert("Please select a file to upload");
+      toast({
+        title: "Error",
+        description: "Please select a file to upload",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!documentToUpload) return;
 
-    // Convert file to base64
-    const fileData = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(uploadModalFile);
-    });
+    // Validate file size (5MB limit for localStorage)
+    if (uploadModalFile.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "File size must be less than 5MB. Please choose a smaller file.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Determine status - if admin is uploading for user, auto-approve; otherwise use requireReview
-    const isAdminUploadingForUser = selectedUser && showUserDocumentsModal;
-    const status: "approved" | "pending" = isAdminUploadingForUser ? "approved" : (documentToUpload.requireReview ? "pending" : "approved");
+    // Validate file type (common document and image types)
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
 
-    // Get current local date in YYYY-MM-DD format
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const currentDate = `${year}-${month}-${day}`;
+    if (!allowedTypes.includes(uploadModalFile.type)) {
+      toast({
+        title: "Error",
+        description: "Invalid file type. Please upload a PDF, image, or document file.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Determine which user this document belongs to
-    const documentUserId = isAdminUploadingForUser ? selectedUser.id : currentUser?.id;
+    setIsUploading(true);
 
-    // Create a new uploaded document entry (don't modify the requirement)
-    const newUploadedDocument: Document = {
-      id: `${documentToUpload.id}-${documentUserId}-${Date.now()}`, // Unique ID combining requirement ID, user ID, and timestamp
-      title: documentToUpload.title,
-      description: documentToUpload.description,
-      hasExpiration: documentToUpload.hasExpiration,
-      expirationDate: uploadExpirationDate || documentToUpload.expirationDate,
-      uploadedDate: currentDate,
-      fileName: uploadModalFile.name,
-      fileData: fileData,
-      fileType: uploadModalFile.type,
-      notes: uploadNotes,
-      visibleToUsers: documentToUpload.visibleToUsers,
-      enableUserUpload: documentToUpload.enableUserUpload,
-      requireReview: documentToUpload.requireReview,
-      status: status,
-      userId: documentUserId, // Track which user this document belongs to
-    };
+    try {
+      // Convert file to base64
+      let fileData: string;
+      try {
+        fileData = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(uploadModalFile);
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to read file. Please try again.",
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        return;
+      }
 
-    // Add the new uploaded document to the array (keep the requirement unchanged)
-    const updatedDocuments = [...documents, newUploadedDocument];
+      // Determine status - if admin is uploading for user, auto-approve; otherwise use requireReview
+      const isAdminUploadingForUser = selectedUser && showUserDocumentsModal;
+      const status: "approved" | "pending" = isAdminUploadingForUser ? "approved" : (documentToUpload.requireReview ? "pending" : "approved");
 
-    setDocuments(updatedDocuments);
-    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+      // Get current local date in YYYY-MM-DD format
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const currentDate = `${year}-${month}-${day}`;
 
-    // Reset and close modal
-    setUploadModalFile(null);
-    setUploadNotes("");
-    setUploadExpirationDate("");
-    setDocumentToUpload(null);
-    setShowUploadModal(false);
+      // Determine which user this document belongs to
+      const documentUserId = isAdminUploadingForUser ? selectedUser.id : currentUser?.id;
+
+      // Create a new uploaded document entry (don't modify the requirement)
+      const newUploadedDocument: Document = {
+        id: `${documentToUpload.id}-${documentUserId}-${Date.now()}`, // Unique ID combining requirement ID, user ID, and timestamp
+        title: documentToUpload.title,
+        description: documentToUpload.description,
+        hasExpiration: documentToUpload.hasExpiration,
+        expirationDate: uploadExpirationDate || documentToUpload.expirationDate,
+        uploadedDate: currentDate,
+        fileName: uploadModalFile.name,
+        fileData: fileData,
+        fileType: uploadModalFile.type,
+        notes: uploadNotes,
+        visibleToUsers: documentToUpload.visibleToUsers,
+        enableUserUpload: documentToUpload.enableUserUpload,
+        requireReview: documentToUpload.requireReview,
+        status: status,
+        userId: documentUserId, // Track which user this document belongs to
+      };
+
+      // Add the new uploaded document to the array (keep the requirement unchanged)
+      const updatedDocuments = [...documents, newUploadedDocument];
+
+      setDocuments(updatedDocuments);
+
+      // Save to localStorage with error handling
+      try {
+        localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Storage quota exceeded. Please delete some documents or reduce file sizes.",
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        return;
+      }
+
+      // Show success message
+      toast({
+        title: "Success",
+        description: status === "pending"
+          ? "Document uploaded successfully and is pending review"
+          : "Document uploaded and approved successfully",
+      });
+
+      // Reset and close modal
+      setUploadModalFile(null);
+      setUploadNotes("");
+      setUploadExpirationDate("");
+      setDocumentToUpload(null);
+      setShowUploadModal(false);
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload document. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleCancelUpload = () => {
@@ -350,29 +499,46 @@ export default function Documents() {
     if (!documentToReject) return;
 
     if (!rejectionReason.trim()) {
-      alert("Please provide a reason for rejection");
+      toast({
+        title: "Error",
+        description: "Please provide a reason for rejection",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Update document status to rejected with reason
-    const updatedDocuments = documents.map(doc => {
-      if (doc.id === documentToReject.id) {
-        return {
-          ...doc,
-          status: "rejected" as const,
-          rejectionReason: rejectionReason,
-        };
-      }
-      return doc;
-    });
+    try {
+      // Update document status to rejected with reason
+      const updatedDocuments = documents.map(doc => {
+        if (doc.id === documentToReject.id) {
+          return {
+            ...doc,
+            status: "rejected" as const,
+            rejectionReason: rejectionReason,
+          };
+        }
+        return doc;
+      });
 
-    setDocuments(updatedDocuments);
-    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+      setDocuments(updatedDocuments);
+      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
 
-    // Reset and close modal
-    setShowRejectModal(false);
-    setDocumentToReject(null);
-    setRejectionReason("");
+      toast({
+        title: "Success",
+        description: "Document rejected successfully",
+      });
+
+      // Reset and close modal
+      setShowRejectModal(false);
+      setDocumentToReject(null);
+      setRejectionReason("");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reject document. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCancelReject = () => {
@@ -393,36 +559,55 @@ export default function Documents() {
 
   const handleViewDocument = (doc: Document) => {
     if (!doc.fileData) {
-      alert("No file uploaded for this document.");
+      toast({
+        title: "Error",
+        description: "No file uploaded for this document.",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Check file type
-    const fileType = doc.fileType || '';
+    try {
+      // Check file type
+      const fileType = doc.fileType || '';
 
-    // For PDFs, open in new tab
-    if (fileType === 'application/pdf') {
-      const newWindow = window.open();
-      if (newWindow) {
-        newWindow.document.write(
-          `<iframe src="${doc.fileData}" style="width:100%; height:100%; border:none;" title="${doc.fileName}"></iframe>`
-        );
-        newWindow.document.title = doc.fileName || 'Document Preview';
+      // For PDFs, open in new tab
+      if (fileType === 'application/pdf') {
+        const newWindow = window.open();
+        if (newWindow) {
+          newWindow.document.write(
+            `<iframe src="${doc.fileData}" style="width:100%; height:100%; border:none;" title="${doc.fileName}"></iframe>`
+          );
+          newWindow.document.title = doc.fileName || 'Document Preview';
+        } else {
+          toast({
+            title: "Error",
+            description: "Unable to open document. Please check your popup blocker settings.",
+            variant: "destructive",
+          });
+        }
       }
-    }
-    // For images, show in modal
-    else if (fileType.startsWith('image/')) {
-      setPreviewDocument(doc);
-      setShowFilePreview(true);
-    }
-    // For other files, download
-    else {
-      const link = document.createElement('a');
-      link.href = doc.fileData;
-      link.download = doc.fileName || 'document';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // For images, show in modal
+      else if (fileType.startsWith('image/')) {
+        setPreviewDocument(doc);
+        setShowFilePreview(true);
+      }
+      // For other files, download
+      else {
+        const link = document.createElement('a');
+        link.href = doc.fileData;
+        link.download = doc.fileName || 'document';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error("Error viewing document:", error);
+      toast({
+        title: "Error",
+        description: "Failed to view document. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -642,14 +827,17 @@ export default function Documents() {
                 resetForm();
                 setShowCreateModal(false);
               }}
+              disabled={isUploading}
             >
               Cancel
             </Button>
             <Button
               className="bg-red-600 hover:bg-red-700"
               onClick={handleSaveDocument}
+              disabled={isUploading}
             >
-              Save
+              {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isUploading ? "Saving..." : "Save"}
             </Button>
           </div>
         </DialogContent>
@@ -754,14 +942,16 @@ export default function Documents() {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handleCancelUpload}>
+            <Button variant="outline" onClick={handleCancelUpload} disabled={isUploading}>
               Cancel
             </Button>
             <Button
               className="bg-red-600 hover:bg-red-700"
               onClick={handleSaveUpload}
+              disabled={isUploading}
             >
-              Upload
+              {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isUploading ? "Uploading..." : "Upload"}
             </Button>
           </div>
         </DialogContent>
