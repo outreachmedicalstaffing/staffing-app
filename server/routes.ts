@@ -206,6 +206,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== User Profile Routes =====
+
+  // Update user profile
+  app.patch("/api/user/profile", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { fullName, email, username, phoneNumber, customFields } = req.body;
+
+      // Validate required fields
+      if (!fullName || !email || !username) {
+        return res.status(400).json({
+          error: "Full name, email, and username are required"
+        });
+      }
+
+      // Check if username or email already taken by another user
+      const existingByUsername = await storage.getUserByUsername(username);
+      if (existingByUsername && existingByUsername.id !== userId) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+
+      const existingByEmail = await storage.getUserByEmail(email);
+      if (existingByEmail && existingByEmail.id !== userId) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+
+      // Get current user
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Merge customFields with existing data
+      const updatedCustomFields = {
+        ...(currentUser.customFields as any || {}),
+        ...customFields,
+      };
+
+      // Update user
+      const updatedUser = await storage.updateUser(userId, {
+        fullName,
+        email,
+        username,
+        phoneNumber: phoneNumber || null,
+        customFields: updatedCustomFields,
+      });
+
+      await logAudit(
+        userId,
+        "update_profile",
+        "user",
+        userId,
+        true,
+        ["customFields"],
+        {},
+        req.ip,
+      );
+
+      if (!updatedUser) {
+        return res.status(500).json({ error: "Failed to update profile" });
+      }
+
+      const { passwordHash: _, ...userResponse } = updatedUser;
+      res.json(userResponse);
+    } catch (error: any) {
+      console.error("Failed to update profile:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  // Change password
+  app.post("/api/user/change-password", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { currentPassword, newPassword } = req.body;
+
+      // Validate required fields
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          error: "Current password and new password are required"
+        });
+      }
+
+      // Validate new password length
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          error: "New password must be at least 8 characters long"
+        });
+      }
+
+      // Get current user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(400).json({ error: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      const updatedUser = await storage.updateUser(userId, {
+        passwordHash: newPasswordHash,
+      });
+
+      await logAudit(
+        userId,
+        "change_password",
+        "user",
+        userId,
+        false,
+        [],
+        {},
+        req.ip,
+      );
+
+      if (!updatedUser) {
+        return res.status(500).json({ error: "Failed to change password" });
+      }
+
+      res.json({ message: "Password changed successfully" });
+    } catch (error: any) {
+      console.error("Failed to change password:", error);
+      res.status(500).json({ error: "Failed to change password" });
+    }
+  });
+
   // ===== Onboarding Routes =====
 
   // Get user info by onboarding token (no auth required)

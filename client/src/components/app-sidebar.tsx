@@ -9,6 +9,7 @@ import {
   Bell,
   UsersRound,
   FileText,
+  User,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { Link, useLocation } from "wouter";
@@ -37,6 +38,7 @@ const getMenuItems = (isAdmin: boolean) => [
   { title: "Documents", url: "/documents", icon: FileText, adminOnly: false, staffOnly: false },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen, adminOnly: false, staffOnly: false },
   { title: "Updates", url: "/updates", icon: Bell, adminOnly: false, staffOnly: false },
+  { title: "Profile", url: "/profile", icon: User, adminOnly: false, staffOnly: true },
   { title: "Users", url: "/users", icon: Users, adminOnly: true, staffOnly: false },
   { title: "Groups", url: "/groups", icon: UsersRound, adminOnly: true, staffOnly: false },
   { title: "Settings", url: "/settings", icon: Settings, adminOnly: true, staffOnly: false },

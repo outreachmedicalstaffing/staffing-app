@@ -21,6 +21,7 @@ import Updates from "@/pages/updates";
 import Users from "@/pages/users";
 import Groups from "@/pages/groups";
 import Settings from "@/pages/settings";
+import Profile from "@/pages/profile";
 import Login from "@/pages/login";
 import Onboarding from "@/pages/onboarding";
 import type { User } from "@shared/schema";
@@ -75,6 +76,7 @@ function AuthenticatedRouter() {
       <Route path="/users" component={Users} />
       <Route path="/groups" component={Groups} />
       <Route path="/settings" component={Settings} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );
