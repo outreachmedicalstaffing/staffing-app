@@ -44,6 +44,20 @@ export default function UserTimesheets() {
 
   const holidays = (holidaysData?.value || []) as Array<{ id: string; name: string; date: string }>;
 
+  // Fetch pay rules from settings to get holiday multiplier
+  const { data: payRulesData } = useQuery({
+    queryKey: ["/api/settings/pay_rules"],
+    retry: (failureCount, error: any) => {
+      if (error?.message?.includes("404")) return false;
+      return failureCount < 3;
+    },
+  });
+
+  const payRules = payRulesData?.value as any || {};
+  const holidayRateType = payRules.holidayRateType || "additional";
+  const holidayAdditionalRate = parseFloat(payRules.holidayAdditionalRate || "0.5");
+  const holidayCustomRate = parseFloat(payRules.holidayCustomRate || "1.5");
+
   // Current payroll week (Mon–Sun)
   const payrollStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const payrollEnd = endOfWeek(payrollStart, { weekStartsOn: 1 });
@@ -335,6 +349,7 @@ export default function UserTimesheets() {
                       <TableHead>Total Hours</TableHead>
                       <TableHead>Regular Hours</TableHead>
                       <TableHead>Holiday Hours</TableHead>
+                      <TableHead>Total Pay</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -347,13 +362,33 @@ export default function UserTimesheets() {
                         timesheet.periodEnd
                       );
 
-                      // Calculate gross pay based on user's default hourly rate
+                      // Calculate total pay based on user's default hourly rate
                       const defaultRate = currentUser?.defaultHourlyRate
                         ? parseFloat(currentUser.defaultHourlyRate)
                         : 0;
+
+                      // Calculate regular pay
                       const regularPay = parseFloat(timesheet.regularHours) * defaultRate;
-                      const holidayPay = holidayHours * defaultRate * 1.5; // Holiday pay at 1.5x rate
-                      const grossPay = regularPay + holidayPay;
+
+                      // Calculate holiday pay based on pay rules
+                      let holidayPayRate = defaultRate;
+                      if (holidayRateType === "additional") {
+                        // Additional rate: base rate + additional amount
+                        holidayPayRate = defaultRate * (1 + holidayAdditionalRate);
+                      } else {
+                        // Custom rate: multiply base rate by custom multiplier
+                        holidayPayRate = defaultRate * holidayCustomRate;
+                      }
+                      const holidayPay = holidayHours * holidayPayRate;
+
+                      // Calculate total pay
+                      const totalPay = regularPay + holidayPay;
+
+                      // Format as currency
+                      const formattedPay = new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                      }).format(totalPay);
 
                       return (
                         <TableRow key={timesheet.id}>
@@ -363,6 +398,7 @@ export default function UserTimesheets() {
                           <TableCell>{parseFloat(timesheet.totalHours).toFixed(2)}</TableCell>
                           <TableCell>{parseFloat(timesheet.regularHours).toFixed(2)}</TableCell>
                           <TableCell>{holidayHours.toFixed(2)}</TableCell>
+                          <TableCell className="font-semibold">{formattedPay}</TableCell>
                           <TableCell>
                             {timesheet.status === "pending" && (
                               <Badge variant="outline" className="border-yellow-500 text-yellow-700">
