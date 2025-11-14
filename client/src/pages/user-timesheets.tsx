@@ -21,6 +21,7 @@ export default function UserTimesheets() {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [editClockIn, setEditClockIn] = useState("");
   const [editClockOut, setEditClockOut] = useState("");
+  const [viewingTimesheet, setViewingTimesheet] = useState<Timesheet | null>(null);
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
@@ -430,13 +431,8 @@ export default function UserTimesheets() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                toast({
-                                  title: "Download Feature",
-                                  description: "Payslip download functionality will be available soon",
-                                });
-                              }}
-                              data-testid={`button-download-payslip-${timesheet.id}`}
+                              onClick={() => setViewingTimesheet(timesheet)}
+                              data-testid={`button-view-payslip-${timesheet.id}`}
                             >
                               <Download className="h-4 w-4 mr-2" />
                               View
@@ -500,6 +496,174 @@ export default function UserTimesheets() {
               {updateEntryMutation.isPending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Timesheet Details Dialog */}
+      <Dialog
+        open={!!viewingTimesheet}
+        onOpenChange={(open) => !open && setViewingTimesheet(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Timesheet Details</DialogTitle>
+          </DialogHeader>
+          {viewingTimesheet && (
+            <div className="space-y-6">
+              {/* Pay Period Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    Pay Period: {format(new Date(viewingTimesheet.periodStart), "MMM d")} - {format(new Date(viewingTimesheet.periodEnd), "MMM d, yyyy")}
+                  </h3>
+                </div>
+                <div>
+                  {viewingTimesheet.status === "pending" && (
+                    <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                      Pending
+                    </Badge>
+                  )}
+                  {viewingTimesheet.status === "submitted" && (
+                    <Badge variant="outline" className="border-blue-500 text-blue-700">
+                      Submitted
+                    </Badge>
+                  )}
+                  {viewingTimesheet.status === "approved" && (
+                    <Badge variant="outline" className="border-green-500 text-green-700">
+                      Approved
+                    </Badge>
+                  )}
+                  {viewingTimesheet.status === "rejected" && (
+                    <Badge variant="outline" className="border-red-500 text-red-700">
+                      Rejected
+                    </Badge>
+                  )}
+                  {viewingTimesheet.status === "exported" && (
+                    <Badge variant="outline" className="border-purple-500 text-purple-700">
+                      Paid
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Time Entries Table */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Time Entries</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Clock In</TableHead>
+                      <TableHead>Clock Out</TableHead>
+                      <TableHead>Total Hours</TableHead>
+                      <TableHead>Program</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {timeEntries
+                      .filter((entry) => {
+                        if (entry.userId !== currentUser?.id) return false;
+                        const entryDate = new Date(entry.clockIn);
+                        return isWithinInterval(entryDate, {
+                          start: new Date(viewingTimesheet.periodStart),
+                          end: new Date(viewingTimesheet.periodEnd),
+                        });
+                      })
+                      .sort((a, b) => new Date(a.clockIn).getTime() - new Date(b.clockIn).getTime())
+                      .map((entry) => {
+                        const hours = entry.clockOut
+                          ? (new Date(entry.clockOut).getTime() - new Date(entry.clockIn).getTime()) / (1000 * 60 * 60)
+                          : 0;
+
+                        return (
+                          <TableRow key={entry.id}>
+                            <TableCell>
+                              {format(new Date(entry.clockIn), "EEE M/d")}
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(entry.clockIn), "h:mm a")}
+                            </TableCell>
+                            <TableCell>
+                              {entry.clockOut ? format(new Date(entry.clockOut), "h:mm a") : "—"}
+                            </TableCell>
+                            <TableCell>
+                              {entry.clockOut ? hours.toFixed(2) : "—"}
+                            </TableCell>
+                            <TableCell>{entry.program || "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Summary Section */}
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-semibold mb-3">Summary</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Regular Hours</Label>
+                    <p className="text-lg font-semibold">
+                      {parseFloat(viewingTimesheet.regularHours).toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Holiday Hours</Label>
+                    <p className="text-lg font-semibold">
+                      {calculateHolidayHours(
+                        viewingTimesheet.periodStart,
+                        viewingTimesheet.periodEnd
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Total Hours</Label>
+                    <p className="text-lg font-semibold">
+                      {parseFloat(viewingTimesheet.totalHours).toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Total Pay</Label>
+                    <p className="text-lg font-semibold text-primary">
+                      {(() => {
+                        const defaultRate = currentUser?.defaultHourlyRate
+                          ? parseFloat(currentUser.defaultHourlyRate)
+                          : 0;
+                        const regularPay = parseFloat(viewingTimesheet.regularHours) * defaultRate;
+                        const holidayHours = calculateHolidayHours(
+                          viewingTimesheet.periodStart,
+                          viewingTimesheet.periodEnd
+                        );
+                        let holidayPayRate = defaultRate;
+                        if (holidayRateType === "additional") {
+                          holidayPayRate = defaultRate * (1 + holidayAdditionalRate);
+                        } else {
+                          holidayPayRate = defaultRate * holidayCustomRate;
+                        }
+                        const holidayPay = holidayHours * holidayPayRate;
+                        const totalPay = regularPay + holidayPay;
+                        return new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: 'USD',
+                        }).format(totalPay);
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setViewingTimesheet(null)}
+                  data-testid="button-close-timesheet-details"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
