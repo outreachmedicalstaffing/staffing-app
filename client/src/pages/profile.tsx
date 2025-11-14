@@ -11,7 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
+import { MapPin, X, Check, ChevronsUpDown } from "lucide-react";
 
 interface CustomFields {
   birthday?: string;
@@ -19,6 +22,7 @@ interface CustomFields {
   facility?: string;
   address?: string;
   apartmentUnit?: string;
+  allergies?: string[];
 }
 
 export default function Profile() {
@@ -39,6 +43,8 @@ export default function Profile() {
   const [facility, setFacility] = useState("");
   const [address, setAddress] = useState("");
   const [apartmentUnit, setApartmentUnit] = useState("");
+  const [allergies, setAllergies] = useState<string[]>([]);
+  const [allergiesOpen, setAllergiesOpen] = useState(false);
 
   // Address autocomplete state
   const [addressSuggestions, setAddressSuggestions] = useState<
@@ -55,6 +61,9 @@ export default function Profile() {
   const { data: currentUser, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
+
+  // Allergy options
+  const allergyOptions = ["Cat", "Dog", "Smoke", "Other"];
 
   // Initialize form with user data
   useEffect(() => {
@@ -75,8 +84,22 @@ export default function Profile() {
       setFacility(customFields.facility || "");
       setAddress(customFields.address || "");
       setApartmentUnit(customFields.apartmentUnit || "");
+      setAllergies(Array.isArray(customFields.allergies) ? customFields.allergies : []);
     }
   }, [currentUser]);
+
+  // Allergy handlers
+  const toggleAllergy = (allergy: string) => {
+    setAllergies(prev =>
+      prev.includes(allergy)
+        ? prev.filter(a => a !== allergy)
+        : [...prev, allergy]
+    );
+  };
+
+  const removeAllergy = (allergy: string) => {
+    setAllergies(prev => prev.filter(a => a !== allergy));
+  };
 
   // Helper function to remove "United States of America" from addresses
   const stripCountryFromAddress = (address: string): string => {
@@ -203,6 +226,7 @@ export default function Profile() {
       facility,
       address,
       apartmentUnit,
+      allergies,
     };
 
     updateProfileMutation.mutate({
@@ -439,6 +463,92 @@ export default function Profile() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Information</CardTitle>
+          <CardDescription>
+            Provide additional medical and personal information
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Label>Allergies</Label>
+
+            {/* Multi-select dropdown using Command */}
+            <Popover open={allergiesOpen} onOpenChange={setAllergiesOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={allergiesOpen}
+                  className="w-full justify-between"
+                  data-testid="button-allergies-select"
+                >
+                  <span className="text-muted-foreground">
+                    {allergies.length === 0
+                      ? "Select allergies..."
+                      : `${allergies.length} allergy(ies) selected`
+                    }
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search allergies..." />
+                  <CommandList>
+                    <CommandEmpty>No allergy found.</CommandEmpty>
+                    <CommandGroup>
+                      {allergyOptions.map((option) => (
+                        <CommandItem
+                          key={option}
+                          value={option}
+                          onSelect={() => {
+                            toggleAllergy(option);
+                          }}
+                          data-testid={`option-allergy-${option.toLowerCase()}`}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              allergies.includes(option) ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          {option}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Display selected allergies as removable badges */}
+            {allergies.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {allergies.map((allergy) => (
+                  <Badge
+                    key={allergy}
+                    variant="secondary"
+                    className="pl-2 pr-1 py-1"
+                    data-testid={`badge-allergy-${allergy.toLowerCase()}`}
+                  >
+                    {allergy}
+                    <button
+                      type="button"
+                      className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5"
+                      onClick={() => removeAllergy(allergy)}
+                      data-testid={`remove-allergy-${allergy.toLowerCase()}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
