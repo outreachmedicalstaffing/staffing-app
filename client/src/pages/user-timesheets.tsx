@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import type { TimeEntry, User } from "@shared/schema";
+import type { TimeEntry, User, Timesheet } from "@shared/schema";
 import { format, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Pencil } from "lucide-react";
+import { Pencil, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function UserTimesheets() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("time-entries");
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [editClockIn, setEditClockIn] = useState("");
   const [editClockOut, setEditClockOut] = useState("");
@@ -25,6 +27,10 @@ export default function UserTimesheets() {
 
   const { data: timeEntries = [], isLoading } = useQuery<TimeEntry[]>({
     queryKey: ["/api/time/entries"],
+  });
+
+  const { data: timesheets = [], isLoading: timesheetsLoading } = useQuery<Timesheet[]>({
+    queryKey: ["/api/timesheets"],
   });
 
   // Current payroll week (Mon–Sun)
@@ -120,7 +126,12 @@ export default function UserTimesheets() {
     });
   };
 
-  if (isLoading) {
+  // Filter and sort timesheets for current user (most recent first)
+  const userTimesheets = timesheets
+    .filter((ts) => ts.userId === currentUser?.id)
+    .sort((a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime());
+
+  if (isLoading || timesheetsLoading) {
     return (
       <div className="space-y-6">
         <div>
@@ -139,11 +150,22 @@ export default function UserTimesheets() {
           Timesheets
         </h1>
         <p className="text-muted-foreground">
-          Your timesheet for the current payroll week
+          Your timesheet and payslip information
         </p>
       </div>
 
-      <div className="grid gap-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList>
+          <TabsTrigger value="time-entries" data-testid="tab-time-entries">
+            Time Entries
+          </TabsTrigger>
+          <TabsTrigger value="payslips" data-testid="tab-payslips">
+            Payslips
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="time-entries" className="space-y-4 mt-6">
+          <div className="grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Current Week Summary</CardTitle>
@@ -242,7 +264,105 @@ export default function UserTimesheets() {
             )}
           </CardContent>
         </Card>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="payslips" className="space-y-4 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payslips</CardTitle>
+              <CardDescription>
+                View your payslips from each pay period
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {userTimesheets.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No payslips available yet
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Pay Period</TableHead>
+                      <TableHead>Total Hours</TableHead>
+                      <TableHead>Regular Hours</TableHead>
+                      <TableHead>Overtime Hours</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {userTimesheets.map((timesheet) => {
+                      // Calculate gross pay based on user's default hourly rate
+                      const defaultRate = currentUser?.defaultHourlyRate
+                        ? parseFloat(currentUser.defaultHourlyRate)
+                        : 0;
+                      const regularPay = parseFloat(timesheet.regularHours) * defaultRate;
+                      const overtimePay = parseFloat(timesheet.overtimeHours) * defaultRate * 1.5;
+                      const grossPay = regularPay + overtimePay;
+
+                      return (
+                        <TableRow key={timesheet.id}>
+                          <TableCell>
+                            {format(new Date(timesheet.periodStart), "MMM d")} - {format(new Date(timesheet.periodEnd), "MMM d, yyyy")}
+                          </TableCell>
+                          <TableCell>{parseFloat(timesheet.totalHours).toFixed(2)}</TableCell>
+                          <TableCell>{parseFloat(timesheet.regularHours).toFixed(2)}</TableCell>
+                          <TableCell>{parseFloat(timesheet.overtimeHours).toFixed(2)}</TableCell>
+                          <TableCell>
+                            {timesheet.status === "pending" && (
+                              <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                                Pending
+                              </Badge>
+                            )}
+                            {timesheet.status === "submitted" && (
+                              <Badge variant="outline" className="border-blue-500 text-blue-700">
+                                Submitted
+                              </Badge>
+                            )}
+                            {timesheet.status === "approved" && (
+                              <Badge variant="outline" className="border-green-500 text-green-700">
+                                Approved
+                              </Badge>
+                            )}
+                            {timesheet.status === "rejected" && (
+                              <Badge variant="outline" className="border-red-500 text-red-700">
+                                Rejected
+                              </Badge>
+                            )}
+                            {timesheet.status === "exported" && (
+                              <Badge variant="outline" className="border-purple-500 text-purple-700">
+                                Paid
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                toast({
+                                  title: "Download Feature",
+                                  description: "Payslip download functionality will be available soon",
+                                });
+                              }}
+                              data-testid={`button-download-payslip-${timesheet.id}`}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit Time Entry Dialog */}
       <Dialog
