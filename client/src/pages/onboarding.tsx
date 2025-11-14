@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, Loader2 } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Onboarding() {
   const [, params] = useRoute("/onboarding/:token");
@@ -114,6 +115,9 @@ export default function Onboarding() {
         title: "Success",
         description: "Your profile has been completed! Redirecting to dashboard...",
       });
+
+      // Invalidate the user cache to ensure fresh data is fetched
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
 
       // Redirect to dashboard after 1 second
       setTimeout(() => {

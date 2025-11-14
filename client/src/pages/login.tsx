@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.png";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -27,6 +28,9 @@ export default function Login() {
       const data = await res.json();
 
       if (res.ok) {
+        // Invalidate the user cache to ensure fresh data is fetched
+        await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+
         toast({
           title: "Success",
           description: "Logged in successfully",
