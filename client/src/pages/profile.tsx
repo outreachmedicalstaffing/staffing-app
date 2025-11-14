@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MapPin } from "lucide-react";
 
 interface CustomFields {
@@ -457,23 +458,30 @@ export default function Profile() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="facility">Facility/Home</Label>
-              <Input
-                id="facility"
-                value={facility}
-                onChange={(e) => setFacility(e.target.value)}
-                data-testid="input-facility"
-              />
+              <Label htmlFor="facility">Facility/Home Preference</Label>
+              <Select value={facility} onValueChange={setFacility}>
+                <SelectTrigger id="facility" data-testid="select-facility">
+                  <SelectValue placeholder="Select preference" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Home">Home</SelectItem>
+                  <SelectItem value="Facility">Facility</SelectItem>
+                  <SelectItem value="Both">Both</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="shiftPreference">Shift Preference</Label>
-              <Input
-                id="shiftPreference"
-                placeholder="e.g., Day shift, Night shift"
-                value={shiftPreference}
-                onChange={(e) => setShiftPreference(e.target.value)}
-                data-testid="input-shift-preference"
-              />
+              <Select value={shiftPreference} onValueChange={setShiftPreference}>
+                <SelectTrigger id="shiftPreference" data-testid="select-shift-preference">
+                  <SelectValue placeholder="Select preference" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Day">Day</SelectItem>
+                  <SelectItem value="Night">Night</SelectItem>
+                  <SelectItem value="Either">Either</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
