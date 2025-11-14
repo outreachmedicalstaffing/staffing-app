@@ -19,9 +19,6 @@ interface CustomFields {
   facility?: string;
   allergies?: string;
   address?: string;
-  title?: string;
-  employmentStartDate?: string;
-  program?: string;
 }
 
 export default function Profile() {
@@ -44,9 +41,6 @@ export default function Profile() {
   const [facility, setFacility] = useState("");
   const [allergies, setAllergies] = useState("");
   const [address, setAddress] = useState("");
-  const [title, setTitle] = useState("");
-  const [employmentStartDate, setEmploymentStartDate] = useState("");
-  const [program, setProgram] = useState("");
 
   const { data: currentUser, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
@@ -73,9 +67,6 @@ export default function Profile() {
       setFacility(customFields.facility || "");
       setAllergies(customFields.allergies || "");
       setAddress(customFields.address || "");
-      setTitle(customFields.title || "");
-      setEmploymentStartDate(customFields.employmentStartDate || "");
-      setProgram(customFields.program || "");
     }
   }, [currentUser]);
 
@@ -146,9 +137,6 @@ export default function Profile() {
       facility,
       allergies,
       address,
-      title,
-      employmentStartDate,
-      program,
     };
 
     updateProfileMutation.mutate({
@@ -343,29 +331,6 @@ export default function Profile() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                placeholder="e.g., LPN, RN, CNA"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                data-testid="input-title"
-              />
-            </div>
-            <div>
-              <Label htmlFor="employmentStartDate">Employment Start Date</Label>
-              <Input
-                id="employmentStartDate"
-                type="date"
-                value={employmentStartDate}
-                onChange={(e) => setEmploymentStartDate(e.target.value)}
-                data-testid="input-employment-start-date"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
               <Label htmlFor="facility">Facility/Home</Label>
               <Input
                 id="facility"
@@ -375,25 +340,15 @@ export default function Profile() {
               />
             </div>
             <div>
-              <Label htmlFor="program">Program</Label>
+              <Label htmlFor="shiftPreference">Shift Preference</Label>
               <Input
-                id="program"
-                value={program}
-                onChange={(e) => setProgram(e.target.value)}
-                data-testid="input-program"
+                id="shiftPreference"
+                placeholder="e.g., Day shift, Night shift"
+                value={shiftPreference}
+                onChange={(e) => setShiftPreference(e.target.value)}
+                data-testid="input-shift-preference"
               />
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="shiftPreference">Shift Preference</Label>
-            <Input
-              id="shiftPreference"
-              placeholder="e.g., Day shift, Night shift"
-              value={shiftPreference}
-              onChange={(e) => setShiftPreference(e.target.value)}
-              data-testid="input-shift-preference"
-            />
           </div>
         </CardContent>
       </Card>
