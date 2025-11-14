@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 import type { User } from "@shared/schema";
 import {
   Dialog,
@@ -27,40 +26,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Plus,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  Search,
-  FileText,
-  Eye,
-  Upload,
-  X,
-  Trash,
-  User as UserIcon,
-  Download,
-  EyeOff,
-  Loader2,
-} from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash, User as UserIcon, Download, EyeOff } from "lucide-react";
 
-interface DocumentType {
+interface Document {
   id: string;
-  userId: string;
   title: string;
-  description: string | null;
-  fileUrl: string | null;
-  fileType: string | null;
-  category: string | null;
-  status: string;
+  description: string;
+  hasExpiration?: boolean; // optional for backward compatibility
+  expirationDate: string;
   uploadedDate: string;
-  expiryDate: string | null;
-  approvedBy: string | null;
-  approvedAt: string | null;
-  notes: string | null;
+  fileName?: string;
+  fileData?: string; // base64 encoded file data
+  fileType?: string; // MIME type
+  notes: string;
   visibleToUsers: boolean;
   enableUserUpload: boolean;
   requireReview: boolean;
+  status?: "approved" | "expired" | "pending" | "rejected";
+  rejectionReason?: string;
+  userId?: number; // ID of user who uploaded the document
 }
 
 export default function Documents() {
@@ -75,26 +59,23 @@ export default function Documents() {
   const [visibleToUsers, setVisibleToUsers] = useState(true);
   const [enableUserUpload, setEnableUserUpload] = useState(true);
   const [requireReview, setRequireReview] = useState(true);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [documentToUpload, setDocumentToUpload] = useState<DocumentType | null>(null);
+  const [documentToUpload, setDocumentToUpload] = useState<Document | null>(null);
   const [uploadModalFile, setUploadModalFile] = useState<File | null>(null);
   const [uploadNotes, setUploadNotes] = useState("");
   const [uploadExpirationDate, setUploadExpirationDate] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserDocumentsModal, setShowUserDocumentsModal] = useState(false);
   const [showFilePreview, setShowFilePreview] = useState(false);
-  const [previewDocument, setPreviewDocument] = useState<DocumentType | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [documentToReject, setDocumentToReject] = useState<DocumentType | null>(null);
+  const [documentToReject, setDocumentToReject] = useState<Document | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [uploading, setUploading] = useState(false);
-
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Get current user to check role
   const { data: currentUser } = useQuery<User>({
@@ -104,176 +85,24 @@ export default function Documents() {
   // Fetch all users (for admins)
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
-    enabled:
-      currentUser?.role?.toLowerCase() === "owner" ||
-      currentUser?.role?.toLowerCase() === "admin",
-  });
-
-  // Fetch all documents
-  const { data: documents = [], isLoading: documentsLoading } = useQuery<DocumentType[]>({
-    queryKey: ["/api/documents"],
+    enabled: currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin",
   });
 
   // Check if user is admin or owner (case-insensitive check)
-  const isAdmin =
-    currentUser?.role?.toLowerCase() === "owner" ||
-    currentUser?.role?.toLowerCase() === "admin";
+  const isAdmin = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
 
-  // Create document mutation
-  const createDocumentMutation = useMutation({
-    mutationFn: async (data: {
-      title: string;
-      description: string;
-      fileUrl: string | null;
-      fileType: string | null;
-      expiryDate: string | null;
-      notes: string;
-      visibleToUsers: boolean;
-      enableUserUpload: boolean;
-      requireReview: boolean;
-      status: string;
-      userId: string;
-    }) => {
-      const res = await fetch("/api/documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to create document");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({
-        title: "Success",
-        description: "Document created successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Update document mutation
-  const updateDocumentMutation = useMutation({
-    mutationFn: async ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: Partial<DocumentType>;
-    }) => {
-      const res = await fetch(`/api/documents/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update document");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({
-        title: "Success",
-        description: "Document updated successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Delete document mutation (using PATCH to set status)
-  const deleteDocumentMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/documents/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status: "deleted" }),
-      });
-      if (!res.ok) throw new Error("Failed to delete document");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({
-        title: "Success",
-        description: "Document deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Approve document mutation
-  const approveDocumentMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/documents/${id}/approve`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to approve document");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({
-        title: "Success",
-        description: "Document approved successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Reject document mutation
-  const rejectDocumentMutation = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const res = await fetch(`/api/documents/${id}/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ reason }),
-      });
-      if (!res.ok) throw new Error("Failed to reject document");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({
-        title: "Success",
-        description: "Document rejected",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  // Load documents from localStorage on mount
+  useEffect(() => {
+    const savedDocuments = localStorage.getItem("documents");
+    if (savedDocuments) {
+      try {
+        const parsedDocuments = JSON.parse(savedDocuments);
+        setDocuments(parsedDocuments);
+      } catch (error) {
+        console.error("Error loading documents from localStorage:", error);
+      }
+    }
+  }, []);
 
   const resetForm = () => {
     setDocumentTitle("");
@@ -289,107 +118,106 @@ export default function Documents() {
     setEditingDocumentId(null);
   };
 
-  const handleEditDocument = (doc: DocumentType) => {
+  const handleEditDocument = (doc: Document) => {
+    // Pre-fill form with document data
     setDocumentTitle(doc.title);
-    setDocumentDescription(doc.description || "");
-    setHasExpiration(!!doc.expiryDate);
-    setExpirationDate(doc.expiryDate || "");
-    setNotes(doc.notes || "");
+    setDocumentDescription(doc.description);
+    // Use saved hasExpiration value, or fallback to checking if expirationDate exists (for backward compatibility)
+    setHasExpiration(doc.hasExpiration !== undefined ? doc.hasExpiration : !!doc.expirationDate);
+    setExpirationDate(doc.expirationDate);
+    setNotes(doc.notes);
     setVisibleToUsers(doc.visibleToUsers);
     setEnableUserUpload(doc.enableUserUpload);
     setRequireReview(doc.requireReview);
+
+    // Set edit mode
     setIsEditMode(true);
     setEditingDocumentId(doc.id);
+
+    // Open modal
     setShowCreateModal(true);
-  };
-
-  const uploadFileToServer = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      credentials: "include",
-      body: formData,
-    });
-
-    if (!res.ok) {
-      throw new Error("Failed to upload file");
-    }
-
-    const data = await res.json();
-    return data.url; // Returns something like "/uploads/filename-123456789.pdf"
   };
 
   const handleSaveDocument = async () => {
     if (!documentTitle.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a document title",
-        variant: "destructive",
-      });
+      alert("Please enter a document title");
       return;
     }
 
-    if (!currentUser) {
-      toast({
-        title: "Error",
-        description: "User not authenticated",
-        variant: "destructive",
+    // Convert file to base64 if a new file was uploaded
+    let fileData: string | undefined = undefined;
+    let fileType: string | undefined = undefined;
+
+    if (uploadFile) {
+      fileData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(uploadFile);
       });
-      return;
+      fileType = uploadFile.type;
     }
 
-    try {
-      setUploading(true);
-
-      let fileUrl: string | null = null;
-      let fileType: string | null = null;
-
-      if (uploadFile) {
-        fileUrl = await uploadFileToServer(uploadFile);
-        fileType = uploadFile.type;
-      }
-
-      if (isEditMode && editingDocumentId) {
-        // Update existing document
-        await updateDocumentMutation.mutateAsync({
-          id: editingDocumentId,
-          data: {
+    if (isEditMode && editingDocumentId) {
+      // Update existing document
+      const updatedDocuments = documents.map(doc => {
+        if (doc.id === editingDocumentId) {
+          return {
+            ...doc,
             title: documentTitle,
             description: documentDescription,
-            expiryDate: hasExpiration ? expirationDate : null,
-            ...(fileUrl && { fileUrl, fileType }),
+            hasExpiration: hasExpiration,
+            expirationDate: hasExpiration ? expirationDate : "",
+            fileName: uploadFile?.name || doc.fileName,
+            fileData: fileData || doc.fileData,
+            fileType: fileType || doc.fileType,
             notes: notes,
             visibleToUsers: visibleToUsers,
             enableUserUpload: enableUserUpload,
             requireReview: requireReview,
-          },
-        });
-      } else {
-        // Create new document
-        await createDocumentMutation.mutateAsync({
-          title: documentTitle,
-          description: documentDescription,
-          fileUrl: fileUrl,
-          fileType: fileType,
-          expiryDate: hasExpiration ? expirationDate : null,
-          notes: notes,
-          visibleToUsers: visibleToUsers,
-          enableUserUpload: enableUserUpload,
-          requireReview: requireReview,
-          status: "submitted",
-          userId: currentUser.id,
-        });
-      }
+          };
+        }
+        return doc;
+      });
 
-      resetForm();
-      setShowCreateModal(false);
-    } catch (error) {
-      console.error("Error saving document:", error);
-    } finally {
-      setUploading(false);
+      setDocuments(updatedDocuments);
+      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+    } else {
+      // Get current local date in YYYY-MM-DD format
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const currentDate = `${year}-${month}-${day}`;
+
+      // Create new document object (no status - this is a requirement/template, not an uploaded document)
+      const newDocument: Document = {
+        id: Date.now().toString(),
+        title: documentTitle,
+        description: documentDescription,
+        hasExpiration: hasExpiration,
+        expirationDate: hasExpiration ? expirationDate : "",
+        uploadedDate: currentDate,
+        fileName: uploadFile?.name,
+        fileData: fileData,
+        fileType: fileType,
+        notes: notes,
+        visibleToUsers: visibleToUsers,
+        enableUserUpload: enableUserUpload,
+        requireReview: requireReview,
+      };
+
+      // Add to documents array
+      const updatedDocuments = [...documents, newDocument];
+      setDocuments(updatedDocuments);
+
+      // Save to localStorage
+      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
     }
+
+    // Reset form and close modal
+    resetForm();
+    setShowCreateModal(false);
   };
 
   const handleInitiateDelete = (documentId: string) => {
@@ -397,9 +225,16 @@ export default function Documents() {
     setShowDeleteDialog(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (documentToDelete) {
-      await deleteDocumentMutation.mutateAsync(documentToDelete);
+      // Remove document from array
+      const updatedDocuments = documents.filter(doc => doc.id !== documentToDelete);
+      setDocuments(updatedDocuments);
+
+      // Update localStorage
+      localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+
+      // Close dialog and reset state
       setShowDeleteDialog(false);
       setDocumentToDelete(null);
     }
@@ -410,68 +245,75 @@ export default function Documents() {
     setDocumentToDelete(null);
   };
 
-  const handleOpenUploadModal = (doc: DocumentType) => {
+  const handleOpenUploadModal = (doc: Document) => {
     setDocumentToUpload(doc);
     setUploadModalFile(null);
     setUploadNotes("");
-    setUploadExpirationDate(doc.expiryDate || "");
+    setUploadExpirationDate("");
     setShowUploadModal(true);
   };
 
   const handleSaveUpload = async () => {
     if (!uploadModalFile) {
-      toast({
-        title: "Error",
-        description: "Please select a file to upload",
-        variant: "destructive",
-      });
+      alert("Please select a file to upload");
       return;
     }
 
-    if (!documentToUpload || !currentUser) return;
+    if (!documentToUpload) return;
 
-    try {
-      setUploading(true);
+    // Convert file to base64
+    const fileData = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(uploadModalFile);
+    });
 
-      const fileUrl = await uploadFileToServer(uploadModalFile);
-      const fileType = uploadModalFile.type;
+    // Determine status - if admin is uploading for user, auto-approve; otherwise use requireReview
+    const isAdminUploadingForUser = selectedUser && showUserDocumentsModal;
+    const status: "approved" | "pending" = isAdminUploadingForUser ? "approved" : (documentToUpload.requireReview ? "pending" : "approved");
 
-      const isAdminUploadingForUser = selectedUser && showUserDocumentsModal;
-      const status = isAdminUploadingForUser
-        ? "approved"
-        : documentToUpload.requireReview
-          ? "submitted"
-          : "approved";
+    // Get current local date in YYYY-MM-DD format
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const currentDate = `${year}-${month}-${day}`;
 
-      const documentUserId = isAdminUploadingForUser
-        ? selectedUser.id
-        : currentUser.id;
+    // Determine which user this document belongs to
+    const documentUserId = isAdminUploadingForUser ? selectedUser.id : currentUser?.id;
 
-      // Create a new document for this user
-      await createDocumentMutation.mutateAsync({
-        title: documentToUpload.title,
-        description: documentToUpload.description || "",
-        fileUrl: fileUrl,
-        fileType: fileType,
-        expiryDate: uploadExpirationDate || documentToUpload.expiryDate,
-        notes: uploadNotes,
-        visibleToUsers: documentToUpload.visibleToUsers,
-        enableUserUpload: documentToUpload.enableUserUpload,
-        requireReview: documentToUpload.requireReview,
-        status: status,
-        userId: documentUserId,
-      });
+    // Create a new uploaded document entry (don't modify the requirement)
+    const newUploadedDocument: Document = {
+      id: `${documentToUpload.id}-${documentUserId}-${Date.now()}`, // Unique ID combining requirement ID, user ID, and timestamp
+      title: documentToUpload.title,
+      description: documentToUpload.description,
+      hasExpiration: documentToUpload.hasExpiration,
+      expirationDate: uploadExpirationDate || documentToUpload.expirationDate,
+      uploadedDate: currentDate,
+      fileName: uploadModalFile.name,
+      fileData: fileData,
+      fileType: uploadModalFile.type,
+      notes: uploadNotes,
+      visibleToUsers: documentToUpload.visibleToUsers,
+      enableUserUpload: documentToUpload.enableUserUpload,
+      requireReview: documentToUpload.requireReview,
+      status: status,
+      userId: documentUserId, // Track which user this document belongs to
+    };
 
-      setUploadModalFile(null);
-      setUploadNotes("");
-      setUploadExpirationDate("");
-      setDocumentToUpload(null);
-      setShowUploadModal(false);
-    } catch (error) {
-      console.error("Error uploading document:", error);
-    } finally {
-      setUploading(false);
-    }
+    // Add the new uploaded document to the array (keep the requirement unchanged)
+    const updatedDocuments = [...documents, newUploadedDocument];
+
+    setDocuments(updatedDocuments);
+    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+
+    // Reset and close modal
+    setUploadModalFile(null);
+    setUploadNotes("");
+    setUploadExpirationDate("");
+    setDocumentToUpload(null);
+    setShowUploadModal(false);
   };
 
   const handleCancelUpload = () => {
@@ -482,33 +324,52 @@ export default function Documents() {
     setShowUploadModal(false);
   };
 
-  const handleApproveDocument = async (documentId: string) => {
-    await approveDocumentMutation.mutateAsync(documentId);
+  const handleApproveDocument = (documentId: string) => {
+    // Update document status to approved
+    const updatedDocuments = documents.map(doc => {
+      if (doc.id === documentId) {
+        return {
+          ...doc,
+          status: "approved" as const,
+        };
+      }
+      return doc;
+    });
+
+    setDocuments(updatedDocuments);
+    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
   };
 
-  const handleInitiateReject = (doc: DocumentType) => {
+  const handleInitiateReject = (doc: Document) => {
     setDocumentToReject(doc);
     setRejectionReason("");
     setShowRejectModal(true);
   };
 
-  const handleConfirmReject = async () => {
+  const handleConfirmReject = () => {
     if (!documentToReject) return;
 
     if (!rejectionReason.trim()) {
-      toast({
-        title: "Error",
-        description: "Please provide a reason for rejection",
-        variant: "destructive",
-      });
+      alert("Please provide a reason for rejection");
       return;
     }
 
-    await rejectDocumentMutation.mutateAsync({
-      id: documentToReject.id,
-      reason: rejectionReason,
+    // Update document status to rejected with reason
+    const updatedDocuments = documents.map(doc => {
+      if (doc.id === documentToReject.id) {
+        return {
+          ...doc,
+          status: "rejected" as const,
+          rejectionReason: rejectionReason,
+        };
+      }
+      return doc;
     });
 
+    setDocuments(updatedDocuments);
+    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
+
+    // Reset and close modal
     setShowRejectModal(false);
     setDocumentToReject(null);
     setRejectionReason("");
@@ -530,1061 +391,251 @@ export default function Documents() {
     setShowUserDocumentsModal(false);
   };
 
-  const handleViewDocument = (doc: DocumentType) => {
-    if (!doc.fileUrl) {
-      toast({
-        title: "Error",
-        description: "No file uploaded for this document.",
-        variant: "destructive",
-      });
+  const handleViewDocument = (doc: Document) => {
+    if (!doc.fileData) {
+      alert("No file uploaded for this document.");
       return;
     }
 
-    setPreviewDocument(doc);
-    setShowFilePreview(true);
-  };
+    // Check file type
+    const fileType = doc.fileType || '';
 
-  const handleClosePreview = () => {
-    setShowFilePreview(false);
-    setPreviewDocument(null);
-  };
-
-  const handleDownloadDocument = (doc: DocumentType) => {
-    if (!doc.fileUrl) {
-      toast({
-        title: "Error",
-        description: "No file to download",
-        variant: "destructive",
-      });
-      return;
+    // For PDFs, open in new tab
+    if (fileType === 'application/pdf') {
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(
+          `<iframe src="${doc.fileData}" style="width:100%; height:100%; border:none;" title="${doc.fileName}"></iframe>`
+        );
+        newWindow.document.title = doc.fileName || 'Document Preview';
+      }
     }
-
-    window.open(doc.fileUrl, "_blank");
-  };
-
-  // Filter documents by search query
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch =
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (doc.description && doc.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesSearch && doc.status !== "deleted";
-  });
-
-  // Get user-specific documents for current user (non-admins only see their own)
-  const userDocuments = isAdmin
-    ? filteredDocuments
-    : filteredDocuments.filter((doc) => doc.userId === currentUser?.id);
-
-  // Get requirements (documents without file uploads, created by admins for users to upload to)
-  const requirements = filteredDocuments.filter(
-    (doc) => !doc.fileUrl && doc.enableUserUpload
-  );
-
-  // Get documents that need review
-  const pendingDocuments = filteredDocuments.filter(
-    (doc) => doc.status === "submitted" || doc.status === "pending"
-  );
-
-  // Get approved documents
-  const approvedDocuments = filteredDocuments.filter(
-    (doc) => doc.status === "approved"
-  );
-
-  // Get rejected documents
-  const rejectedDocuments = filteredDocuments.filter(
-    (doc) => doc.status === "rejected"
-  );
-
-  // Get expired documents
-  const expiredDocuments = filteredDocuments.filter((doc) => {
-    if (!doc.expiryDate) return false;
-    const expiry = new Date(doc.expiryDate);
-    const now = new Date();
-    return expiry < now;
-  });
-
-  // Get expiring soon documents (within 30 days)
-  const expiringSoonDocuments = filteredDocuments.filter((doc) => {
-    if (!doc.expiryDate) return false;
-    const expiry = new Date(doc.expiryDate);
-    const now = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(now.getDate() + 30);
-    return expiry > now && expiry <= thirtyDaysFromNow;
-  });
-
-  // Helper to get status badge
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return (
-          <Badge className="bg-green-500 hover:bg-green-600">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Approved
-          </Badge>
-        );
-      case "submitted":
-      case "pending":
-        return (
-          <Badge className="bg-yellow-500 hover:bg-yellow-600">
-            <Clock className="w-3 h-3 mr-1" />
-            Pending Review
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge className="bg-red-500 hover:bg-red-600">
-            <X className="w-3 h-3 mr-1" />
-            Rejected
-          </Badge>
-        );
-      case "expired":
-        return (
-          <Badge className="bg-gray-500 hover:bg-gray-600">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Expired
-          </Badge>
-        );
-      case "expiring":
-        return (
-          <Badge className="bg-orange-500 hover:bg-orange-600">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Expiring Soon
-          </Badge>
-        );
-      default:
-        return null;
+    // For images, show in modal
+    else if (fileType.startsWith('image/')) {
+      setPreviewDocument(doc);
+      setShowFilePreview(true);
+    }
+    // For other files, download
+    else {
+      const link = document.createElement('a');
+      link.href = doc.fileData;
+      link.download = doc.fileName || 'document';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
-  // Helper to get expiration badge
-  const getExpirationBadge = (doc: DocumentType) => {
-    if (!doc.expiryDate) return null;
-
-    const expiry = new Date(doc.expiryDate);
-    const now = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(now.getDate() + 30);
-
-    if (expiry < now) {
-      return (
-        <Badge variant="destructive" className="ml-2">
-          <AlertTriangle className="w-3 h-3 mr-1" />
-          Expired
-        </Badge>
-      );
-    } else if (expiry <= thirtyDaysFromNow) {
-      return (
-        <Badge className="ml-2 bg-orange-500 hover:bg-orange-600">
-          <AlertTriangle className="w-3 h-3 mr-1" />
-          Expires Soon
-        </Badge>
-      );
+  // Helper function to get user initials
+  const getInitials = (fullName: string): string => {
+    const names = fullName.trim().split(" ");
+    if (names.length === 1) {
+      return names[0].substring(0, 2).toUpperCase();
     }
-    return null;
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
   };
 
-  // Get user by ID
-  const getUserById = (userId: string) => {
-    return users.find((u) => u.id === userId);
-  };
+  // Calculate document counts
+  const approvedCount = documents.filter(doc => {
+    // For regular users, only count their own documents that are visible to users
+    if (!isAdmin && (doc.userId !== currentUser?.id || !doc.visibleToUsers)) return false;
 
-  // Get count of user's documents by status
-  const getUserDocumentCounts = (userId: string) => {
-    const userDocs = documents.filter((doc) => doc.userId === userId);
-    return {
-      total: userDocs.length,
-      pending: userDocs.filter((d) => d.status === "submitted" || d.status === "pending").length,
-      approved: userDocs.filter((d) => d.status === "approved").length,
-      rejected: userDocs.filter((d) => d.status === "rejected").length,
-      expired: userDocs.filter((d) => {
-        if (!d.expiryDate) return false;
-        return new Date(d.expiryDate) < new Date();
-      }).length,
-    };
-  };
+    return doc.status === "approved" &&
+      (!doc.expirationDate || new Date(doc.expirationDate) >= new Date());
+  }).length;
 
-  if (documentsLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const pendingCount = documents.filter(doc => {
+    // For regular users, only count their own documents that are visible to users
+    if (!isAdmin && (doc.userId !== currentUser?.id || !doc.visibleToUsers)) return false;
+
+    return doc.status === "pending";
+  }).length;
+
+  const expiredCount = documents.filter(doc => {
+    // For regular users, only count their own documents that are visible to users
+    if (!isAdmin && (doc.userId !== currentUser?.id || !doc.visibleToUsers)) return false;
+
+    return doc.expirationDate &&
+      doc.status !== undefined &&
+      new Date(doc.expirationDate) < new Date();
+  }).length;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Documents</h1>
-          <p className="text-muted-foreground">
-            {isAdmin
-              ? "Manage document requirements and review employee uploads"
-              : "View document requirements and upload your documents"}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Documents</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Manage your credentials and certifications
           </p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Requirement
+          <Button
+            className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Document
           </Button>
         )}
       </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-        <Input
-          placeholder="Search documents..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue={isAdmin ? "all" : "my-documents"}>
-        <TabsList>
-          {isAdmin && (
-            <>
-              <TabsTrigger value="all">
-                All Documents ({filteredDocuments.length})
-              </TabsTrigger>
-              <TabsTrigger value="pending">
-                Pending Review ({pendingDocuments.length})
-              </TabsTrigger>
-              <TabsTrigger value="requirements">
-                Requirements ({requirements.length})
-              </TabsTrigger>
-              <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
-            </>
-          )}
-          {!isAdmin && (
-            <>
-              <TabsTrigger value="my-documents">
-                My Documents ({userDocuments.length})
-              </TabsTrigger>
-              <TabsTrigger value="requirements">
-                Requirements ({requirements.length})
-              </TabsTrigger>
-            </>
-          )}
-          <TabsTrigger value="approved">
-            Approved ({approvedDocuments.length})
-          </TabsTrigger>
-          <TabsTrigger value="rejected">
-            Rejected ({rejectedDocuments.length})
-          </TabsTrigger>
-          <TabsTrigger value="expired">
-            Expired ({expiredDocuments.length})
-          </TabsTrigger>
-          <TabsTrigger value="expiring">
-            Expiring Soon ({expiringSoonDocuments.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* All Documents Tab (Admin only) */}
-        {isAdmin && (
-          <TabsContent value="all" className="space-y-4">
-            {filteredDocuments.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No documents found</p>
-                </CardContent>
-              </Card>
-            ) : (
-              filteredDocuments.map((doc) => (
-                <Card key={doc.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold">{doc.title}</h3>
-                          {getStatusBadge(doc.status)}
-                          {getExpirationBadge(doc)}
-                        </div>
-                        {doc.description && (
-                          <p className="text-sm text-muted-foreground mb-2">
-                            {doc.description}
-                          </p>
-                        )}
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <p>
-                            <strong>Uploaded by:</strong>{" "}
-                            {getUserById(doc.userId)?.fullName || "Unknown"}
-                          </p>
-                          <p>
-                            <strong>Uploaded:</strong>{" "}
-                            {new Date(doc.uploadedDate).toLocaleDateString()}
-                          </p>
-                          {doc.expiryDate && (
-                            <p>
-                              <strong>Expires:</strong>{" "}
-                              {new Date(doc.expiryDate).toLocaleDateString()}
-                            </p>
-                          )}
-                          {doc.notes && (
-                            <p>
-                              <strong>Notes:</strong> {doc.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {doc.fileUrl && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewDocument(doc)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadDocument(doc)}
-                            >
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                        {(doc.status === "submitted" || doc.status === "pending") && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-green-600 hover:text-green-700"
-                              onClick={() => handleApproveDocument(doc.id)}
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => handleInitiateReject(doc)}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditDocument(doc)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleInitiateDelete(doc.id)}
-                        >
-                          <Trash className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-        )}
-
-        {/* Pending Review Tab (Admin only) */}
-        {isAdmin && (
-          <TabsContent value="pending" className="space-y-4">
-            {pendingDocuments.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Clock className="w-12 h-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    No documents pending review
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              pendingDocuments.map((doc) => (
-                <Card key={doc.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold">{doc.title}</h3>
-                          {getStatusBadge(doc.status)}
-                        </div>
-                        {doc.description && (
-                          <p className="text-sm text-muted-foreground mb-2">
-                            {doc.description}
-                          </p>
-                        )}
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <p>
-                            <strong>Uploaded by:</strong>{" "}
-                            {getUserById(doc.userId)?.fullName || "Unknown"}
-                          </p>
-                          <p>
-                            <strong>Uploaded:</strong>{" "}
-                            {new Date(doc.uploadedDate).toLocaleDateString()}
-                          </p>
-                          {doc.notes && (
-                            <p>
-                              <strong>Notes:</strong> {doc.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {doc.fileUrl && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewDocument(doc)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadDocument(doc)}
-                            >
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleApproveDocument(doc.id)}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Approve
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleInitiateReject(doc)}
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          Reject
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-        )}
-
-        {/* Requirements Tab */}
-        <TabsContent value="requirements" className="space-y-4">
-          {requirements.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No document requirements</p>
-              </CardContent>
-            </Card>
-          ) : (
-            requirements.map((doc) => (
-              <Card key={doc.id}>
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold mb-2">{doc.title}</h3>
-                      {doc.description && (
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {doc.description}
-                        </p>
-                      )}
-                      {doc.expiryDate && (
-                        <p className="text-sm text-muted-foreground">
-                          <strong>Expiration:</strong>{" "}
-                          {new Date(doc.expiryDate).toLocaleDateString()}
-                        </p>
-                      )}
-                      {doc.requireReview && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Requires review after upload
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      {!isAdmin && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleOpenUploadModal(doc)}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditDocument(doc)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleInitiateDelete(doc.id)}
-                          >
-                            <Trash className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-
-        {/* My Documents Tab (Non-admin) */}
-        {!isAdmin && (
-          <TabsContent value="my-documents" className="space-y-4">
-            {userDocuments.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    No documents uploaded yet
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              userDocuments.map((doc) => (
-                <Card key={doc.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold">{doc.title}</h3>
-                          {getStatusBadge(doc.status)}
-                          {getExpirationBadge(doc)}
-                        </div>
-                        {doc.description && (
-                          <p className="text-sm text-muted-foreground mb-2">
-                            {doc.description}
-                          </p>
-                        )}
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <p>
-                            <strong>Uploaded:</strong>{" "}
-                            {new Date(doc.uploadedDate).toLocaleDateString()}
-                          </p>
-                          {doc.expiryDate && (
-                            <p>
-                              <strong>Expires:</strong>{" "}
-                              {new Date(doc.expiryDate).toLocaleDateString()}
-                            </p>
-                          )}
-                          {doc.notes && (
-                            <p>
-                              <strong>Notes:</strong> {doc.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {doc.fileUrl && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewDocument(doc)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadDocument(doc)}
-                            >
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-        )}
-
-        {/* Users Tab (Admin only) */}
-        {isAdmin && (
-          <TabsContent value="users" className="space-y-4">
-            {users.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <UserIcon className="w-12 h-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No users found</p>
-                </CardContent>
-              </Card>
-            ) : (
-              users.map((user) => {
-                const counts = getUserDocumentCounts(user.id);
-                return (
-                  <Card key={user.id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold mb-2">
-                            {user.fullName}
-                          </h3>
-                          <div className="flex gap-4 text-sm text-muted-foreground">
-                            <span>Total: {counts.total}</span>
-                            <span className="text-yellow-600">
-                              Pending: {counts.pending}
-                            </span>
-                            <span className="text-green-600">
-                              Approved: {counts.approved}
-                            </span>
-                            <span className="text-red-600">
-                              Rejected: {counts.rejected}
-                            </span>
-                            <span className="text-orange-600">
-                              Expired: {counts.expired}
-                            </span>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewUserDocuments(user)}
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          View Documents
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </TabsContent>
-        )}
-
-        {/* Approved Tab */}
-        <TabsContent value="approved" className="space-y-4">
-          {approvedDocuments.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <CheckCircle className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No approved documents</p>
-              </CardContent>
-            </Card>
-          ) : (
-            approvedDocuments.map((doc) => (
-              <Card key={doc.id}>
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold">{doc.title}</h3>
-                        {getStatusBadge(doc.status)}
-                        {getExpirationBadge(doc)}
-                      </div>
-                      {doc.description && (
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {doc.description}
-                        </p>
-                      )}
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        {isAdmin && (
-                          <p>
-                            <strong>User:</strong>{" "}
-                            {getUserById(doc.userId)?.fullName || "Unknown"}
-                          </p>
-                        )}
-                        <p>
-                          <strong>Uploaded:</strong>{" "}
-                          {new Date(doc.uploadedDate).toLocaleDateString()}
-                        </p>
-                        {doc.expiryDate && (
-                          <p>
-                            <strong>Expires:</strong>{" "}
-                            {new Date(doc.expiryDate).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {doc.fileUrl && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDocument(doc)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(doc)}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-
-        {/* Rejected Tab */}
-        <TabsContent value="rejected" className="space-y-4">
-          {rejectedDocuments.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <X className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No rejected documents</p>
-              </CardContent>
-            </Card>
-          ) : (
-            rejectedDocuments.map((doc) => (
-              <Card key={doc.id} className="border-red-200">
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold">{doc.title}</h3>
-                        {getStatusBadge(doc.status)}
-                      </div>
-                      {doc.description && (
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {doc.description}
-                        </p>
-                      )}
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        {isAdmin && (
-                          <p>
-                            <strong>User:</strong>{" "}
-                            {getUserById(doc.userId)?.fullName || "Unknown"}
-                          </p>
-                        )}
-                        <p>
-                          <strong>Uploaded:</strong>{" "}
-                          {new Date(doc.uploadedDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      {/* Rejection reason is not in current schema, would need to add */}
-                    </div>
-                    <div className="flex gap-2">
-                      {doc.fileUrl && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDocument(doc)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(doc)}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-
-        {/* Expired Tab */}
-        <TabsContent value="expired" className="space-y-4">
-          {expiredDocuments.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <AlertTriangle className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No expired documents</p>
-              </CardContent>
-            </Card>
-          ) : (
-            expiredDocuments.map((doc) => (
-              <Card key={doc.id} className="border-red-200">
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold">{doc.title}</h3>
-                        <Badge variant="destructive">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          Expired
-                        </Badge>
-                      </div>
-                      {doc.description && (
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {doc.description}
-                        </p>
-                      )}
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        {isAdmin && (
-                          <p>
-                            <strong>User:</strong>{" "}
-                            {getUserById(doc.userId)?.fullName || "Unknown"}
-                          </p>
-                        )}
-                        <p className="text-red-600">
-                          <strong>Expired:</strong>{" "}
-                          {new Date(doc.expiryDate!).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {doc.fileUrl && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDocument(doc)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(doc)}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      {!isAdmin && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleOpenUploadModal(doc)}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Re-upload
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-
-        {/* Expiring Soon Tab */}
-        <TabsContent value="expiring" className="space-y-4">
-          {expiringSoonDocuments.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Clock className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  No documents expiring soon
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            expiringSoonDocuments.map((doc) => (
-              <Card key={doc.id} className="border-orange-200">
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold">{doc.title}</h3>
-                        <Badge className="bg-orange-500 hover:bg-orange-600">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          Expires Soon
-                        </Badge>
-                      </div>
-                      {doc.description && (
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {doc.description}
-                        </p>
-                      )}
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        {isAdmin && (
-                          <p>
-                            <strong>User:</strong>{" "}
-                            {getUserById(doc.userId)?.fullName || "Unknown"}
-                          </p>
-                        )}
-                        <p className="text-orange-600">
-                          <strong>Expires:</strong>{" "}
-                          {new Date(doc.expiryDate!).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {doc.fileUrl && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDocument(doc)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(doc)}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      {!isAdmin && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleOpenUploadModal(doc)}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Update
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
-
       {/* Create/Edit Document Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? "Edit Document" : "Add Document Requirement"}
-            </DialogTitle>
+            <DialogTitle>{isEditMode ? "Edit Document" : "Create Document"}</DialogTitle>
             <DialogDescription>
-              {isEditMode
-                ? "Update the document information"
-                : "Create a new document requirement for employees to upload"}
+              {isEditMode ? "Edit document requirement" : "Create a new document requirement"}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="title">Title *</Label>
+
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="space-y-2">
+              <Label htmlFor="document-title">
+                Document Title <span className="text-red-600">*</span>
+              </Label>
               <Input
-                id="title"
+                id="document-title"
+                placeholder="e.g., RN License, CPR Certification"
                 value={documentTitle}
                 onChange={(e) => setDocumentTitle(e.target.value)}
-                placeholder="e.g., RN License, CPR Certification"
               />
             </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
+
+            <div className="space-y-2">
+              <Label htmlFor="document-description">Description</Label>
               <Textarea
-                id="description"
+                id="document-description"
+                placeholder="Optional description of the document"
                 value={documentDescription}
                 onChange={(e) => setDocumentDescription(e.target.value)}
-                placeholder="Provide details about this document requirement"
                 rows={3}
               />
             </div>
-            <div className="flex items-center space-x-2">
+
+            <div className="flex items-start space-x-2">
               <Checkbox
-                id="hasExpiration"
+                id="has-expiration"
                 checked={hasExpiration}
-                onCheckedChange={(checked) =>
-                  setHasExpiration(checked as boolean)
-                }
+                onCheckedChange={(checked) => {
+                  setHasExpiration(checked as boolean);
+                  if (!checked) {
+                    setExpirationDate("");
+                  }
+                }}
               />
-              <Label htmlFor="hasExpiration">This document expires</Label>
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="has-expiration"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  This document expires
+                </Label>
+              </div>
             </div>
+
             {hasExpiration && (
-              <div>
-                <Label htmlFor="expirationDate">Expiration Date</Label>
+              <div className="space-y-2">
+                <Label htmlFor="expiration-date">Expiration Date</Label>
                 <Input
-                  id="expirationDate"
+                  id="expiration-date"
                   type="date"
+                  placeholder="mm/dd/yyyy"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
                 />
               </div>
             )}
-            <div>
-              <Label htmlFor="file">Attach File (Optional)</Label>
-              <Input
-                id="file"
-                type="file"
-                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-              />
+
+            <div className="space-y-2">
+              <Label htmlFor="upload-file">Upload File</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="upload-file"
+                  type="file"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  className="cursor-pointer"
+                />
+              </div>
+              {uploadFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {uploadFile.name}
+                </p>
+              )}
             </div>
-            <div>
+
+            <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
+                placeholder="Optional notes about this document"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Additional notes or instructions"
-                rows={2}
+                rows={3}
               />
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
+
+            <div className="space-y-4 pt-2">
+              <div className="flex items-start space-x-2">
                 <Checkbox
-                  id="visibleToUsers"
+                  id="visible-to-users"
                   checked={visibleToUsers}
-                  onCheckedChange={(checked) =>
-                    setVisibleToUsers(checked as boolean)
-                  }
+                  onCheckedChange={(checked) => setVisibleToUsers(checked as boolean)}
                 />
-                <Label htmlFor="visibleToUsers">
-                  Visible to users in mobile app
-                </Label>
+                <div className="grid gap-1.5 leading-none">
+                  <Label
+                    htmlFor="visible-to-users"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Visible to users in the mobile app
+                  </Label>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
+
+              <div className="flex items-start space-x-2">
                 <Checkbox
-                  id="enableUserUpload"
+                  id="enable-user-upload"
                   checked={enableUserUpload}
-                  onCheckedChange={(checked) =>
-                    setEnableUserUpload(checked as boolean)
-                  }
+                  onCheckedChange={(checked) => setEnableUserUpload(checked as boolean)}
                 />
-                <Label htmlFor="enableUserUpload">
-                  Allow users to upload this document
-                </Label>
+                <div className="grid gap-1.5 leading-none">
+                  <Label
+                    htmlFor="enable-user-upload"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Enable users to upload via the mobile app and user's view
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    If disabled only owners and admins can upload documents
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="requireReview"
-                  checked={requireReview}
-                  onCheckedChange={(checked) =>
-                    setRequireReview(checked as boolean)
-                  }
-                />
-                <Label htmlFor="requireReview">
-                  Require review after user upload
-                </Label>
-              </div>
+
+              {enableUserUpload && (
+                <div className="flex items-start space-x-2 pl-6">
+                  <Checkbox
+                    id="require-review"
+                    checked={requireReview}
+                    onCheckedChange={(checked) => setRequireReview(checked as boolean)}
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <Label
+                      htmlFor="require-review"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Require review for uploaded documents
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Only for documents uploaded by users
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex justify-end gap-2 mt-6">
+
+          <div className="flex justify-end gap-2">
             <Button
               variant="outline"
               onClick={() => {
@@ -1594,254 +645,11 @@ export default function Documents() {
             >
               Cancel
             </Button>
-            <Button onClick={handleSaveDocument} disabled={uploading}>
-              {uploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {isEditMode ? "Update" : "Create"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Upload Document Modal */}
-      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload Document</DialogTitle>
-            <DialogDescription>
-              Upload your document for: {documentToUpload?.title}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="uploadFile">Select File *</Label>
-              <Input
-                id="uploadFile"
-                type="file"
-                onChange={(e) => setUploadModalFile(e.target.files?.[0] || null)}
-              />
-            </div>
-            {documentToUpload?.expiryDate && (
-              <div>
-                <Label htmlFor="uploadExpirationDate">Expiration Date</Label>
-                <Input
-                  id="uploadExpirationDate"
-                  type="date"
-                  value={uploadExpirationDate}
-                  onChange={(e) => setUploadExpirationDate(e.target.value)}
-                />
-              </div>
-            )}
-            <div>
-              <Label htmlFor="uploadNotes">Notes</Label>
-              <Textarea
-                id="uploadNotes"
-                value={uploadNotes}
-                onChange={(e) => setUploadNotes(e.target.value)}
-                placeholder="Add any notes about this document"
-                rows={3}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={handleCancelUpload}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveUpload} disabled={uploading}>
-              {uploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Upload
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* User Documents Modal */}
-      <Dialog
-        open={showUserDocumentsModal}
-        onOpenChange={setShowUserDocumentsModal}
-      >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Documents for {selectedUser?.fullName}
-            </DialogTitle>
-            <DialogDescription>
-              View and manage documents for this user
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedUser &&
-              documents
-                .filter((doc) => doc.userId === selectedUser.id)
-                .map((doc) => (
-                  <Card key={doc.id}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-semibold">{doc.title}</h4>
-                            {getStatusBadge(doc.status)}
-                            {getExpirationBadge(doc)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            <p>
-                              Uploaded:{" "}
-                              {new Date(doc.uploadedDate).toLocaleDateString()}
-                            </p>
-                            {doc.expiryDate && (
-                              <p>
-                                Expires:{" "}
-                                {new Date(doc.expiryDate).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {doc.fileUrl && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewDocument(doc)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDownloadDocument(doc)}
-                              >
-                                <Download className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                          {(doc.status === "submitted" ||
-                            doc.status === "pending") && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-green-600"
-                                onClick={() => handleApproveDocument(doc.id)}
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600"
-                                onClick={() => handleInitiateReject(doc)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            {selectedUser &&
-              documents.filter((doc) => doc.userId === selectedUser.id)
-                .length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  No documents uploaded yet
-                </p>
-              )}
-            <div className="flex justify-between items-center pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (requirements.length > 0) {
-                    handleOpenUploadModal(requirements[0]);
-                  }
-                }}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Document for User
-              </Button>
-              <Button variant="outline" onClick={handleCloseUserDocuments}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* File Preview Modal */}
-      <Dialog open={showFilePreview} onOpenChange={setShowFilePreview}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{previewDocument?.title}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto">
-            {previewDocument?.fileUrl &&
-              (previewDocument.fileType?.startsWith("image/") ? (
-                <img
-                  src={previewDocument.fileUrl}
-                  alt={previewDocument.title}
-                  className="w-full h-auto"
-                />
-              ) : previewDocument.fileType === "application/pdf" ? (
-                <iframe
-                  src={previewDocument.fileUrl}
-                  className="w-full h-[70vh]"
-                  title={previewDocument.title}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-4">
-                    Preview not available for this file type
-                  </p>
-                  <Button onClick={() => handleDownloadDocument(previewDocument)}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Download File
-                  </Button>
-                </div>
-              ))}
-          </div>
-          <div className="flex justify-end gap-2">
             <Button
-              variant="outline"
-              onClick={() => handleDownloadDocument(previewDocument!)}
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleSaveDocument}
             >
-              <Download className="w-4 h-4 mr-2" />
-              Download
-            </Button>
-            <Button variant="outline" onClick={handleClosePreview}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Document Modal */}
-      <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Document</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this document
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="rejectionReason">Rejection Reason *</Label>
-              <Textarea
-                id="rejectionReason"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Explain why this document is being rejected"
-                rows={4}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={handleCancelReject}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmReject}>
-              Reject Document
+              Save
             </Button>
           </div>
         </DialogContent>
@@ -1851,22 +659,1483 @@ export default function Documents() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this document. This action cannot be
-              undone.
+              Are you sure you want to delete this document? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelDelete}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
+            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Upload Document Modal */}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Upload {documentToUpload?.title}</DialogTitle>
+            <DialogDescription>
+              {selectedUser && showUserDocumentsModal
+                ? `Upload document for ${selectedUser.fullName}`
+                : "Upload your document file for review"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {documentToUpload?.description && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-sm font-medium text-blue-800 mb-1">
+                  Document Requirements
+                </p>
+                <p className="text-sm text-blue-700">
+                  {documentToUpload.description}
+                </p>
+              </div>
+            )}
+            {documentToUpload?.notes && (
+              <div className="bg-amber-50 border border-amber-300 rounded-md p-3">
+                <p className="text-sm font-medium text-amber-900 mb-1">
+                  Instructions:
+                </p>
+                <p className="text-sm text-amber-800 whitespace-pre-wrap">
+                  {documentToUpload.notes}
+                </p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="upload-file-input">
+                File <span className="text-red-600">*</span>
+              </Label>
+              <Input
+                id="upload-file-input"
+                type="file"
+                onChange={(e) => setUploadModalFile(e.target.files?.[0] || null)}
+                className="cursor-pointer"
+              />
+              {uploadModalFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {uploadModalFile.name}
+                </p>
+              )}
+            </div>
+
+            {documentToUpload?.hasExpiration && (
+              <div className="space-y-2">
+                <Label htmlFor="upload-expiration-date">
+                  Expiration Date (Optional)
+                </Label>
+                <Input
+                  id="upload-expiration-date"
+                  type="date"
+                  placeholder="mm/dd/yyyy"
+                  value={uploadExpirationDate}
+                  onChange={(e) => setUploadExpirationDate(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="upload-notes">Notes (Optional)</Label>
+              <Textarea
+                id="upload-notes"
+                placeholder="Add any notes about this document"
+                value={uploadNotes}
+                onChange={(e) => setUploadNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleCancelUpload}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleSaveUpload}
+            >
+              Upload
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Documents Modal */}
+      <Dialog open={showUserDocumentsModal} onOpenChange={setShowUserDocumentsModal}>
+        <DialogContent className="sm:max-w-[800px] max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedUser?.fullName}'s Documents
+            </DialogTitle>
+            <DialogDescription>
+              View and manage document submissions for {selectedUser?.fullName}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs defaultValue="all" className="w-full">
+            {(() => {
+              // Calculate counts for each tab
+              const allRequirements = documents.filter(d => !d.status);
+              const userDocs = documents.filter(d => d.status && d.userId === selectedUser?.id);
+
+              const pendingUploadDocs = allRequirements.filter(requirement => {
+                return !userDocs.some(doc => doc.title === requirement.title);
+              });
+
+              const pendingApprovalDocs = userDocs.filter(doc => doc.status === "pending");
+
+              const noApprovalDocs = userDocs.filter(doc => {
+                const requirement = allRequirements.find(r => r.title === doc.title);
+                return doc.status === "approved" && requirement && !requirement.requireReview;
+              });
+
+              const approvedDocs = userDocs.filter(doc => {
+                const requirement = allRequirements.find(r => r.title === doc.title);
+                const isExpired = doc.expirationDate && new Date(doc.expirationDate) < new Date();
+                return doc.status === "approved" && requirement && requirement.requireReview && !isExpired;
+              });
+
+              const expiringExpiredDocs = userDocs.filter(doc => {
+                return doc.expirationDate && new Date(doc.expirationDate) < new Date();
+              });
+
+              const allDocsCount = pendingUploadDocs.length + userDocs.length;
+
+              return (
+                <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-1">
+                  <TabsTrigger value="all" className="text-xs">
+                    All ({allDocsCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="pending-upload" className="text-xs">
+                    Pending Upload ({pendingUploadDocs.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="pending-approval" className="text-xs">
+                    Pending Approval ({pendingApprovalDocs.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="no-approval" className="text-xs">
+                    No Approval ({noApprovalDocs.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="approved" className="text-xs">
+                    Approved ({approvedDocs.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="expiring" className="text-xs">
+                    Expiring/Expired ({expiringExpiredDocs.length})
+                  </TabsTrigger>
+                </TabsList>
+              );
+            })()}
+
+            {/* All Tab */}
+            <TabsContent value="all" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents.filter(d => !d.status).length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No document requirements created yet
+                </div>
+              ) : (
+                documents
+                  .filter(d => !d.status) // Get all requirements (templates)
+                  .map((requirement) => {
+                    // Find if this user has uploaded this document
+                    const userDoc = documents.find(d =>
+                      d.status &&
+                      d.userId === selectedUser?.id &&
+                      d.title === requirement.title
+                    );
+
+                    const hasBeenUploaded = !!userDoc;
+
+                    const formatDate = (dateString: string) => {
+                      if (!dateString) return "N/A";
+                      const [year, month, day] = dateString.split('-').map(Number);
+                      const date = new Date(year, month - 1, day);
+                      return date.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      });
+                    };
+
+                    const isExpired = userDoc?.expirationDate && userDoc.status !== undefined
+                      ? new Date(userDoc.expirationDate) < new Date()
+                      : false;
+
+                    return (
+                      <Card key={requirement.id}>
+                        <CardContent className="pt-4">
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start space-x-3 flex-1">
+                                <FileText className="h-6 w-6 text-blue-600 mt-1" />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="font-semibold">{requirement.title}</h3>
+                                    {!requirement.visibleToUsers && (
+                                      <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                        <EyeOff className="h-3 w-3 mr-1" />
+                                        Admin Only
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {hasBeenUploaded && userDoc ? (
+                                    <>
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        Uploaded: {formatDate(userDoc.uploadedDate)}
+                                      </p>
+                                      {userDoc.expirationDate && (
+                                        <p className={`text-sm mt-1 ${isExpired ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                          Expires: {formatDate(userDoc.expirationDate)}
+                                        </p>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <p className="text-sm text-amber-600 mt-1">
+                                      Not uploaded yet
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {hasBeenUploaded && userDoc && (
+                                <Badge
+                                  className={
+                                    isExpired
+                                      ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                      : userDoc.status === "rejected"
+                                      ? "bg-orange-100 text-orange-800 hover:bg-orange-100"
+                                      : userDoc.status === "pending"
+                                      ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                      : "bg-green-100 text-green-800 hover:bg-green-100"
+                                  }
+                                >
+                                  {isExpired ? "Expired" : userDoc.status === "rejected" ? "Rejected" : userDoc.status === "pending" ? "Pending Review" : "Approved"}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {hasBeenUploaded && userDoc?.status === "rejected" && userDoc.rejectionReason && (
+                              <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                                <p className="text-sm font-medium text-orange-800 mb-1">
+                                  Rejection Reason
+                                </p>
+                                <p className="text-sm text-orange-700">
+                                  {userDoc.rejectionReason}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="flex gap-2 pt-2 border-t">
+                              {hasBeenUploaded && userDoc ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleViewDocument(userDoc)}
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View
+                                  </Button>
+                                  {userDoc.status === "pending" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleApproveDocument(userDoc.id)}
+                                        className="bg-green-600 hover:bg-green-700"
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleInitiateReject(userDoc)}
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <X className="h-4 w-4 mr-2" />
+                                        Reject
+                                      </Button>
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setDocumentToUpload(requirement);
+                                    setShowUploadModal(true);
+                                  }}
+                                  className="w-full"
+                                >
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Upload for User
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+              )}
+            </TabsContent>
+
+            {/* Pending Upload Tab */}
+            <TabsContent value="pending-upload" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents.filter(d => !d.status).length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No document requirements created yet
+                </div>
+              ) : (
+                documents
+                  .filter(d => !d.status)
+                  .filter(requirement => {
+                    const userDoc = documents.find(d =>
+                      d.status &&
+                      d.userId === selectedUser?.id &&
+                      d.title === requirement.title
+                    );
+                    return !userDoc;
+                  })
+                  .map((requirement) => {
+                    return (
+                      <Card key={requirement.id}>
+                        <CardContent className="pt-4">
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start space-x-3 flex-1">
+                                <FileText className="h-6 w-6 text-amber-600 mt-1" />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="font-semibold">{requirement.title}</h3>
+                                    {!requirement.visibleToUsers && (
+                                      <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                        <EyeOff className="h-3 w-3 mr-1" />
+                                        Admin Only
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-amber-600 mt-1 font-medium">
+                                    Not uploaded yet
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 pt-2 border-t">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setDocumentToUpload(requirement);
+                                  setShowUploadModal(true);
+                                }}
+                                className="w-full"
+                              >
+                                <Upload className="h-4 w-4 mr-2" />
+                                Upload for User
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+              )}
+              {documents.filter(d => !d.status).filter(requirement => {
+                const userDoc = documents.find(d =>
+                  d.status &&
+                  d.userId === selectedUser?.id &&
+                  d.title === requirement.title
+                );
+                return !userDoc;
+              }).length === 0 && documents.filter(d => !d.status).length > 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  All documents have been uploaded
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Pending Approval Tab */}
+            <TabsContent value="pending-approval" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents
+                .filter(d => d.status === "pending" && d.userId === selectedUser?.id)
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
+
+                  const requirement = documents.find(d => !d.status && d.title === doc.title);
+
+                  return (
+                    <Card key={doc.id}>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <Clock className="h-6 w-6 text-blue-600 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold">{doc.title}</h3>
+                                  {requirement && !requirement.visibleToUsers && (
+                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Admin Only
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                              Pending Review
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleApproveDocument(doc.id)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleInitiateReject(doc)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+              {documents.filter(d => d.status === "pending" && d.userId === selectedUser?.id).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No documents pending approval
+                </div>
+              )}
+            </TabsContent>
+
+            {/* No Approval Needed Tab */}
+            <TabsContent value="no-approval" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents
+                .filter(d => {
+                  if (d.status !== "approved" || d.userId !== selectedUser?.id) return false;
+                  const requirement = documents.find(r => !r.status && r.title === d.title);
+                  return requirement && !requirement.requireReview;
+                })
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
+
+                  const requirement = documents.find(d => !d.status && d.title === doc.title);
+                  const isExpired = doc.expirationDate && new Date(doc.expirationDate) < new Date();
+
+                  return (
+                    <Card key={doc.id}>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <CheckCircle className="h-6 w-6 text-green-600 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold">{doc.title}</h3>
+                                  {requirement && !requirement.visibleToUsers && (
+                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Admin Only
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className={`text-sm mt-1 ${isExpired ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge className={isExpired ? "bg-red-100 text-red-800 hover:bg-red-100" : "bg-green-100 text-green-800 hover:bg-green-100"}>
+                              {isExpired ? "Expired" : "Auto-Approved"}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+              {documents.filter(d => {
+                if (d.status !== "approved" || d.userId !== selectedUser?.id) return false;
+                const requirement = documents.find(r => !r.status && r.title === d.title);
+                return requirement && !requirement.requireReview;
+              }).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No auto-approved documents
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Approved Tab */}
+            <TabsContent value="approved" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents
+                .filter(d => {
+                  if (d.status !== "approved" || d.userId !== selectedUser?.id) return false;
+                  const requirement = documents.find(r => !r.status && r.title === d.title);
+                  const isExpired = d.expirationDate && new Date(d.expirationDate) < new Date();
+                  return requirement && requirement.requireReview && !isExpired;
+                })
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
+
+                  const requirement = documents.find(d => !d.status && d.title === doc.title);
+
+                  return (
+                    <Card key={doc.id}>
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <CheckCircle className="h-6 w-6 text-green-600 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold">{doc.title}</h3>
+                                  {requirement && !requirement.visibleToUsers && (
+                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Admin Only
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                              Approved
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+              {documents.filter(d => {
+                if (d.status !== "approved" || d.userId !== selectedUser?.id) return false;
+                const requirement = documents.find(r => !r.status && r.title === d.title);
+                const isExpired = d.expirationDate && new Date(d.expirationDate) < new Date();
+                return requirement && requirement.requireReview && !isExpired;
+              }).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No approved documents
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Expiring/Expired Tab */}
+            <TabsContent value="expiring" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
+              {documents
+                .filter(d => {
+                  if (!d.status || d.userId !== selectedUser?.id) return false;
+                  return d.expirationDate && new Date(d.expirationDate) < new Date();
+                })
+                .map((doc) => {
+                  const formatDate = (dateString: string) => {
+                    if (!dateString) return "N/A";
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                  };
+
+                  const requirement = documents.find(d => !d.status && d.title === doc.title);
+
+                  return (
+                    <Card key={doc.id} className="border-red-200 bg-red-50/30">
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <AlertTriangle className="h-6 w-6 text-red-600 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold">{doc.title}</h3>
+                                  {requirement && !requirement.visibleToUsers && (
+                                    <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Admin Only
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className="text-sm text-red-600 font-medium mt-1">
+                                    Expired: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                              Expired
+                            </Badge>
+                          </div>
+                          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                            <p className="text-sm text-red-800">
+                              This document has expired and needs renewal
+                            </p>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                if (requirement) {
+                                  setDocumentToUpload(requirement);
+                                  setShowUploadModal(true);
+                                }
+                              }}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload Renewal
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              }
+              {documents.filter(d => {
+                if (!d.status || d.userId !== selectedUser?.id) return false;
+                return d.expirationDate && new Date(d.expirationDate) < new Date();
+              }).length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  No expired documents
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={handleCloseUserDocuments}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Preview Modal */}
+      <Dialog open={showFilePreview} onOpenChange={setShowFilePreview}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{previewDocument?.fileName || "Document Preview"}</DialogTitle>
+            <DialogDescription>
+              {previewDocument?.title}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 overflow-auto max-h-[70vh] flex items-center justify-center">
+            {previewDocument?.fileData && (
+              <img
+                src={previewDocument.fileData}
+                alt={previewDocument.fileName || "Document"}
+                className="max-w-full h-auto"
+              />
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            {previewDocument?.fileData && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = previewDocument.fileData!;
+                  link.download = previewDocument.fileName || 'document';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+              >
+                Download
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowFilePreview(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Document Modal */}
+      <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Reject Document</DialogTitle>
+            <DialogDescription>
+              Provide a reason for rejecting {documentToReject?.title}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejection-reason">
+                Reason for rejection <span className="text-red-600">*</span>
+              </Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="Explain why this document is being rejected..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleCancelReject}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmReject}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Reject
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {/* Approved Card */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="text-2xl sm:text-3xl font-bold">{approvedCount}</div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Documents approved
+                </p>
+              </div>
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 flex-shrink-0 ml-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pending Review Card */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="text-2xl sm:text-3xl font-bold">{pendingCount}</div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Awaiting approval
+                </p>
+              </div>
+              <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0 ml-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Required Card */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="text-2xl sm:text-3xl font-bold">{expiredCount}</div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Expired or expiring
+                </p>
+              </div>
+              <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600 flex-shrink-0 ml-2" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search documents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        {/* Tabs */}
+        <Tabs defaultValue="my-documents">
+          <TabsList>
+            <TabsTrigger value="my-documents">{isAdmin ? "Documents" : "My Documents"}</TabsTrigger>
+            {!isAdmin && (
+              <TabsTrigger value="expired">Expired</TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="user-documents">User Documents</TabsTrigger>
+            )}
+          </TabsList>
+
+          <TabsContent value="my-documents" className="mt-4">
+            <div className="space-y-4">
+              {/* Section Header */}
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold">{isAdmin ? "Document Requirements" : "Your Documents"}</h2>
+              </div>
+
+              {/* Document Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {documents.length === 0 ? (
+                  <div className="col-span-2 text-center py-12 text-muted-foreground">
+                    No documents uploaded yet. Click "Create Document" to add your first document.
+                  </div>
+                ) : (
+                  documents
+                    .filter(doc => {
+                      if (isAdmin) {
+                        // Admins only see requirements (no status = templates)
+                        return !doc.status;
+                      } else {
+                        // Users see: visible requirements OR their own uploaded documents (that are also marked as visible)
+                        return doc.visibleToUsers && (!doc.status || doc.userId === currentUser?.id);
+                      }
+                    })
+                    .map((doc) => {
+                    const formatDate = (dateString: string) => {
+                      if (!dateString) return "N/A";
+                      // Parse YYYY-MM-DD as local date to avoid timezone issues
+                      const [year, month, day] = dateString.split('-').map(Number);
+                      const date = new Date(year, month - 1, day);
+                      return date.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      });
+                    };
+
+                    // Check if document is expired based on expiration date
+                    const isExpired = doc.expirationDate && doc.status !== undefined
+                      ? new Date(doc.expirationDate) < new Date()
+                      : doc.status === "expired";
+                    const hasStatus = doc.status !== undefined;
+
+                    return (
+                      <Card key={doc.id}>
+                        <CardContent className="pt-6">
+                          <div className="space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                              <div className="flex items-start space-x-3 flex-1 min-w-0">
+                                <FileText className="h-8 w-8 text-blue-600 mt-1 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="font-semibold break-words">{doc.title}</h3>
+                                </div>
+                              </div>
+                              {hasStatus && (
+                                <Badge
+                                  className={`flex-shrink-0 ${
+                                    isExpired
+                                      ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                      : doc.status === "rejected"
+                                      ? "bg-orange-100 text-orange-800 hover:bg-orange-100"
+                                      : doc.status === "pending"
+                                      ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                      : "bg-green-100 text-green-800 hover:bg-green-100"
+                                  }`}
+                                >
+                                  {isExpired ? "Expired" : doc.status === "rejected" ? "Rejected" : doc.status === "pending" ? "Pending Review" : "Approved"}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {(hasStatus || isAdmin) && (
+                              <div className="space-y-1 text-sm">
+                                <p className="text-muted-foreground">
+                                  {hasStatus ? "Uploaded:" : "Created:"} {formatDate(doc.uploadedDate)}
+                                </p>
+                                {hasStatus && doc.expirationDate && (
+                                  <p
+                                    className={
+                                      isExpired
+                                        ? "text-red-600 font-medium"
+                                        : "text-muted-foreground"
+                                    }
+                                  >
+                                    Expires: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {isExpired && (
+                              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                                <p className="text-sm text-red-800">
+                                  This document has expired and needs renewal
+                                </p>
+                              </div>
+                            )}
+
+                            {doc.status === "rejected" && doc.rejectionReason && (
+                              <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                                <p className="text-sm font-medium text-orange-800 mb-1">
+                                  Document Rejected
+                                </p>
+                                <p className="text-sm text-orange-700">
+                                  {doc.rejectionReason}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              {!hasStatus ? (
+                                // Document requirement/template
+                                isAdmin ? (
+                                  // Admin view: View Template (if exists), Edit and Delete
+                                  <>
+                                    {doc.fileData && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleViewDocument(doc)}
+                                        className="w-full sm:w-auto"
+                                      >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        View Template
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditDocument(doc)}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleInitiateDelete(doc.id)}
+                                      className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  // Regular user view: View Template (if exists) and Upload
+                                  <>
+                                    {doc.fileData && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleViewDocument(doc)}
+                                        className="w-full sm:w-auto"
+                                      >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        View Template
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleOpenUploadModal(doc)}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Upload
+                                    </Button>
+                                  </>
+                                )
+                              ) : !isExpired ? (
+                                // Uploaded document (not expired)
+                                isAdmin ? (
+                                  // Admin view: View, Edit, Delete, and Approve for pending
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewDocument(doc)}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    {doc.status === "pending" && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleApproveDocument(doc.id)}
+                                        className="w-full sm:w-auto bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditDocument(doc)}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleInitiateDelete(doc.id)}
+                                      className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  // Regular user view: View and Upload
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewDocument(doc)}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleOpenUploadModal(doc)}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Upload
+                                    </Button>
+                                  </>
+                                )
+                              ) : (
+                                // Expired document
+                                isAdmin ? (
+                                  // Admin view: View, Edit, Delete, and Approve for pending
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewDocument(doc)}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    {doc.status === "pending" && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleApproveDocument(doc.id)}
+                                        className="w-full sm:w-auto bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditDocument(doc)}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Upload className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleInitiateDelete(doc.id)}
+                                      className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  // Regular user view: Upload only
+                                  <Button
+                                    className="w-full bg-red-600 hover:bg-red-700"
+                                    onClick={() => handleOpenUploadModal(doc)}
+                                  >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Upload Document
+                                  </Button>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Expired Tab - Regular Users Only */}
+          {!isAdmin && (
+            <TabsContent value="expired" className="mt-4">
+              <div className="space-y-4">
+                {/* Section Header */}
+                <div>
+                  <h2 className="text-lg sm:text-xl font-semibold">Expired Documents</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Documents that are expired or expiring soon
+                  </p>
+                </div>
+
+                {/* Expired Document Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {documents
+                    .filter(doc => {
+                      // Only show user's own uploaded documents that are expired and visible
+                      if (!doc.status || doc.userId !== currentUser?.id || !doc.visibleToUsers) return false;
+
+                      // Check if document is expired
+                      const isExpired = doc.expirationDate
+                        ? new Date(doc.expirationDate) < new Date()
+                        : doc.status === "expired";
+
+                      return isExpired;
+                    })
+                    .length === 0 ? (
+                    <div className="col-span-2 text-center py-12 text-muted-foreground">
+                      No expired documents
+                    </div>
+                  ) : (
+                    documents
+                      .filter(doc => {
+                        // Only show user's own uploaded documents that are expired and visible
+                        if (!doc.status || doc.userId !== currentUser?.id || !doc.visibleToUsers) return false;
+
+                        // Check if document is expired
+                        const isExpired = doc.expirationDate
+                          ? new Date(doc.expirationDate) < new Date()
+                          : doc.status === "expired";
+
+                        return isExpired;
+                      })
+                      .map((doc) => {
+                      const formatDate = (dateString: string) => {
+                        if (!dateString) return "N/A";
+                        const [year, month, day] = dateString.split('-').map(Number);
+                        const date = new Date(year, month - 1, day);
+                        return date.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        });
+                      };
+
+                      return (
+                        <Card key={doc.id}>
+                          <CardContent className="pt-6">
+                            <div className="space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                                  <FileText className="h-8 w-8 text-blue-600 mt-1 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <h3 className="font-semibold break-words">{doc.title}</h3>
+                                  </div>
+                                </div>
+                                <Badge className="flex-shrink-0 bg-red-100 text-red-800 hover:bg-red-100">
+                                  Expired
+                                </Badge>
+                              </div>
+
+                              <div className="space-y-1 text-sm">
+                                <p className="text-muted-foreground">
+                                  Uploaded: {formatDate(doc.uploadedDate)}
+                                </p>
+                                {doc.expirationDate && (
+                                  <p className="text-red-600 font-medium">
+                                    Expired: {formatDate(doc.expirationDate)}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                                <p className="text-sm text-red-800">
+                                  This document has expired and needs renewal
+                                </p>
+                              </div>
+
+                              {doc.status === "rejected" && doc.rejectionReason && (
+                                <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                                  <p className="text-sm font-medium text-orange-800 mb-1">
+                                    Document Rejected
+                                  </p>
+                                  <p className="text-sm text-orange-700">
+                                    {doc.rejectionReason}
+                                  </p>
+                                </div>
+                              )}
+
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewDocument(doc)}
+                                  className="w-full sm:w-auto"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </Button>
+                                <Button
+                                  className="w-full bg-red-600 hover:bg-red-700"
+                                  onClick={() => handleOpenUploadModal(doc)}
+                                >
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Upload Document
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="user-documents" className="mt-4">
+              <div className="space-y-4">
+                {/* Section Header */}
+                <div>
+                  <h2 className="text-xl font-semibold">User Documents</h2>
+                  <p className="text-sm text-muted-foreground">
+                    View and manage document submissions from all users
+                  </p>
+                </div>
+
+                {/* User Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {users.filter(u => {
+                    const role = u.role?.toLowerCase();
+                    return role !== "owner" && role !== "admin";
+                  }).length === 0 ? (
+                    <div className="col-span-3 text-center py-12 text-muted-foreground">
+                      No users found
+                    </div>
+                  ) : (
+                    users
+                      .filter(u => {
+                        const role = u.role?.toLowerCase();
+                        return role !== "owner" && role !== "admin";
+                      })
+                      .map((user) => {
+                      // Calculate document completion for this user
+                      // Total required documents (all requirements including hidden ones)
+                      const totalDocuments = documents.filter(d => !d.status).length;
+                      // Documents uploaded by this specific user
+                      const uploadedDocuments = documents.filter(d => d.status && d.userId === user.id).length;
+                      // Pending documents for this user
+                      const pendingDocuments = documents.filter(d => d.status === "pending" && d.userId === user.id).length;
+                      // Expired documents for this user
+                      const expiredDocuments = documents.filter(d =>
+                        d.status &&
+                        d.userId === user.id &&
+                        d.expirationDate &&
+                        new Date(d.expirationDate) < new Date()
+                      ).length;
+
+                      return {
+                        user,
+                        totalDocuments,
+                        uploadedDocuments,
+                        pendingDocuments,
+                        expiredDocuments,
+                      };
+                    })
+                    .sort((a, b) => {
+                      // Sort users with expired documents to the top (highest priority)
+                      if (a.expiredDocuments > 0 && b.expiredDocuments === 0) return -1;
+                      if (a.expiredDocuments === 0 && b.expiredDocuments > 0) return 1;
+                      // Then sort by expired count descending
+                      if (a.expiredDocuments !== b.expiredDocuments) {
+                        return b.expiredDocuments - a.expiredDocuments;
+                      }
+                      // Then sort users with pending documents
+                      if (a.pendingDocuments > 0 && b.pendingDocuments === 0) return -1;
+                      if (a.pendingDocuments === 0 && b.pendingDocuments > 0) return 1;
+                      // Then sort by pending count descending
+                      if (a.pendingDocuments !== b.pendingDocuments) {
+                        return b.pendingDocuments - a.pendingDocuments;
+                      }
+                      // Finally sort alphabetically by name
+                      return a.user.fullName.localeCompare(b.user.fullName);
+                    })
+                    .map(({ user, totalDocuments, uploadedDocuments, pendingDocuments, expiredDocuments }) => (
+                      <Card
+                        key={user.id}
+                        className={`cursor-pointer hover:shadow-lg transition-all ${
+                          expiredDocuments > 0
+                            ? "border-red-400 bg-red-50/50 shadow-md border-2"
+                            : pendingDocuments > 0
+                            ? "border-blue-300 bg-blue-50/50 shadow-md"
+                            : ""
+                        }`}
+                        onClick={() => handleViewUserDocuments(user)}
+                      >
+                        <CardContent className="pt-6">
+                          <div className="flex items-start space-x-4">
+                            <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <span className="text-lg font-semibold">
+                                {getInitials(user.fullName)}
+                              </span>
+                              {expiredDocuments > 0 ? (
+                                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
+                                  {expiredDocuments}
+                                </div>
+                              ) : pendingDocuments > 0 ? (
+                                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">
+                                  {pendingDocuments}
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold truncate">{user.fullName}</h3>
+                                {expiredDocuments > 0 && (
+                                  <Badge className="bg-red-600 hover:bg-red-700 text-white">
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    {expiredDocuments} expired
+                                  </Badge>
+                                )}
+                                {pendingDocuments > 0 && (
+                                  <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
+                                    {pendingDocuments} pending
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground capitalize">
+                                {user.role}
+                              </p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-green-600 h-2 rounded-full transition-all"
+                                    style={{ width: `${totalDocuments > 0 ? (uploadedDocuments / totalDocuments) * 100 : 0}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {uploadedDocuments}/{totalDocuments}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
     </div>
   );
 }
