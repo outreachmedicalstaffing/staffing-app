@@ -728,7 +728,7 @@ export default function UserTimesheets() {
                   </div>
                   <div>
                     <Label className="text-muted-foreground text-xs">Total Pay</Label>
-                    <p className="text-lg font-semibold text-primary">
+                    <p className="text-lg font-semibold text-green-600">
                       {(() => {
                         const defaultRate = currentUser?.defaultHourlyRate
                           ? parseFloat(currentUser.defaultHourlyRate)
