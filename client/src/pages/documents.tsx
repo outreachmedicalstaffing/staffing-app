@@ -2214,12 +2214,13 @@ export default function Documents() {
                   />
                 </div>
 
-                {/* User Cards Grid */}
+                {/* User Cards Grid - Only showing regular users (employees/staff), excluding admins and owners */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {users.filter(u => {
                     const role = u.role?.toLowerCase();
                     const matchesSearch = userSearchQuery.trim() === "" ||
                       u.fullName.toLowerCase().includes(userSearchQuery.toLowerCase());
+                    // Exclude owner and admin users - only show regular employees/staff
                     return role !== "owner" && role !== "admin" && matchesSearch;
                   }).length === 0 ? (
                     <div className="col-span-3 text-center py-12 text-muted-foreground">
@@ -2231,6 +2232,7 @@ export default function Documents() {
                         const role = u.role?.toLowerCase();
                         const matchesSearch = userSearchQuery.trim() === "" ||
                           u.fullName.toLowerCase().includes(userSearchQuery.toLowerCase());
+                        // Exclude owner and admin users - only show regular employees/staff
                         return role !== "owner" && role !== "admin" && matchesSearch;
                       })
                       .map((user) => {
