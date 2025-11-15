@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
-import { Clock as ClockIcon } from "lucide-react";
+import { Clock as ClockIcon, Moon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +17,24 @@ import { ClockOutDialog } from "@/components/clock-out-dialog";
 // Helper function to remove "United States of America" from addresses
 const stripCountryFromAddress = (address: string): string => {
   return address.replace(/, United States of America$/, '');
+};
+
+// Helper function to detect if a time entry is a night shift
+const isNightShift = (clockIn: Date, clockOut: Date | null): boolean => {
+  if (!clockOut) return false; // Can't determine if shift is still active
+
+  const clockInHour = clockIn.getHours();
+  const clockOutHour = clockOut.getHours();
+
+  // Night shift if:
+  // 1. Clock in is after 6 PM (18:00)
+  // 2. Clock out is before 6 AM (06:00)
+  // 3. Shift crosses midnight (clock out date is after clock in date, but clock out hour is earlier)
+  const startsAtNight = clockInHour >= 18; // After 6 PM
+  const endsInMorning = clockOutHour < 6; // Before 6 AM
+  const crossesMidnight = clockOut.getTime() > clockIn.getTime() && clockOutHour < clockInHour;
+
+  return startsAtNight || endsInMorning || crossesMidnight;
 };
 
 export default function Clock() {
@@ -303,10 +321,20 @@ export default function Clock() {
                         (1000 * 60 * 60)
                       : 0;
 
+                    const isNight = isNightShift(
+                      new Date(entry.clockIn),
+                      entry.clockOut ? new Date(entry.clockOut) : null
+                    );
+
                     return (
                       <TableRow key={entry.id}>
                         <TableCell>
-                          {format(new Date(entry.clockIn), "EEE M/d")}
+                          <div className="flex items-center gap-2">
+                            {format(new Date(entry.clockIn), "EEE M/d")}
+                            {isNight && (
+                              <Moon className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {format(new Date(entry.clockIn), "h:mm a")}
