@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash, User as UserIcon, Download, EyeOff, Loader2 } from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertTriangle, Search, FileText, Eye, Upload, X, Trash, User as UserIcon, Download, EyeOff, LoaderCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Document {
@@ -838,7 +838,7 @@ export default function Documents() {
               onClick={handleSaveDocument}
               disabled={isUploading}
             >
-              {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isUploading && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
               {isUploading ? "Saving..." : "Save"}
             </Button>
           </div>
@@ -952,7 +952,7 @@ export default function Documents() {
               onClick={handleSaveUpload}
               disabled={isUploading}
             >
-              {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isUploading && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
               {isUploading ? "Uploading..." : "Upload"}
             </Button>
           </div>
