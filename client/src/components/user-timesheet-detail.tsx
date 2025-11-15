@@ -90,6 +90,24 @@ const jobLocations = [
   { id: 15, name: "Haven", color: "#EAB308" },
 ];
 
+// Helper function to detect if a time entry is a night shift
+const isNightShift = (clockIn: Date, clockOut: Date | null): boolean => {
+  if (!clockOut) return false; // Can't determine if shift is still active
+
+  const clockInHour = clockIn.getHours();
+  const clockOutHour = clockOut.getHours();
+
+  // Night shift if:
+  // 1. Clock in is after 6 PM (18:00)
+  // 2. Clock out is before 6 AM (06:00)
+  // 3. Shift crosses midnight (clock out date is after clock in date, but clock out hour is earlier)
+  const startsAtNight = clockInHour >= 18; // After 6 PM
+  const endsInMorning = clockOutHour < 6; // Before 6 AM
+  const crossesMidnight = clockOut.getTime() > clockIn.getTime() && clockOutHour < clockInHour;
+
+  return startsAtNight || endsInMorning || crossesMidnight;
+};
+
 interface UserTimesheetDetailProps {
   user: User | null;
   open: boolean;
@@ -922,7 +940,15 @@ export function UserTimesheetDetail({
                         className={pairClass}
                       >
                         <TableCell className="font-medium">
-                          {format(date, "EEE M/d")}
+                          <div className="flex items-center gap-2">
+                            {format(date, "EEE M/d")}
+                            {entry && entry.clockOut && isNightShift(
+                              new Date(entry.clockIn),
+                              new Date(entry.clockOut)
+                            ) && (
+                              <Moon className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
                         </TableCell>
 
                         {/* Job cell */}
