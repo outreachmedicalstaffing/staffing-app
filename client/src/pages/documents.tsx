@@ -654,6 +654,7 @@ export default function Documents() {
             Manage your credentials and certifications
           </p>
         </div>
+        {/* Admin action button for creating document requirements */}
         {isAdmin && (
           <Button
             className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
