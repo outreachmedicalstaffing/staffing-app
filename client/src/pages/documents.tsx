@@ -45,7 +45,7 @@ interface Document {
   requireReview: boolean;
   status?: "approved" | "expired" | "pending" | "rejected";
   rejectionReason?: string;
-  userId?: number; // ID of user who uploaded the document
+  userId?: string; // ID of user who uploaded the document (matches User.id type)
 }
 
 export default function Documents() {
