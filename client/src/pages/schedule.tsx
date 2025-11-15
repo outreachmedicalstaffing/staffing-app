@@ -2496,7 +2496,8 @@ export default function Schedule() {
                 const job = jobLocations.find(
                   (j) => j.name === shiftFormData.job,
                 );
-                if (!job || !job.description) return null;
+                const jobDescription = job ? jobInfo[job.name]?.description : undefined;
+                if (!job || !jobDescription) return null;
 
                 return (
                   <Accordion type="single" collapsible className="mt-2">
@@ -2506,7 +2507,7 @@ export default function Schedule() {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
-                          {job.description}
+                          {jobDescription}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -2996,10 +2997,11 @@ export default function Schedule() {
                         </div>
                         {(() => {
                           const job = jobLocations.find((j) => j.name === editingShift.jobName);
-                          if (job && job.description) {
+                          const jobDescription = job ? jobInfo[job.name]?.description : undefined;
+                          if (job && jobDescription) {
                             return (
                               <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
-                                {job.description}
+                                {jobDescription}
                               </div>
                             );
                           }
@@ -3173,7 +3175,8 @@ export default function Schedule() {
                 const job = jobLocations.find(
                   (j) => j.name === (editingShift.jobName || ""),
                 );
-                if (!job || !job.description) return null;
+                const jobDescription = job ? jobInfo[job.name]?.description : undefined;
+                if (!job || !jobDescription) return null;
 
                 return (
                   <Accordion type="single" collapsible className="mt-2">
@@ -3183,7 +3186,7 @@ export default function Schedule() {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="rounded-md border bg-muted/30 p-3 text-sm whitespace-pre-wrap">
-                          {job.description}
+                          {jobDescription}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
