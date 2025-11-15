@@ -1026,10 +1026,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ error: "Time entry not found" });
         }
 
-        // Update approval status to approved and lock the entry
+        // Update approval status to approved
         const updatedEntry = await storage.updateTimeEntry(entryId, {
           approvalStatus: "approved",
-          locked: true,
         });
 
         // Find and delete the notification for this approval
@@ -1090,44 +1089,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Approve time entry error:", error);
         res.status(500).json({ error: "Failed to approve time entry" });
-      }
-    },
-  );
-
-  // Unapprove time entry
-  app.post(
-    "/api/time/entries/:id/unapprove",
-    requireRole("Owner", "Admin"),
-    async (req, res) => {
-      try {
-        const entryId = req.params.id;
-        const entry = await storage.getTimeEntry(entryId);
-
-        if (!entry) {
-          return res.status(404).json({ error: "Time entry not found" });
-        }
-
-        // Update approval status to null and unlock the entry
-        const updatedEntry = await storage.updateTimeEntry(entryId, {
-          approvalStatus: null,
-          locked: false,
-        });
-
-        await logAudit(
-          req.session.userId,
-          "unapprove",
-          "time_entry",
-          entryId,
-          false,
-          [],
-          {},
-          req.ip,
-        );
-
-        res.json(updatedEntry);
-      } catch (error) {
-        console.error("Unapprove time entry error:", error);
-        res.status(500).json({ error: "Failed to unapprove time entry" });
       }
     },
   );
