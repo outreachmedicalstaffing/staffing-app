@@ -887,8 +887,9 @@ export function UserTimesheetDetail({
                       const dailyPay = hours * hourlyRate;
                       const isLocked = overnightCont?.locked || false;
 
-                      // Sort key: use the clock-out time for overnight continuations
-                      const sortKey = new Date(overnightCont.clockOut).getTime();
+                      // Sort key: use the clock-in time (original shift start) for overnight continuations
+                      // This ensures overnight continuation rows appear after new shifts that start on this day
+                      const sortKey = new Date(overnightCont.clockIn).getTime();
 
                       rowsWithSortKeys.push({
                         sortKey,
