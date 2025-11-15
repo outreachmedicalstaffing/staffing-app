@@ -668,7 +668,7 @@ export function UserTimesheetDetail({
   };
 
   // Get entry for a specific day (range-based: handles timezones & non-ISO strings)
-  // Only shows shifts on their clock-in date (simplified overnight display)
+  // Returns entry that STARTS on this date
   const getEntryForDay = (date: Date): TimeEntry | null => {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
@@ -679,8 +679,33 @@ export function UserTimesheetDetail({
       timeEntries.find((entry) => {
         const clockIn = new Date(entry.clockIn as any);
         // Only return entry if clock in is on this date
-        // Overnight shifts will only appear on their start date
         if (clockIn >= start && clockIn < end) return true;
+        return false;
+      }) || null
+    );
+  };
+
+  // Get overnight entry that started on a previous day and ENDS on this date
+  const getOvernightContinuation = (date: Date): TimeEntry | null => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    return (
+      timeEntries.find((entry) => {
+        const clockIn = new Date(entry.clockIn as any);
+        const clockOut = entry.clockOut ? new Date(entry.clockOut as any) : null;
+
+        // Must have clock out and be a night shift
+        if (!clockOut || !isNightShift(clockIn, clockOut)) return false;
+
+        // Clock in must be before this day starts
+        if (clockIn >= start) return false;
+
+        // Clock out must be on this day
+        if (clockOut >= start && clockOut < end) return true;
+
         return false;
       }) || null
     );
@@ -847,33 +872,206 @@ export function UserTimesheetDetail({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {daysReversed.map((date) => {
+                  {daysReversed.flatMap((date) => {
                     const entry = getEntryForDay(date);
-                    // Simplified: no split shift display, just calculate full hours
-                    const hours = calculateHours(entry);
-                    const hourlyRate = entry?.hourlyRate
-                      ? parseFloat(entry.hourlyRate)
-                      : parseFloat(
-                          ((user as any)?.defaultHourlyRate ?? "25") as string,
-                        );
-                    const dailyPay = hours * hourlyRate;
-                    const isLocked = entry?.locked || false;
+                    const overnightCont = getOvernightContinuation(date);
+                    const rows: JSX.Element[] = [];
 
-                    return (
+                    // CASE 1: Overnight continuation ending on this day (from previous day)
+                    // Render complete "END ROW" with all data
+                    if (overnightCont) {
+                      const hours = calculateHours(overnightCont);
+                      const hourlyRate = overnightCont?.hourlyRate
+                        ? parseFloat(overnightCont.hourlyRate)
+                        : parseFloat(((user as any)?.defaultHourlyRate ?? "25") as string);
+                      const dailyPay = hours * hourlyRate;
+                      const isLocked = overnightCont?.locked || false;
+
+                      rows.push(
+                        <TableRow
+                          key={`${date.toISOString()}-overnight-end`}
+                          data-testid={`row-day-${format(date, "yyyy-MM-dd")}-overnight-end`}
+                        >
+                          {/* Date cell */}
+                          <TableCell className="font-medium">
+                            {format(date, "EEE M/d")}
+                          </TableCell>
+
+                          {/* Program cell - empty */}
+                          <TableCell>—</TableCell>
+
+                          {/* Start cell - moon + curved line */}
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Moon className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                              <svg width="40" height="20" viewBox="0 0 40 20" className="text-blue-400 flex-shrink-0">
+                                <path d="M 0 10 Q 10 5, 20 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                              </svg>
+                            </div>
+                          </TableCell>
+
+                          {/* End cell - show end time with edit capability */}
+                          <TableCell>
+                            {canEdit ? (
+                              <Input
+                                type="time"
+                                defaultValue={format(new Date(overnightCont.clockOut), "HH:mm")}
+                                onBlur={(e) => {
+                                  const newValue = e.target.value;
+                                  const oldValue = format(new Date(overnightCont.clockOut), "HH:mm");
+                                  if (newValue !== oldValue) {
+                                    handleTimeChange(overnightCont.id, "clockOut", newValue);
+                                  }
+                                }}
+                                className="w-[120px] h-8"
+                                disabled={isLocked}
+                              />
+                            ) : (
+                              <span className="text-sm whitespace-nowrap">
+                                {format(new Date(overnightCont.clockOut), "h:mm a")}
+                              </span>
+                            )}
+                          </TableCell>
+
+                          {/* All remaining cells with full data */}
+                          <TableCell>{hours > 0 ? hours.toFixed(2) : "—"}</TableCell>
+                          <TableCell>${hourlyRate.toFixed(2)}</TableCell>
+                          <TableCell>{hours > 0 ? hours.toFixed(2) : "—"}</TableCell>
+                          <TableCell>{hours > 0 ? `$${dailyPay.toFixed(2)}` : "$0.00"}</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>{hours > 0 ? hours.toFixed(2) : "—"}</TableCell>
+                          <TableCell>—</TableCell>
+
+                          {/* Status */}
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {overnightCont?.approvalStatus === "pending" && (
+                                <>
+                                  <Badge variant="outline" className="border-orange-500 text-orange-700 text-xs">Pending</Badge>
+                                  {canEdit && (
+                                    <div className="flex items-center gap-1">
+                                      <Button size="sm" variant="ghost" className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                        onClick={() => approveTimeEntryMutation.mutate(overnightCont.id)} disabled={approveTimeEntryMutation.isPending}>
+                                        <CheckCircle className="h-3 w-3" />
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => { setSelectedEntryForReject(overnightCont); setRejectDialogOpen(true); }} disabled={rejectTimeEntryMutation.isPending}>
+                                        <XCircle className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                              {overnightCont?.approvalStatus === "approved" && <Badge variant="outline" className="border-green-500 text-green-700 text-xs">Approved</Badge>}
+                              {overnightCont?.approvalStatus === "rejected" && (
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant="outline" className="border-red-500 text-red-700 text-xs">Rejected</Badge>
+                                  {overnightCont.rejectionReason && <span className="text-[10px] text-muted-foreground max-w-[150px] truncate" title={overnightCont.rejectionReason}>{overnightCont.rejectionReason}</span>}
+                                </div>
+                              )}
+                              {!overnightCont?.approvalStatus && "—"}
+                            </div>
+                          </TableCell>
+
+                          {/* Actions */}
+                          <TableCell>
+                            {canEdit && (
+                              <Button variant="ghost" size="icon" onClick={() => handleLockToggle(date, overnightCont)} className="h-8 w-8">
+                                {isLocked ? <Lock className="h-4 w-4 text-red-600" /> : <Unlock className="h-4 w-4 text-muted-foreground" />}
+                              </Button>
+                            )}
+                          </TableCell>
+
+                          {/* Signature, Shift Notes, Employee notes, Manager notes */}
+                          <TableCell>{overnightCont?.relievingNurseSignature ? <img src={overnightCont.relievingNurseSignature} alt="Signature" className="h-8 max-w-[100px] object-contain cursor-pointer" onClick={() => window.open(overnightCont.relievingNurseSignature!, "_blank")} /> : "—"}</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell><span className="text-sm">{overnightCont?.employeeNotes || "—"}</span></TableCell>
+                          <TableCell>
+                            {canEdit ? (
+                              <Input type="text" value={notesDraft[overnightCont.id] ?? overnightCont.managerNotes ?? ""}
+                                onChange={(e) => { setNotesDraft((prev) => ({ ...prev, [overnightCont.id]: e.target.value })); queueSaveNotes(overnightCont.id, e.target.value); }}
+                                placeholder="Add notes..." className="w-full min-w-[150px] h-8" disabled={isLocked} />
+                            ) : (
+                              <span className="text-sm">{overnightCont.managerNotes || "—"}</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    // CASE 2: Check if THIS entry is an overnight shift (starts today, ends tomorrow)
+                    const isOvernightStart = entry && entry.clockOut && isNightShift(new Date(entry.clockIn), new Date(entry.clockOut));
+
+                    if (entry && isOvernightStart) {
+                      // Render minimal "START ROW" for overnight shift
+                      rows.push(
+                        <TableRow
+                          key={`${date.toISOString()}-overnight-start`}
+                          data-testid={`row-day-${format(date, "yyyy-MM-dd")}-overnight-start`}
+                        >
+                          {/* Date cell */}
+                          <TableCell className="font-medium">
+                            {format(date, "EEE M/d")}
+                          </TableCell>
+
+                          {/* Program cell - show program/location */}
+                          <TableCell>
+                            <span className="text-sm">{entry.program || entry.jobName || entry.location || "—"}</span>
+                          </TableCell>
+
+                          {/* Start cell - show start time with curved line */}
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {canEdit ? (
+                                <Input type="time" defaultValue={format(new Date(entry.clockIn), "HH:mm")}
+                                  onBlur={(e) => {
+                                    const newValue = e.target.value;
+                                    const oldValue = format(new Date(entry.clockIn), "HH:mm");
+                                    if (newValue !== oldValue) { handleTimeChange(entry.id, "clockIn", newValue); }
+                                  }}
+                                  className="w-[120px] h-8" disabled={entry.locked} />
+                              ) : (
+                                <span className="text-sm">{format(new Date(entry.clockIn), "h:mm a")}</span>
+                              )}
+                              <svg width="40" height="20" viewBox="0 0 40 20" className="text-blue-400 flex-shrink-0">
+                                <path d="M 0 10 Q 10 5, 20 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                              </svg>
+                            </div>
+                          </TableCell>
+
+                          {/* All other cells empty/minimal for start row */}
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                        </TableRow>
+                      );
+                    } else if (entry && !isOvernightStart) {
+                      // CASE 3: Normal shift (not overnight) - render regular row
+                      const hours = calculateHours(entry);
+                      const hourlyRate = entry?.hourlyRate
+                        ? parseFloat(entry.hourlyRate)
+                        : parseFloat(((user as any)?.defaultHourlyRate ?? "25") as string);
+                      const dailyPay = hours * hourlyRate;
+                      const isLocked = entry?.locked || false;
+
+                      rows.push(
                       <TableRow
                         key={date.toISOString()}
                         data-testid={`row-day-${format(date, "yyyy-MM-dd")}`}
                       >
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {format(date, "EEE M/d")}
-                            {entry && entry.clockOut && isNightShift(
-                              new Date(entry.clockIn),
-                              new Date(entry.clockOut)
-                            ) && (
-                              <Moon className="h-4 w-4 text-blue-600" title="Overnight shift" />
-                            )}
-                          </div>
+                          {format(date, "EEE M/d")}
                         </TableCell>
 
                         {/* Job cell */}
@@ -1381,7 +1579,33 @@ export function UserTimesheetDetail({
                           )}
                         </TableCell>
                       </TableRow>
-                    );
+                      );
+                    } else if (!entry && !overnightCont) {
+                      // CASE 4: No entry at all for this day - render empty row
+                      rows.push(
+                        <TableRow key={date.toISOString()} data-testid={`row-day-${format(date, "yyyy-MM-dd")}`}>
+                          <TableCell className="font-medium">{format(date, "EEE M/d")}</TableCell>
+                          <TableCell>{canEdit ? <Button variant="outline" size="sm" onClick={() => handleManualEntry(date)} className="h-8">Add Entry</Button> : "—"}</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                          <TableCell>—</TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    return rows;
                   })}
                 </TableBody>
               </Table>
