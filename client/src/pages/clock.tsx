@@ -308,6 +308,7 @@ export default function Clock() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Clock In</TableHead>
+                    <TableHead className="w-12"></TableHead>
                     <TableHead>Clock Out</TableHead>
                     <TableHead>Total Hours</TableHead>
                     <TableHead>Program</TableHead>
@@ -329,15 +330,15 @@ export default function Clock() {
                     return (
                       <TableRow key={entry.id}>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            {format(new Date(entry.clockIn), "EEE M/d")}
-                            {isNight && (
-                              <Moon className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
+                          {format(new Date(entry.clockIn), "EEE M/d")}
                         </TableCell>
                         <TableCell>
                           {format(new Date(entry.clockIn), "h:mm a")}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isNight && (
+                            <Moon className="h-4 w-4 text-blue-500 inline-block" title="Overnight shift" />
+                          )}
                         </TableCell>
                         <TableCell>
                           {entry.clockOut ? (
