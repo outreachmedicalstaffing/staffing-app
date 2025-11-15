@@ -1015,6 +1015,13 @@ export function UserTimesheetDetail({
                                 data-testid={`input-start-${format(date, "yyyy-MM-dd")}`}
                                 disabled={isLocked}
                               />
+                            ) : entry.clockOut && isNightShift(new Date(entry.clockIn), new Date(entry.clockOut)) ? (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span>{format(new Date(entry.clockIn), "h:mm a")}</span>
+                                <svg width="40" height="20" viewBox="0 0 40 20" className="text-blue-400">
+                                  <path d="M 0 10 Q 10 5, 20 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                </svg>
+                              </div>
                             ) : (
                               <span className="text-sm">
                                 {format(new Date(entry.clockIn), "h:mm a")}
@@ -1053,6 +1060,14 @@ export function UserTimesheetDetail({
                                 data-testid={`input-end-${format(date, "yyyy-MM-dd")}`}
                                 disabled={isLocked}
                               />
+                            ) : entry && isNightShift(new Date(entry.clockIn), new Date(entry.clockOut)) ? (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Moon className="h-4 w-4 text-blue-500" />
+                                <svg width="40" height="20" viewBox="0 0 40 20" className="text-blue-400">
+                                  <path d="M 0 10 Q 10 5, 20 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                </svg>
+                                <span className="whitespace-nowrap">{format(new Date(entry.clockOut), "h:mm a")}</span>
+                              </div>
                             ) : (
                               <span className="text-sm whitespace-nowrap">
                                 {format(new Date(entry.clockOut), "h:mm a")}
