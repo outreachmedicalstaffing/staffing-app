@@ -973,8 +973,8 @@ export default function Documents() {
 
           <Tabs defaultValue="all" className="w-full">
             {(() => {
-              // Calculate counts for each tab
-              const allRequirements = documents.filter(d => !d.status);
+              // Calculate counts for each tab - only count visible requirements for this user
+              const allRequirements = documents.filter(d => !d.status && d.visibleToUsers);
               const userDocs = documents.filter(d => d.status && d.userId === selectedUser?.id);
 
               const pendingUploadDocs = allRequirements.filter(requirement => {
@@ -1026,13 +1026,13 @@ export default function Documents() {
 
             {/* All Tab */}
             <TabsContent value="all" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
-              {documents.filter(d => !d.status).length === 0 ? (
+              {documents.filter(d => !d.status && d.visibleToUsers).length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   No document requirements created yet
                 </div>
               ) : (
                 documents
-                  .filter(d => !d.status) // Get all requirements (templates)
+                  .filter(d => !d.status && d.visibleToUsers) // Get visible requirements (templates) only
                   .map((requirement) => {
                     // Find if this user has uploaded this document
                     const userDoc = documents.find(d =>
@@ -1179,13 +1179,13 @@ export default function Documents() {
 
             {/* Pending Upload Tab */}
             <TabsContent value="pending-upload" className="space-y-4 py-4 overflow-y-auto max-h-[55vh]">
-              {documents.filter(d => !d.status).length === 0 ? (
+              {documents.filter(d => !d.status && d.visibleToUsers).length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   No document requirements created yet
                 </div>
               ) : (
                 documents
-                  .filter(d => !d.status)
+                  .filter(d => !d.status && d.visibleToUsers)
                   .filter(requirement => {
                     const userDoc = documents.find(d =>
                       d.status &&
@@ -1238,14 +1238,14 @@ export default function Documents() {
                     );
                   })
               )}
-              {documents.filter(d => !d.status).filter(requirement => {
+              {documents.filter(d => !d.status && d.visibleToUsers).filter(requirement => {
                 const userDoc = documents.find(d =>
                   d.status &&
                   d.userId === selectedUser?.id &&
                   d.title === requirement.title
                 );
                 return !userDoc;
-              }).length === 0 && documents.filter(d => !d.status).length > 0 && (
+              }).length === 0 && documents.filter(d => !d.status && d.visibleToUsers).length > 0 && (
                 <div className="text-center py-12 text-muted-foreground">
                   All documents have been uploaded
                 </div>
