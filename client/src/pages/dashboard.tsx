@@ -205,6 +205,28 @@ export default function Dashboard() {
     return shiftUser?.fullName || 'Unknown User';
   };
 
+  // Get the correct status for a shift based on whether the assigned user is clocked in
+  const getShiftStatus = (shift: Shift): any => {
+    // Find the assignment for this shift
+    const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
+    if (!assignment) return shift.status;
+
+    // Check if the assigned user has an active time entry for this shift
+    const activeTimeEntry = timeEntries.find(entry =>
+      !entry.clockOut &&
+      (entry as any).shiftId === shift.id &&
+      entry.userId === assignment.userId
+    );
+
+    // If there's an active time entry, show "Clocked In"
+    if (activeTimeEntry) {
+      return "clocked-in";
+    }
+
+    // Otherwise return the original shift status
+    return shift.status;
+  };
+
   // Expired documents - only count user's uploaded documents that have expired
   const expiredDocs = documents.filter(doc => {
     // Only count user's own uploaded documents (must have status) that are visible
@@ -328,7 +350,7 @@ export default function Dashboard() {
                       startTime={format(new Date(shift.startTime), 'h:mm a')}
                       endTime={format(new Date(shift.endTime), 'h:mm a')}
                       location={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown'}
-                      status={shift.status as any}
+                      status={getShiftStatus(shift)}
                       assignedTo={getUserNameForShift(shift.id)}
                       onView={() => setViewingShift(shift)}
                     />

@@ -2,12 +2,12 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Clock, XCircle, AlertTriangle, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Status = 
-  | "approved" | "completed" 
+type Status =
+  | "approved" | "completed"
   | "pending" | "submitted" | "claimed"
   | "rejected" | "expired" | "cancelled"
   | "expiring" | "warning"
-  | "draft" | "open";
+  | "draft" | "open" | "clocked-in";
 
 interface StatusBadgeProps {
   status: Status;
@@ -70,10 +70,15 @@ const statusConfig = {
     icon: Circle, 
     className: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400" 
   },
-  open: { 
-    label: "Open", 
-    icon: Circle, 
-    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" 
+  open: {
+    label: "Open",
+    icon: Circle,
+    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+  },
+  "clocked-in": {
+    label: "Clocked In",
+    icon: CheckCircle,
+    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
   },
 };
 

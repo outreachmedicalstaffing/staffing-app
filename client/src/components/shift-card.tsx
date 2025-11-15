@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, MapPin, CheckSquare, Paperclip } from "lucide-react";
 import { StatusBadge } from "./status-badge";
 
-type ShiftStatus = "approved" | "pending" | "open" | "completed" | "cancelled" | "claimed";
+type ShiftStatus = "approved" | "pending" | "open" | "completed" | "cancelled" | "claimed" | "clocked-in";
 
 interface ShiftCardProps {
   id: string;
