@@ -871,7 +871,7 @@ export function UserTimesheetDetail({
                               new Date(entry.clockIn),
                               new Date(entry.clockOut)
                             ) && (
-                              <Moon className="h-4 w-4 text-muted-foreground" />
+                              <Moon className="h-4 w-4 text-blue-600" title="Overnight shift" />
                             )}
                           </div>
                         </TableCell>
