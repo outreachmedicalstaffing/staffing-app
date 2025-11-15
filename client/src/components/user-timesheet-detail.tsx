@@ -967,7 +967,7 @@ export function UserTimesheetDetail({
                                   )}
                                 </>
                               )}
-                              {overnightCont?.approvalStatus === "approved" && <Badge variant="outline" className="border-green-500 text-green-700 text-xs">Approved</Badge>}
+                              {overnightCont?.approvalStatus === "approved" && overnightCont.clockOut && <Badge variant="outline" className="border-green-500 text-green-700 text-xs">Approved</Badge>}
                               {overnightCont?.approvalStatus === "rejected" && (
                                 <div className="flex flex-col gap-1">
                                   <Badge variant="outline" className="border-red-500 text-red-700 text-xs">Rejected</Badge>
@@ -1415,7 +1415,7 @@ export function UserTimesheetDetail({
                                 )}
                               </>
                             )}
-                            {entry?.approvalStatus === "approved" && (
+                            {entry?.approvalStatus === "approved" && entry.clockOut && (
                               <Badge variant="outline" className="border-green-500 text-green-700 text-xs">
                                 Approved
                               </Badge>
