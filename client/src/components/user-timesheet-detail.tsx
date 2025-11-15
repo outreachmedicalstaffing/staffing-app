@@ -875,7 +875,7 @@ export function UserTimesheetDetail({
                   {daysReversed.flatMap((date) => {
                     const entry = getEntryForDay(date);
                     const overnightCont = getOvernightContinuation(date);
-                    const rows: JSX.Element[] = [];
+                    const rowsWithSortKeys: Array<{ sortKey: number; row: JSX.Element }> = [];
 
                     // CASE 1: Overnight continuation ending on this day (from previous day)
                     // Render complete "END ROW" with all data
@@ -887,8 +887,12 @@ export function UserTimesheetDetail({
                       const dailyPay = hours * hourlyRate;
                       const isLocked = overnightCont?.locked || false;
 
-                      rows.push(
-                        <TableRow
+                      // Sort key: use the clock-out time for overnight continuations
+                      const sortKey = new Date(overnightCont.clockOut).getTime();
+
+                      rowsWithSortKeys.push({
+                        sortKey,
+                        row: <TableRow
                           key={`${date.toISOString()}-overnight-end`}
                           data-testid={`row-day-${format(date, "yyyy-MM-dd")}-overnight-end`}
                         >
@@ -996,16 +1000,20 @@ export function UserTimesheetDetail({
                             )}
                           </TableCell>
                         </TableRow>
-                      );
+                      });
                     }
 
                     // CASE 2: Check if THIS entry is an overnight shift (starts today, ends tomorrow)
                     const isOvernightStart = entry && entry.clockOut && isNightShift(new Date(entry.clockIn), new Date(entry.clockOut));
 
                     if (entry && isOvernightStart) {
+                      // Sort key: use the clock-in time for overnight start rows
+                      const sortKey = new Date(entry.clockIn).getTime();
+
                       // Render minimal "START ROW" for overnight shift
-                      rows.push(
-                        <TableRow
+                      rowsWithSortKeys.push({
+                        sortKey,
+                        row: <TableRow
                           key={`${date.toISOString()}-overnight-start`}
                           data-testid={`row-day-${format(date, "yyyy-MM-dd")}-overnight-start`}
                         >
@@ -1055,7 +1063,7 @@ export function UserTimesheetDetail({
                           <TableCell>—</TableCell>
                           <TableCell>—</TableCell>
                         </TableRow>
-                      );
+                      });
                     } else if (entry && !isOvernightStart) {
                       // CASE 3: Normal shift (not overnight) - render regular row
                       const hours = calculateHours(entry);
@@ -1065,8 +1073,12 @@ export function UserTimesheetDetail({
                       const dailyPay = hours * hourlyRate;
                       const isLocked = entry?.locked || false;
 
-                      rows.push(
-                      <TableRow
+                      // Sort key: use the clock-in time for normal rows
+                      const sortKey = new Date(entry.clockIn).getTime();
+
+                      rowsWithSortKeys.push({
+                        sortKey,
+                        row: <TableRow
                         key={date.toISOString()}
                         data-testid={`row-day-${format(date, "yyyy-MM-dd")}`}
                       >
@@ -1331,6 +1343,10 @@ export function UserTimesheetDetail({
                                 {format(new Date(entry.clockOut), "h:mm a")}
                               </span>
                             )
+                          ) : entry ? (
+                            <Badge variant="secondary" className="border-green-500 text-green-700 bg-green-50">
+                              Active
+                            </Badge>
                           ) : (
                             "—"
                           )}
@@ -1579,11 +1595,15 @@ export function UserTimesheetDetail({
                           )}
                         </TableCell>
                       </TableRow>
-                      );
+                      });
                     } else if (!entry && !overnightCont) {
                       // CASE 4: No entry at all for this day - render empty row
-                      rows.push(
-                        <TableRow key={date.toISOString()} data-testid={`row-day-${format(date, "yyyy-MM-dd")}`}>
+                      // Sort key: use start of day for empty rows
+                      const sortKey = date.getTime();
+
+                      rowsWithSortKeys.push({
+                        sortKey,
+                        row: <TableRow key={date.toISOString()} data-testid={`row-day-${format(date, "yyyy-MM-dd")}`}>
                           <TableCell className="font-medium">{format(date, "EEE M/d")}</TableCell>
                           <TableCell>{canEdit ? <Button variant="outline" size="sm" onClick={() => handleManualEntry(date)} className="h-8">Add Entry</Button> : "—"}</TableCell>
                           <TableCell>—</TableCell>
@@ -1602,10 +1622,14 @@ export function UserTimesheetDetail({
                           <TableCell>—</TableCell>
                           <TableCell>—</TableCell>
                         </TableRow>
-                      );
+                      });
                     }
 
-                    return rows;
+                    // Sort rows by their sort key (chronological order within the day)
+                    rowsWithSortKeys.sort((a, b) => a.sortKey - b.sortKey);
+
+                    // Return just the rows
+                    return rowsWithSortKeys.map(item => item.row);
                   })}
                 </TableBody>
               </Table>
