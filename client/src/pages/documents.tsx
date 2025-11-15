@@ -50,6 +50,7 @@ interface Document {
 
 export default function Documents() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [documentTitle, setDocumentTitle] = useState("");
   const [documentDescription, setDocumentDescription] = useState("");
@@ -1758,7 +1759,7 @@ export default function Documents() {
               <TabsTrigger value="expired">Expired</TabsTrigger>
             )}
             {isAdmin && (
-              <TabsTrigger value="user-documents">User Documents</TabsTrigger>
+              <TabsTrigger value="user-documents">All Users</TabsTrigger>
             )}
           </TabsList>
 
@@ -2195,26 +2196,42 @@ export default function Documents() {
               <div className="space-y-4">
                 {/* Section Header */}
                 <div>
-                  <h2 className="text-xl font-semibold">User Documents</h2>
+                  <h2 className="text-xl font-semibold">All Users</h2>
                   <p className="text-sm text-muted-foreground">
                     View and manage document submissions from all users
                   </p>
+                </div>
+
+                {/* User Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search users by name..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
 
                 {/* User Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {users.filter(u => {
                     const role = u.role?.toLowerCase();
-                    return role !== "owner" && role !== "admin";
+                    const matchesSearch = userSearchQuery.trim() === "" ||
+                      u.fullName.toLowerCase().includes(userSearchQuery.toLowerCase());
+                    return role !== "owner" && role !== "admin" && matchesSearch;
                   }).length === 0 ? (
                     <div className="col-span-3 text-center py-12 text-muted-foreground">
-                      No users found
+                      {userSearchQuery.trim() === "" ? "No users found" : `No users found matching "${userSearchQuery}"`}
                     </div>
                   ) : (
                     users
                       .filter(u => {
                         const role = u.role?.toLowerCase();
-                        return role !== "owner" && role !== "admin";
+                        const matchesSearch = userSearchQuery.trim() === "" ||
+                          u.fullName.toLowerCase().includes(userSearchQuery.toLowerCase());
+                        return role !== "owner" && role !== "admin" && matchesSearch;
                       })
                       .map((user) => {
                       // Calculate document completion for this user
@@ -2224,6 +2241,12 @@ export default function Documents() {
                       const uploadedDocuments = documents.filter(d => d.status && d.userId === user.id).length;
                       // Pending documents for this user
                       const pendingDocuments = documents.filter(d => d.status === "pending" && d.userId === user.id).length;
+                      // Approved documents for this user (not expired)
+                      const approvedDocuments = documents.filter(d => {
+                        if (d.status !== "approved" || d.userId !== user.id) return false;
+                        const isExpired = d.expirationDate && new Date(d.expirationDate) < new Date();
+                        return !isExpired;
+                      }).length;
                       // Expired documents for this user
                       const expiredDocuments = documents.filter(d =>
                         d.status &&
@@ -2237,6 +2260,7 @@ export default function Documents() {
                         totalDocuments,
                         uploadedDocuments,
                         pendingDocuments,
+                        approvedDocuments,
                         expiredDocuments,
                       };
                     })
@@ -2258,7 +2282,7 @@ export default function Documents() {
                       // Finally sort alphabetically by name
                       return a.user.fullName.localeCompare(b.user.fullName);
                     })
-                    .map(({ user, totalDocuments, uploadedDocuments, pendingDocuments, expiredDocuments }) => (
+                    .map(({ user, totalDocuments, uploadedDocuments, pendingDocuments, approvedDocuments, expiredDocuments }) => (
                       <Card
                         key={user.id}
                         className={`cursor-pointer hover:shadow-lg transition-all ${
@@ -2271,49 +2295,72 @@ export default function Documents() {
                         onClick={() => handleViewUserDocuments(user)}
                       >
                         <CardContent className="pt-6">
-                          <div className="flex items-start space-x-4">
-                            <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                              <span className="text-lg font-semibold">
-                                {getInitials(user.fullName)}
-                              </span>
-                              {expiredDocuments > 0 ? (
-                                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
-                                  {expiredDocuments}
-                                </div>
-                              ) : pendingDocuments > 0 ? (
-                                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">
-                                  {pendingDocuments}
-                                </div>
-                              ) : null}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-semibold truncate">{user.fullName}</h3>
-                                {expiredDocuments > 0 && (
-                                  <Badge className="bg-red-600 hover:bg-red-700 text-white">
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                    {expiredDocuments} expired
-                                  </Badge>
-                                )}
-                                {pendingDocuments > 0 && (
-                                  <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
-                                    {pendingDocuments} pending
-                                  </Badge>
-                                )}
+                          <div className="space-y-4">
+                            <div className="flex items-start space-x-4">
+                              <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                                <span className="text-lg font-semibold">
+                                  {getInitials(user.fullName)}
+                                </span>
+                                {expiredDocuments > 0 ? (
+                                  <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
+                                    {expiredDocuments}
+                                  </div>
+                                ) : pendingDocuments > 0 ? (
+                                  <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">
+                                    {pendingDocuments}
+                                  </div>
+                                ) : null}
                               </div>
-                              <p className="text-sm text-muted-foreground capitalize">
-                                {user.role}
-                              </p>
-                              <div className="mt-2 flex items-center gap-2">
-                                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className="bg-green-600 h-2 rounded-full transition-all"
-                                    style={{ width: `${totalDocuments > 0 ? (uploadedDocuments / totalDocuments) * 100 : 0}%` }}
-                                  />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold truncate">{user.fullName}</h3>
+                                  {expiredDocuments > 0 && (
+                                    <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs">
+                                      <AlertTriangle className="h-3 w-3 mr-1" />
+                                      {expiredDocuments} expired
+                                    </Badge>
+                                  )}
+                                  {pendingDocuments > 0 && (
+                                    <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                                      {pendingDocuments} pending
+                                    </Badge>
+                                  )}
                                 </div>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                <p className="text-sm text-muted-foreground capitalize">
+                                  {user.role}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Document Stats */}
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                              <div className="bg-green-50 rounded-lg p-2 border border-green-200">
+                                <div className="text-lg font-bold text-green-700">{approvedDocuments}</div>
+                                <div className="text-xs text-green-600">Approved</div>
+                              </div>
+                              <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+                                <div className="text-lg font-bold text-blue-700">{pendingDocuments}</div>
+                                <div className="text-xs text-blue-600">Pending</div>
+                              </div>
+                              <div className="bg-red-50 rounded-lg p-2 border border-red-200">
+                                <div className="text-lg font-bold text-red-700">{expiredDocuments}</div>
+                                <div className="text-xs text-red-600">Expired</div>
+                              </div>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>Documents Uploaded</span>
+                                <span className="font-medium">
                                   {uploadedDocuments}/{totalDocuments}
                                 </span>
+                              </div>
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-green-600 h-2 rounded-full transition-all"
+                                  style={{ width: `${totalDocuments > 0 ? (uploadedDocuments / totalDocuments) * 100 : 0}%` }}
+                                />
                               </div>
                             </div>
                           </div>
