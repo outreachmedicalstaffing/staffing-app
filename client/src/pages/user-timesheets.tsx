@@ -13,9 +13,27 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Pencil, Download, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { Pencil, Download, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+
+// Helper function to detect if a time entry is a night shift
+const isNightShift = (clockIn: Date, clockOut: Date | null): boolean => {
+  if (!clockOut) return false; // Can't determine if shift is still active
+
+  const clockInHour = clockIn.getHours();
+  const clockOutHour = clockOut.getHours();
+
+  // Night shift if:
+  // 1. Clock in is after 6 PM (18:00)
+  // 2. Clock out is before 6 AM (06:00)
+  // 3. Shift crosses midnight (clock out date is after clock in date, but clock out hour is earlier)
+  const startsAtNight = clockInHour >= 18; // After 6 PM
+  const endsInMorning = clockOutHour < 6; // Before 6 AM
+  const crossesMidnight = clockOut.getTime() > clockIn.getTime() && clockOutHour < clockInHour;
+
+  return startsAtNight || endsInMorning || crossesMidnight;
+};
 
 export default function UserTimesheets() {
   const { toast } = useToast();
@@ -292,6 +310,7 @@ export default function UserTimesheets() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Clock In</TableHead>
+                    <TableHead className="w-12"></TableHead>
                     <TableHead>Clock Out</TableHead>
                     <TableHead>Total Hours</TableHead>
                     <TableHead>Program</TableHead>
@@ -307,6 +326,11 @@ export default function UserTimesheets() {
                         (1000 * 60 * 60)
                       : 0;
 
+                    const isNight = isNightShift(
+                      new Date(entry.clockIn),
+                      entry.clockOut ? new Date(entry.clockOut) : null
+                    );
+
                     return (
                       <TableRow key={entry.id}>
                         <TableCell>
@@ -314,6 +338,11 @@ export default function UserTimesheets() {
                         </TableCell>
                         <TableCell>
                           {format(new Date(entry.clockIn), "h:mm a")}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isNight && (
+                            <Moon className="h-4 w-4 text-blue-500 inline-block" title="Overnight shift" />
+                          )}
                         </TableCell>
                         <TableCell>
                           {entry.clockOut
