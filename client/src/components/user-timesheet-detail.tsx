@@ -30,8 +30,6 @@ import {
   Download,
   ExternalLink,
   Moon,
-  CornerLeftDown,
-  CornerRightUp,
   CheckCircle,
   XCircle,
 } from "lucide-react";
@@ -717,6 +715,7 @@ export function UserTimesheetDetail({
   };
 
   // Get entry for a specific day (range-based: handles timezones & non-ISO strings)
+  // Only shows shifts on their clock-in date (simplified overnight display)
   const getEntryForDay = (date: Date): TimeEntry | null => {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
@@ -726,13 +725,9 @@ export function UserTimesheetDetail({
     return (
       timeEntries.find((entry) => {
         const clockIn = new Date(entry.clockIn as any);
-        const clockOut = entry.clockOut
-          ? new Date(entry.clockOut as any)
-          : null;
+        // Only return entry if clock in is on this date
+        // Overnight shifts will only appear on their start date
         if (clockIn >= start && clockIn < end) return true;
-        if (clockOut && isOvernightShift(clockIn, clockOut)) {
-          if (clockOut >= start && clockOut < end) return true;
-        }
         return false;
       }) || null
     );
@@ -751,9 +746,8 @@ export function UserTimesheetDetail({
   const weeklyTotals = daysReversed.reduce(
     (totals, date) => {
       const entry = getEntryForDay(date);
-      const splitInfo = entry ? getSplitShiftInfo(entry, date) : null;
-      const shouldCountHours = !splitInfo || splitInfo.isFirstDay;
-      const hours = shouldCountHours ? calculateHours(entry) : 0;
+      // Simplified: just calculate full hours for each entry
+      const hours = calculateHours(entry);
 
       const hourlyRate = entry?.hourlyRate
         ? parseFloat(entry.hourlyRate)
@@ -868,9 +862,7 @@ export function UserTimesheetDetail({
                   {
                     daysReversed.filter((date) => {
                       const entry = getEntryForDay(date);
-                      if (!entry) return false;
-                      const splitInfo = getSplitShiftInfo(entry, date);
-                      return !splitInfo || splitInfo.isFirstDay;
+                      return !!entry;
                     }).length
                   }
                 </p>
@@ -904,12 +896,8 @@ export function UserTimesheetDetail({
                 <TableBody>
                   {daysReversed.map((date) => {
                     const entry = getEntryForDay(date);
-                    const splitInfo = entry
-                      ? getSplitShiftInfo(entry, date)
-                      : null;
-                    const hours = splitInfo
-                      ? splitInfo.hours
-                      : calculateHours(entry);
+                    // Simplified: no split shift display, just calculate full hours
+                    const hours = calculateHours(entry);
                     const hourlyRate = entry?.hourlyRate
                       ? parseFloat(entry.hourlyRate)
                       : parseFloat(
@@ -917,27 +905,11 @@ export function UserTimesheetDetail({
                         );
                     const dailyPay = hours * hourlyRate;
                     const isLocked = entry?.locked || false;
-                    // --- overnight visual linking helpers ---
-                    const rowId = `row-${format(date, "yyyy-MM-dd")}`;
 
-                    const prev = new Date(date);
-                    prev.setDate(prev.getDate() - 1);
-                    const next = new Date(date);
-                    next.setDate(next.getDate() + 1);
-
-                    const prevId = `row-${format(prev, "yyyy-MM-dd")}`;
-                    const nextId = `row-${format(next, "yyyy-MM-dd")}`;
-                    // light band + left border for both sides of an overnight pair
-                    const pairClass = splitInfo
-                      ? "bg-blue-50/60 border-l-4 border-blue-600"
-                      : "";
-                    // ---
                     return (
                       <TableRow
-                        id={rowId}
                         key={date.toISOString()}
                         data-testid={`row-day-${format(date, "yyyy-MM-dd")}`}
-                        className={pairClass}
                       >
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
@@ -1070,20 +1042,7 @@ export function UserTimesheetDetail({
                         {/* Start cell */}
                         <TableCell>
                           {entry ? (
-                            // Second day of an overnight: show a clear link back to the previous day
-                            splitInfo && !splitInfo.isFirstDay ? (
-                              <a
-                                href={`#${prevId}`}
-                                className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"
-                                title={`Linked from ${format(prev, "EEE M/d")}`}
-                              >
-                                <CornerRightUp className="h-3 w-3" />
-                                <span>12:00 AM</span>
-                                <span className="ml-1 text-[11px]">
-                                  from {format(prev, "EEE M/d")}
-                                </span>
-                              </a>
-                            ) : canEdit ? (
+                            canEdit ? (
                               <Input
                                 type="time"
                                 defaultValue={format(
@@ -1121,21 +1080,7 @@ export function UserTimesheetDetail({
                         {/* End cell */}
                         <TableCell>
                           {entry?.clockOut ? (
-                            // First day of an overnight: clear link forward to the next day
-                            splitInfo && splitInfo.isFirstDay ? (
-                              <a
-                                href={`#${nextId}`}
-                                className="inline-flex items-center gap-1 text-sm text-blue-700 whitespace-nowrap hover:underline"
-                                title={`Continues to ${format(next, "EEE M/d")}`}
-                              >
-                                <span>12:00 AM</span>
-                                <CornerLeftDown className="h-3 w-3" />
-                                <Moon className="h-3 w-3" />
-                                <span className="ml-1 text-[11px]">
-                                  to {format(next, "EEE M/d")}
-                                </span>
-                              </a>
-                            ) : canEdit ? (
+                            canEdit ? (
                               <Input
                                 type="time"
                                 defaultValue={format(
@@ -1172,11 +1117,7 @@ export function UserTimesheetDetail({
 
                         {/* Totals for the day */}
                         <TableCell>
-                          {splitInfo && !splitInfo.isFirstDay ? (
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">
-                              {hours.toFixed(2)} 🌙
-                            </span>
-                          ) : hours > 0 ? (
+                          {hours > 0 ? (
                             <span className="whitespace-nowrap">
                               {hours.toFixed(2)}
                             </span>
