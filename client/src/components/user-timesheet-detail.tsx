@@ -667,53 +667,6 @@ export function UserTimesheetDetail({
     updateEntryMutation.mutate({ entryId, data: { managerNotes: notes } });
   };
 
-  // Helper to check if a shift spans multiple days
-  const isOvernightShift = (clockIn: Date, clockOut: Date | null) => {
-    if (!clockOut) return false;
-    const inDate = new Date(clockIn);
-    const outDate = new Date(clockOut);
-    inDate.setHours(0, 0, 0, 0);
-    outDate.setHours(0, 0, 0, 0);
-    return inDate.getTime() !== outDate.getTime();
-  };
-
-  // Calculate split hours for overnight shifts
-  const getSplitShiftInfo = (entry: TimeEntry, viewDate: Date) => {
-    if (!entry.clockOut) return null;
-
-    const clockIn = new Date(entry.clockIn);
-    const clockOut = new Date(entry.clockOut);
-
-    if (!isOvernightShift(clockIn, clockOut)) return null;
-
-    const midnight = new Date(clockIn);
-    midnight.setDate(midnight.getDate() + 1);
-    midnight.setHours(0, 0, 0, 0);
-
-    const viewDateStr = format(viewDate, "yyyy-MM-dd");
-    const clockInDateStr = format(clockIn, "yyyy-MM-dd");
-
-    if (viewDateStr === clockInDateStr) {
-      const hoursBeforeMidnight =
-        (midnight.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
-      return {
-        isFirstDay: true,
-        displayStart: format(clockIn, "h:mm a"),
-        displayEnd: "12:00 AM 🌙",
-        hours: hoursBeforeMidnight,
-      };
-    }
-
-    const hoursAfterMidnight =
-      (clockOut.getTime() - midnight.getTime()) / (1000 * 60 * 60);
-    return {
-      isFirstDay: false,
-      displayStart: "🌙 12:00 AM",
-      displayEnd: format(clockOut, "h:mm a"),
-      hours: hoursAfterMidnight,
-    };
-  };
-
   // Get entry for a specific day (range-based: handles timezones & non-ISO strings)
   // Only shows shifts on their clock-in date (simplified overnight display)
   const getEntryForDay = (date: Date): TimeEntry | null => {
@@ -944,11 +897,6 @@ export function UserTimesheetDetail({
                                     className="w-[200px] justify-between h-8 font-normal"
                                     data-testid={`select-job-${format(date, "yyyy-MM-dd")}`}
                                     disabled={isLocked}
-                                    title={
-                                      splitInfo && !splitInfo.isFirstDay
-                                        ? "Overnight continuation — editing job updates the whole shift"
-                                        : undefined
-                                    }
                                   >
                                     {entry.program || entry.jobName || entry.location || "Select"}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
