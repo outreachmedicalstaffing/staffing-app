@@ -74,8 +74,8 @@ export default function Clock() {
   // Check if user is admin
   const isAdmin = user?.role?.toLowerCase() === "owner" || user?.role?.toLowerCase() === "admin";
 
-  // Get active time entry (currently clocked in)
-  const activeEntry = timeEntries.find((e) => !e.clockOut);
+  // Get active time entry (currently clocked in) for the current user only
+  const activeEntry = timeEntries.find((e) => !e.clockOut && e.userId === user?.id);
 
   // Get current or next assigned shift
   const now = new Date();
@@ -97,9 +97,12 @@ export default function Clock() {
   const payrollStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const payrollEnd = endOfWeek(payrollStart, { weekStartsOn: 1 });
 
-  // Filter entries for current payroll week
+  // Filter entries for current payroll week (current user only)
   const weekEntries = timeEntries
     .filter((e) => {
+      // Only show the current user's time entries
+      if (e.userId !== user?.id) return false;
+
       const clockIn = new Date(e.clockIn);
       return (
         isWithinInterval(clockIn, { start: payrollStart, end: payrollEnd }) ||
