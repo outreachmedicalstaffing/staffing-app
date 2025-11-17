@@ -177,7 +177,8 @@ export default function Dashboard() {
   }, 0);
 
   // Shifts this week - for regular users, only their assigned shifts
-  const weekShifts = shifts.filter(shift => {
+  // Deduplicate shifts by ID to prevent double-counting
+  const weekShiftsFiltered = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
     if (!(shiftDate >= weekStart && shiftDate <= weekEnd)) {
       return false;
@@ -191,8 +192,19 @@ export default function Dashboard() {
     return true;
   });
 
+  // Deduplicate by shift ID (in case there are duplicate records)
+  const uniqueShiftIds = new Set<string>();
+  const weekShifts = weekShiftsFiltered.filter(shift => {
+    if (uniqueShiftIds.has(shift.id)) {
+      return false; // Skip duplicate
+    }
+    uniqueShiftIds.add(shift.id);
+    return true;
+  });
+
   // Upcoming shifts (next 7 days) - for regular users, only their assigned shifts
-  const upcomingShifts = shifts.filter(shift => {
+  // Deduplicate shifts by ID to prevent double-counting
+  const upcomingShiftsFiltered = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
     // Check if shift is in the next 7 days
     if (!isAfter(shiftDate, now) || !isBefore(shiftDate, addDays(now, 7))) {
@@ -201,13 +213,38 @@ export default function Dashboard() {
     // Check if the shift is assigned to the current user
     const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
     return assignment && assignment.userId === user?.id;
-  }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  });
+
+  // Deduplicate by shift ID (in case there are duplicate records)
+  const uniqueUpcomingIds = new Set<string>();
+  const upcomingShifts = upcomingShiftsFiltered
+    .filter(shift => {
+      if (uniqueUpcomingIds.has(shift.id)) {
+        return false; // Skip duplicate
+      }
+      uniqueUpcomingIds.add(shift.id);
+      return true;
+    })
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   // Today's shifts - for admins (all users' shifts for today)
-  const todayShifts = shifts.filter(shift => {
+  // Deduplicate shifts by ID to prevent double-counting
+  const todayShiftsFiltered = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
     return shiftDate >= todayStart && shiftDate <= todayEnd;
-  }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  });
+
+  // Deduplicate by shift ID (in case there are duplicate records)
+  const uniqueTodayIds = new Set<string>();
+  const todayShifts = todayShiftsFiltered
+    .filter(shift => {
+      if (uniqueTodayIds.has(shift.id)) {
+        return false; // Skip duplicate
+      }
+      uniqueTodayIds.add(shift.id);
+      return true;
+    })
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   // Helper function to get user name for a shift
   const getUserNameForShift = (shiftId: string) => {
