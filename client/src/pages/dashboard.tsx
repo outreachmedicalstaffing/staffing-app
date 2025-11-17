@@ -405,11 +405,10 @@ export default function Dashboard() {
                       key={shift.id}
                       id={shift.id}
                       job={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown Location'}
-                      subJob={shift.notes || 'Shift'}
+                      subJob={(shift as any).program || 'Program'}
                       date={format(new Date(shift.startTime), 'MMM d, yyyy')}
                       startTime={format(new Date(shift.startTime), 'h:mm a')}
                       endTime={format(new Date(shift.endTime), 'h:mm a')}
-                      location={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown'}
                       status={getShiftStatus(shift)}
                       assignedTo={getUserNameForShift(shift.id)}
                       onView={() => setViewingShift(shift)}
@@ -436,11 +435,10 @@ export default function Dashboard() {
                       key={shift.id}
                       id={shift.id}
                       job={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown Location'}
-                      subJob={shift.notes || 'Shift'}
+                      subJob={(shift as any).program || 'Program'}
                       date={format(new Date(shift.startTime), 'MMM d, yyyy')}
                       startTime={format(new Date(shift.startTime), 'h:mm a')}
                       endTime={format(new Date(shift.endTime), 'h:mm a')}
-                      location={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown'}
                       status={shift.status as any}
                       assignedTo="You"
                       onView={() => setViewingShift(shift)}

@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, CheckSquare, Paperclip } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 import { StatusBadge } from "./status-badge";
 
 type ShiftStatus = "approved" | "pending" | "open" | "completed" | "cancelled" | "claimed" | "clocked-in";
@@ -13,10 +12,10 @@ interface ShiftCardProps {
   date: string;
   startTime: string;
   endTime: string;
-  location?: string;
+  location?: string; // Kept for backwards compatibility but not displayed
   status: ShiftStatus;
-  tasksCount?: number;
-  attachmentsCount?: number;
+  tasksCount?: number; // Kept for backwards compatibility but not displayed
+  attachmentsCount?: number; // Kept for backwards compatibility but not displayed
   assignedTo?: string;
   onClaim?: () => void;
   onView?: () => void;
@@ -29,10 +28,7 @@ export function ShiftCard({
   date,
   startTime,
   endTime,
-  location,
   status,
-  tasksCount = 0,
-  attachmentsCount = 0,
   assignedTo,
   onClaim,
   onView,
@@ -56,38 +52,15 @@ export function ShiftCard({
             <Clock className="h-4 w-4" />
             <span>{startTime} - {endTime}</span>
           </div>
-          {location && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span>{location}</span>
-            </div>
-          )}
           {assignedTo && (
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-medium">
                 {assignedTo.split(' ').map(n => n[0]).join('')}
               </div>
               <span className="text-sm">{assignedTo}</span>
             </div>
           )}
         </div>
-
-        {(tasksCount > 0 || attachmentsCount > 0) && (
-          <div className="flex gap-3">
-            {tasksCount > 0 && (
-              <Badge variant="secondary" className="gap-1.5">
-                <CheckSquare className="h-3 w-3" />
-                {tasksCount} Tasks
-              </Badge>
-            )}
-            {attachmentsCount > 0 && (
-              <Badge variant="secondary" className="gap-1.5">
-                <Paperclip className="h-3 w-3" />
-                {attachmentsCount} Files
-              </Badge>
-            )}
-          </div>
-        )}
 
         <div className="flex gap-2 pt-2">
           {status === "open" && onClaim && (
