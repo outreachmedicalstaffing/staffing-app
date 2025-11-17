@@ -178,9 +178,22 @@ export default function Dashboard() {
 
   // Shifts this week - for regular users, only their assigned shifts
   // Deduplicate shifts by ID to prevent double-counting
+  console.log('[Dashboard] Week Start:', weekStart, 'Week End:', weekEnd);
+  console.log('[Dashboard] All shifts:', shifts.length);
+
   const weekShiftsFiltered = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
-    if (!(shiftDate >= weekStart && shiftDate <= weekEnd)) {
+    const inWeek = shiftDate >= weekStart && shiftDate <= weekEnd;
+
+    console.log('[Dashboard] Week Shift Check:', {
+      shiftId: shift.id,
+      startTime: shift.startTime,
+      shiftDate: shiftDate.toISOString(),
+      inWeek,
+      isAdmin
+    });
+
+    if (!inWeek) {
       return false;
     }
     // For regular users, only count their assigned shifts
@@ -192,40 +205,76 @@ export default function Dashboard() {
     return true;
   });
 
+  console.log('[Dashboard] Week Shifts Filtered (before dedup):', weekShiftsFiltered.length);
+  console.log('[Dashboard] Week Shifts IDs:', weekShiftsFiltered.map(s => ({ id: s.id, start: s.startTime })));
+
   // Deduplicate by shift ID (in case there are duplicate records)
   const uniqueShiftIds = new Set<string>();
   const weekShifts = weekShiftsFiltered.filter(shift => {
     if (uniqueShiftIds.has(shift.id)) {
+      console.log('[Dashboard] DUPLICATE FOUND - Week Shift ID:', shift.id);
       return false; // Skip duplicate
     }
     uniqueShiftIds.add(shift.id);
     return true;
   });
 
-  // Upcoming shifts (next 7 days) - for regular users, only their assigned shifts
+  console.log('[Dashboard] Week Shifts (after dedup):', weekShifts.length);
+  console.log('[Dashboard] Unique Shift IDs:', Array.from(uniqueShiftIds));
+
+  // Upcoming shifts (next 7 days) - for regular users, only their assigned shifts, for admins all shifts
   // Deduplicate shifts by ID to prevent double-counting
+  const upcomingEnd = addDays(now, 7);
+  console.log('[Dashboard] Upcoming Shifts Range - Now:', now, 'End:', upcomingEnd);
+
   const upcomingShiftsFiltered = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
+    const isAfterNow = isAfter(shiftDate, now);
+    const isBeforeEnd = isBefore(shiftDate, upcomingEnd);
+    const inRange = isAfterNow && isBeforeEnd;
+
+    console.log('[Dashboard] Upcoming Shift Check:', {
+      shiftId: shift.id,
+      startTime: shift.startTime,
+      shiftDate: shiftDate.toISOString(),
+      isAfterNow,
+      isBeforeEnd,
+      inRange,
+      isAdmin
+    });
+
     // Check if shift is in the next 7 days
-    if (!isAfter(shiftDate, now) || !isBefore(shiftDate, addDays(now, 7))) {
+    if (!inRange) {
       return false;
     }
-    // Check if the shift is assigned to the current user
-    const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
-    return assignment && assignment.userId === user?.id;
+
+    // For regular users, only show their assigned shifts
+    if (!isAdmin) {
+      const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
+      return assignment && assignment.userId === user?.id;
+    }
+
+    // For admins, show all shifts
+    return true;
   });
+
+  console.log('[Dashboard] Upcoming Shifts Filtered (before dedup):', upcomingShiftsFiltered.length);
+  console.log('[Dashboard] Upcoming Shifts IDs:', upcomingShiftsFiltered.map(s => ({ id: s.id, start: s.startTime })));
 
   // Deduplicate by shift ID (in case there are duplicate records)
   const uniqueUpcomingIds = new Set<string>();
   const upcomingShifts = upcomingShiftsFiltered
     .filter(shift => {
       if (uniqueUpcomingIds.has(shift.id)) {
+        console.log('[Dashboard] DUPLICATE FOUND - Upcoming Shift ID:', shift.id);
         return false; // Skip duplicate
       }
       uniqueUpcomingIds.add(shift.id);
       return true;
     })
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  console.log('[Dashboard] Upcoming Shifts (after dedup):', upcomingShifts.length);
 
   // Today's shifts - for admins (all users' shifts for today)
   // Deduplicate shifts by ID to prevent double-counting
