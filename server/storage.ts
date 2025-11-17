@@ -247,6 +247,8 @@ export class DbStorage implements IStorage {
   async getActiveTimeEntry(userId: string): Promise<TimeEntry | undefined> {
     // CRITICAL: Check for active time entry by userId AND clockOut = NULL
     // This prevents blocking user clock-in based on other users' active entries
+    console.log("[getActiveTimeEntry] Checking for active entry for userId:", userId);
+
     const result = await db
       .select()
       .from(timeEntries)
@@ -255,6 +257,16 @@ export class DbStorage implements IStorage {
       )
       .orderBy(desc(timeEntries.clockIn))
       .limit(1);
+
+    console.log("[getActiveTimeEntry] Query result:", {
+      userId,
+      foundEntry: !!result[0],
+      entryId: result[0]?.id,
+      entryUserId: result[0]?.userId,
+      entryClockOut: result[0]?.clockOut,
+      userIdMatch: result[0]?.userId === userId,
+    });
+
     return result[0];
   }
 
