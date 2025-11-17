@@ -5,9 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Clock, Bell, Users, Database, Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { Shield, Clock, Bell, Users, Database, Plus, Trash2, Calendar as CalendarIcon, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +22,7 @@ interface Holiday {
   date: string;
   startTime?: string;
   endTime?: string;
+  programs?: string[]; // Programs this holiday applies to (empty = all programs)
 }
 
 interface PayRules {
@@ -30,6 +33,25 @@ interface PayRules {
   payrollPeriod?: string;
   autoClockOutHours?: string;
 }
+
+// Available programs for holiday assignment
+const PROGRAMS = [
+  "Vitas Citrus",
+  "Vitas Nature Coast",
+  "Vitas Jacksonville",
+  "Vitas V/F/P",
+  "Vitas Central Florida",
+  "Vitas Midstate",
+  "Vitas Brevard",
+  "Vitas Treasure Coast",
+  "Vitas Palm Beach",
+  "Vitas Dade/Monroe",
+  "Vitas Jacksonville (St. Johns)",
+  "Vitas Broward",
+  "AdventHealth IPU",
+  "AdventHealth Central Florida",
+  "Haven",
+];
 
 export default function Settings() {
   const [, setLocation] = useLocation();
@@ -650,6 +672,94 @@ export default function Settings() {
                               data-testid={`input-holiday-end-${holiday.id}`}
                             />
                           </div>
+                        </div>
+
+                        {/* Program Selection */}
+                        <div className="space-y-2">
+                          <Label>Applies to Programs</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Select programs for this holiday. Leave empty to apply to all programs.
+                          </p>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal"
+                                data-testid={`button-select-programs-${holiday.id}`}
+                              >
+                                {holiday.programs && holiday.programs.length > 0
+                                  ? `${holiday.programs.length} program${holiday.programs.length > 1 ? 's' : ''} selected`
+                                  : "All programs"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[400px] p-0" align="start">
+                              <div className="max-h-[300px] overflow-y-auto p-4">
+                                <div className="space-y-2">
+                                  {PROGRAMS.map((program) => {
+                                    const isSelected = holiday.programs?.includes(program) || false;
+                                    return (
+                                      <div
+                                        key={program}
+                                        className="flex items-center space-x-2"
+                                      >
+                                        <Checkbox
+                                          id={`${holiday.id}-${program}`}
+                                          checked={isSelected}
+                                          onCheckedChange={(checked) => {
+                                            const currentPrograms = holiday.programs || [];
+                                            const newPrograms = checked
+                                              ? [...currentPrograms, program]
+                                              : currentPrograms.filter(p => p !== program);
+                                            updateHoliday(holiday.id, { programs: newPrograms });
+                                          }}
+                                        />
+                                        <label
+                                          htmlFor={`${holiday.id}-${program}`}
+                                          className="text-sm cursor-pointer flex-1"
+                                        >
+                                          {program}
+                                        </label>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              {holiday.programs && holiday.programs.length > 0 && (
+                                <div className="border-t p-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => updateHoliday(holiday.id, { programs: [] })}
+                                  >
+                                    Clear Selection (Apply to All)
+                                  </Button>
+                                </div>
+                              )}
+                            </PopoverContent>
+                          </Popover>
+                          {holiday.programs && holiday.programs.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {holiday.programs.map((program) => (
+                                <Badge
+                                  key={program}
+                                  variant="secondary"
+                                  className="text-xs"
+                                >
+                                  {program}
+                                  <button
+                                    onClick={() => {
+                                      const newPrograms = holiday.programs!.filter(p => p !== program);
+                                      updateHoliday(holiday.id, { programs: newPrograms });
+                                    }}
+                                    className="ml-1 hover:text-destructive"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex justify-end pt-2">
