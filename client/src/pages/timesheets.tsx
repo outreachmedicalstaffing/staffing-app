@@ -3,10 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download, Calendar, Filter, ChevronLeft, ChevronRight, X, ChevronDown } from "lucide-react";
+import { Search, Download, Calendar, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import type { Timesheet, User, TimeEntry } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -202,11 +201,6 @@ export default function Timesheets() {
   const allSelected = filteredData.length > 0 && filteredData.every(item => selectedUserIds.has(item.user.id));
   const someSelected = filteredData.some(item => selectedUserIds.has(item.user.id)) && !allSelected;
 
-  // Clear selection handler
-  const handleClearSelection = () => {
-    setSelectedUserIds(new Set());
-  };
-
   // Export button handler
   const handleExportClick = () => {
     if (selectedUserIds.size === 0) {
@@ -346,39 +340,15 @@ export default function Timesheets() {
           <p className="text-muted-foreground">Review and approve employee time</p>
         </div>
         <div className="flex gap-2">
-          {selectedUserIds.size > 0 && (
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    data-testid="button-actions"
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Actions
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleExportClick} data-testid="menu-item-export">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export to PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
-                <span className="text-sm font-medium">{selectedUserIds.size} selected</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-0 hover:bg-transparent"
-                  onClick={handleClearSelection}
-                  data-testid="button-clear-selection"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <Button
+            variant="outline"
+            data-testid="button-export"
+            onClick={handleExportClick}
+            disabled={selectedUserIds.size === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export {selectedUserIds.size > 0 && `(${selectedUserIds.size})`}
+          </Button>
         </div>
       </div>
 
@@ -565,7 +535,7 @@ export default function Timesheets() {
                       <TableRow
                         key={item.user.id}
                         data-testid={`row-user-${item.user.id}`}
-                        className={`hover-elevate ${selectedUserIds.has(item.user.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}
+                        className="hover-elevate"
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox
