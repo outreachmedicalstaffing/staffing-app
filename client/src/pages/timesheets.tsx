@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Calendar, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Calendar, Filter, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
@@ -195,6 +195,12 @@ export default function Timesheets() {
   const allSelected = filteredData.length > 0 && filteredData.every(item => selectedUserIds.has(item.user.id));
   const someSelected = filteredData.some(item => selectedUserIds.has(item.user.id)) && !allSelected;
 
+  // Export button handler
+  const handleExportClick = () => {
+    console.log("Export functionality coming soon");
+    alert("Export functionality coming soon");
+  };
+
   if (loadingTimesheets || loadingUsers || loadingEntries) {
     return (
       <div className="space-y-6">
@@ -210,6 +216,16 @@ export default function Timesheets() {
         <div>
           <h1 className="text-2xl font-semibold" data-testid="heading-timesheets">Timesheets</h1>
           <p className="text-muted-foreground">Review and approve employee time</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportClick}
+            data-testid="button-export"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
         </div>
       </div>
 
