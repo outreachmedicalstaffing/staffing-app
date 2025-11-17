@@ -161,16 +161,6 @@ export default function Dashboard() {
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
 
-  // Debug logging - show user and data
-  console.log('[Dashboard] Current User:', { id: user?.id, name: user?.fullName, role: user?.role, isAdmin });
-  console.log('[Dashboard] Total Shifts:', shifts.length);
-  console.log('[Dashboard] Total Shift Assignments:', shiftAssignments.length);
-  console.log('[Dashboard] Shift Assignments:', shiftAssignments.map(a => ({
-    shiftId: a.shiftId,
-    userId: a.userId,
-    userName: users.find(u => u.id === a.userId)?.fullName
-  })));
-
   // Hours this week
   const weekTimeEntries = timeEntries.filter(entry => {
     const clockIn = new Date(entry.clockIn);
@@ -195,27 +185,11 @@ export default function Dashboard() {
     // For regular users, only count their assigned shifts
     if (!isAdmin) {
       const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
-      const isAssignedToUser = assignment && assignment.userId === user?.id;
-
-      // Debug logging
-      console.log('[Dashboard] Week Shift Filter:', {
-        shiftId: shift.id,
-        shiftStartTime: shift.startTime,
-        currentUserId: user?.id,
-        currentUserName: user?.fullName,
-        assignmentUserId: assignment?.userId,
-        isAssignedToUser,
-        isAdmin,
-      });
-
-      return isAssignedToUser;
+      return assignment && assignment.userId === user?.id;
     }
     // For admins, count all shifts
     return true;
   });
-
-  console.log('[Dashboard] Total Week Shifts Count:', weekShifts.length);
-  console.log('[Dashboard] Week Shifts:', weekShifts.map(s => ({ id: s.id, startTime: s.startTime })));
 
   // Upcoming shifts (next 7 days) - for regular users, only their assigned shifts
   const upcomingShifts = shifts.filter(shift => {
@@ -226,22 +200,8 @@ export default function Dashboard() {
     }
     // Check if the shift is assigned to the current user
     const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
-    const isAssignedToUser = assignment && assignment.userId === user?.id;
-
-    // Debug logging
-    console.log('[Dashboard] Upcoming Shift Filter:', {
-      shiftId: shift.id,
-      shiftStartTime: shift.startTime,
-      currentUserId: user?.id,
-      assignmentUserId: assignment?.userId,
-      isAssignedToUser,
-    });
-
-    return isAssignedToUser;
+    return assignment && assignment.userId === user?.id;
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-  console.log('[Dashboard] Total Upcoming Shifts Count:', upcomingShifts.length);
-  console.log('[Dashboard] Upcoming Shifts:', upcomingShifts.map(s => ({ id: s.id, startTime: s.startTime })));
 
   // Today's shifts - for admins (all users' shifts for today)
   const todayShifts = shifts.filter(shift => {
