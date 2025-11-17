@@ -197,8 +197,257 @@ export default function Timesheets() {
 
   // Export button handler
   const handleExportClick = () => {
-    console.log("Export functionality coming soon");
-    alert("Export functionality coming soon");
+    // Check if any users are selected
+    if (selectedUserIds.size === 0) {
+      alert("Please select at least one user");
+      return;
+    }
+
+    // Get selected users data
+    const selectedUsers = filteredData.filter(item => selectedUserIds.has(item.user.id));
+
+    // Generate HTML content
+    let htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Timesheets - ${weekRangeDisplay}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      color: #333;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 10px;
+    }
+    .company-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #2563eb;
+      margin-bottom: 5px;
+    }
+    .report-title {
+      font-size: 18px;
+      color: #666;
+    }
+    .user-section {
+      page-break-after: always;
+      margin-bottom: 40px;
+      border: 1px solid #ddd;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    .user-header {
+      background-color: #2563eb;
+      color: white;
+      padding: 15px;
+      margin: -20px -20px 20px -20px;
+      border-radius: 8px 8px 0 0;
+    }
+    .user-name {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .week-range {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+      background-color: #f3f4f6;
+      padding: 15px;
+      border-radius: 6px;
+    }
+    .stat-box {
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .stat-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #2563eb;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 12px;
+    }
+    th {
+      background-color: #2563eb;
+      color: white;
+      padding: 10px 8px;
+      text-align: left;
+      font-weight: 600;
+      border: 1px solid #1d4ed8;
+    }
+    td {
+      padding: 8px;
+      border: 1px solid #ddd;
+    }
+    tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+    tr:hover {
+      background-color: #f3f4f6;
+    }
+    .no-entries {
+      text-align: center;
+      padding: 30px;
+      color: #666;
+      font-style: italic;
+    }
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+    }
+    @media print {
+      .user-section {
+        page-break-after: always;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="company-name">Outreach Medical Staffing</div>
+    <div class="report-title">Timesheet Report - Week of ${weekRangeDisplay}</div>
+  </div>
+`;
+
+    // Generate content for each selected user
+    selectedUsers.forEach((userData, index) => {
+      // Get time entries for this user in the current week
+      const userTimeEntries = timeEntries.filter(entry => {
+        if (entry.userId !== userData.user.id) return false;
+        const entryDate = new Date(entry.clockIn);
+        return entryDate >= currentWeekStart && entryDate <= weekEnd;
+      }).sort((a, b) => new Date(a.clockIn).getTime() - new Date(b.clockIn).getTime());
+
+      // Count worked days
+      const workedDays = new Set(userTimeEntries.map(entry =>
+        format(new Date(entry.clockIn), 'yyyy-MM-dd')
+      )).size;
+
+      htmlContent += `
+  <div class="user-section">
+    <div class="user-header">
+      <div class="user-name">${userData.user.fullName}</div>
+      <div class="week-range">Week of ${weekRangeDisplay}</div>
+    </div>
+
+    <div class="summary-stats">
+      <div class="stat-box">
+        <div class="stat-label">Regular Hours</div>
+        <div class="stat-value">${userData.regularHours.toFixed(2)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Holiday Hours</div>
+        <div class="stat-value">${userData.holidayHours.toFixed(2)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Total Paid Hours</div>
+        <div class="stat-value">${userData.totalHours.toFixed(2)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Worked Days</div>
+        <div class="stat-value">${workedDays}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Program</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Total Hours</th>
+          <th>Hourly Rate</th>
+          <th>Daily Total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+`;
+
+      if (userTimeEntries.length > 0) {
+        userTimeEntries.forEach(entry => {
+          const clockIn = new Date(entry.clockIn);
+          const clockOut = entry.clockOut ? new Date(entry.clockOut) : null;
+          const hours = clockOut
+            ? ((clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60)).toFixed(2)
+            : '—';
+          const hourlyRate = 25; // Default rate
+          const dailyTotal = clockOut ? (parseFloat(hours) * hourlyRate).toFixed(2) : '—';
+
+          htmlContent += `
+        <tr>
+          <td>${format(clockIn, 'EEE M/d/yyyy')}</td>
+          <td>${(entry as any).program || '—'}</td>
+          <td>${format(clockIn, 'h:mm a')}</td>
+          <td>${clockOut ? format(clockOut, 'h:mm a') : '—'}</td>
+          <td>${hours}</td>
+          <td>$${hourlyRate.toFixed(2)}</td>
+          <td>$${dailyTotal}</td>
+          <td>${entry.clockOut ? 'Complete' : 'In Progress'}</td>
+        </tr>
+`;
+        });
+      } else {
+        htmlContent += `
+        <tr>
+          <td colspan="8" class="no-entries">No time entries for this week</td>
+        </tr>
+`;
+      }
+
+      htmlContent += `
+      </tbody>
+    </table>
+  </div>
+`;
+    });
+
+    htmlContent += `
+  <div class="footer">
+    Generated on ${format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')}
+  </div>
+</body>
+</html>
+`;
+
+    // Create blob and download
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Timesheets_${format(currentWeekStart, 'MM-dd')}-to-${format(weekEnd, 'MM-dd')}_${format(new Date(), 'yyyy')}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // Clear selection after export
+    setSelectedUserIds(new Set());
   };
 
   if (loadingTimesheets || loadingUsers || loadingEntries) {
