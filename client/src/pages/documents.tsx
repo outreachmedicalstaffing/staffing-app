@@ -906,6 +906,7 @@ export default function Documents() {
               <Input
                 id="upload-file-input"
                 type="file"
+                accept="image/*,.pdf,.doc,.docx,.txt"
                 onChange={(e) => setUploadModalFile(e.target.files?.[0] || null)}
                 className="cursor-pointer"
               />
@@ -914,6 +915,9 @@ export default function Documents() {
                   Selected: {uploadModalFile.name}
                 </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                Accepted formats: Images, PDF, Word documents (Max 5MB)
+              </p>
             </div>
 
             {documentToUpload?.hasExpiration && (
