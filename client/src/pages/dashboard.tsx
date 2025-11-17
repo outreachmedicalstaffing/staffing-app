@@ -156,9 +156,10 @@ export default function Dashboard() {
 
   // Calculate statistics
   const now = new Date();
-  // Use Sunday as week start (0) to match Schedule view (Nov 17-23)
-  const weekStart = startOfWeek(now, { weekStartsOn: 0 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 0 });
+  // Use Monday as week start (1) for payroll weeks (Monday to Sunday)
+  // This week: Nov 17-23 (Mon to Sun), Last week: Nov 10-16 (Mon to Sun)
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
 
