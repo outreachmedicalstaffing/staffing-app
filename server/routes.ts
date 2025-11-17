@@ -478,8 +478,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
 
       // Check if user is already clocked in
+      // CRITICAL: This query filters by userId AND clockOut = NULL
+      // Only blocks clock-in if THIS user has an active entry
       const activeEntry = await storage.getActiveTimeEntry(userId);
+
+      console.log("[Clock-In Check]", {
+        userId,
+        hasActiveEntry: !!activeEntry,
+        activeEntryId: activeEntry?.id,
+        activeEntryClockIn: activeEntry?.clockIn,
+        activeEntryClockOut: activeEntry?.clockOut,
+      });
+
       if (activeEntry) {
+        console.log("[Clock-In Blocked] User already has active time entry:", {
+          userId,
+          activeEntryId: activeEntry.id,
+        });
         return res.status(400).json({ error: "Already clocked in" });
       }
 

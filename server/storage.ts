@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, gte, lte, desc, or, like } from "drizzle-orm";
+import { eq, and, gte, lte, desc, or, like, isNull } from "drizzle-orm";
 import {
   users,
   timeEntries,
@@ -245,11 +245,13 @@ export class DbStorage implements IStorage {
   }
 
   async getActiveTimeEntry(userId: string): Promise<TimeEntry | undefined> {
+    // CRITICAL: Check for active time entry by userId AND clockOut = NULL
+    // This prevents blocking user clock-in based on other users' active entries
     const result = await db
       .select()
       .from(timeEntries)
       .where(
-        and(eq(timeEntries.userId, userId), eq(timeEntries.status, "active")),
+        and(eq(timeEntries.userId, userId), isNull(timeEntries.clockOut)),
       )
       .orderBy(desc(timeEntries.clockIn))
       .limit(1);
