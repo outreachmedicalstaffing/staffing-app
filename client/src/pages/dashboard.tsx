@@ -404,7 +404,7 @@ export default function Dashboard() {
                     <ShiftCard
                       key={shift.id}
                       id={shift.id}
-                      job={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown Location'}
+                      job={shift.title || (shift.location ? stripCountryFromAddress(shift.location) : 'Untitled Shift')}
                       subJob={(shift as any).program || 'Program'}
                       date={format(new Date(shift.startTime), 'MMM d, yyyy')}
                       startTime={format(new Date(shift.startTime), 'h:mm a')}
@@ -434,7 +434,7 @@ export default function Dashboard() {
                     <ShiftCard
                       key={shift.id}
                       id={shift.id}
-                      job={shift.location ? stripCountryFromAddress(shift.location) : 'Unknown Location'}
+                      job={shift.title || (shift.location ? stripCountryFromAddress(shift.location) : 'Untitled Shift')}
                       subJob={(shift as any).program || 'Program'}
                       date={format(new Date(shift.startTime), 'MMM d, yyyy')}
                       startTime={format(new Date(shift.startTime), 'h:mm a')}
