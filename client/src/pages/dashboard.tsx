@@ -176,16 +176,31 @@ export default function Dashboard() {
     return sum;
   }, 0);
 
-  // Shifts this week
+  // Shifts this week - for regular users, only their assigned shifts
   const weekShifts = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
-    return shiftDate >= weekStart && shiftDate <= weekEnd;
+    if (!(shiftDate >= weekStart && shiftDate <= weekEnd)) {
+      return false;
+    }
+    // For regular users, only count their assigned shifts
+    if (!isAdmin) {
+      const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
+      return assignment && assignment.userId === user?.id;
+    }
+    // For admins, count all shifts
+    return true;
   });
 
-  // Upcoming shifts (next 7 days) - for regular users
+  // Upcoming shifts (next 7 days) - for regular users, only their assigned shifts
   const upcomingShifts = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
-    return isAfter(shiftDate, now) && isBefore(shiftDate, addDays(now, 7));
+    // Check if shift is in the next 7 days
+    if (!isAfter(shiftDate, now) || !isBefore(shiftDate, addDays(now, 7))) {
+      return false;
+    }
+    // Check if the shift is assigned to the current user
+    const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
+    return assignment && assignment.userId === user?.id;
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   // Today's shifts - for admins (all users' shifts for today)
