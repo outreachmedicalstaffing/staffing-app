@@ -647,7 +647,7 @@ export default function Timesheets() {
                           className={someSelected ? "data-[state=checked]:bg-primary" : ""}
                         />
                       </TableHead>
-                      <TableHead className="w-[200px]">First name</TableHead>
+                      <TableHead className="w-[200px]">Name</TableHead>
                       <TableHead>Total hours</TableHead>
                       <TableHead>Total pay</TableHead>
                       <TableHead>Admin approval</TableHead>
