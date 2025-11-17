@@ -64,9 +64,9 @@ export function ShiftCard({
 
         <div className="flex gap-2 pt-2">
           {status === "open" && onClaim && (
-            <Button 
-              size="sm" 
-              variant="default" 
+            <Button
+              size="sm"
+              variant="default"
               className="flex-1"
               onClick={onClaim}
               data-testid={`button-claim-${id}`}
@@ -74,10 +74,16 @@ export function ShiftCard({
               Claim Shift
             </Button>
           )}
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant={status === "open" ? "outline" : "default"}
-            className={status === "open" ? "flex-1" : "w-full"}
+            className={
+              status === "clocked-in"
+                ? "w-full bg-[#1565C0] hover:bg-[#1565C0]/90 border-2 border-red-500 text-white"
+                : status === "open"
+                ? "flex-1"
+                : "w-full"
+            }
             onClick={onView}
             data-testid={`button-view-${id}`}
           >
