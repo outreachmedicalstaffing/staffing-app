@@ -52,7 +52,7 @@ export default function Clock() {
   });
 
   // Fetch current user
-  const { data: user } = useQuery<User>({
+  const { data: user, isLoading: userLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
 
@@ -75,7 +75,11 @@ export default function Clock() {
   const isAdmin = user?.role?.toLowerCase() === "owner" || user?.role?.toLowerCase() === "admin";
 
   // Get active time entry (currently clocked in) for the current user only
-  const activeEntry = timeEntries.find((e) => !e.clockOut && e.userId === user?.id);
+  // CRITICAL: Must filter by userId to prevent showing other users' clock-in status
+  // Only calculate activeEntry if we have a valid user loaded to prevent showing wrong data
+  const activeEntry = user?.id
+    ? timeEntries.find((e) => !e.clockOut && e.userId === user.id)
+    : undefined;
 
   // Get current or next assigned shift
   const now = new Date();
@@ -98,22 +102,25 @@ export default function Clock() {
   const payrollEnd = endOfWeek(payrollStart, { weekStartsOn: 1 });
 
   // Filter entries for current payroll week (current user only)
-  const weekEntries = timeEntries
-    .filter((e) => {
-      // Only show the current user's time entries
-      if (e.userId !== user?.id) return false;
+  // CRITICAL: Must filter by userId to prevent showing other users' time entries
+  const weekEntries = user?.id
+    ? timeEntries
+        .filter((e) => {
+          // Only show the current user's time entries
+          if (e.userId !== user.id) return false;
 
-      const clockIn = new Date(e.clockIn);
-      return (
-        isWithinInterval(clockIn, { start: payrollStart, end: payrollEnd }) ||
-        (e.clockOut &&
-          isWithinInterval(new Date(e.clockOut), {
-            start: payrollStart,
-            end: payrollEnd,
-          }))
-      );
-    })
-    .sort((a, b) => new Date(b.clockIn).getTime() - new Date(a.clockIn).getTime());
+          const clockIn = new Date(e.clockIn);
+          return (
+            isWithinInterval(clockIn, { start: payrollStart, end: payrollEnd }) ||
+            (e.clockOut &&
+              isWithinInterval(new Date(e.clockOut), {
+                start: payrollStart,
+                end: payrollEnd,
+              }))
+          );
+        })
+        .sort((a, b) => new Date(b.clockIn).getTime() - new Date(a.clockIn).getTime())
+    : [];
 
   // Clock in mutation
   const clockInMutation = useMutation({
@@ -202,7 +209,7 @@ export default function Clock() {
     clockOutMutation.mutate(photoFilenames);
   };
 
-  const isLoading = timeEntriesLoading || shiftsLoading;
+  const isLoading = userLoading || timeEntriesLoading || shiftsLoading;
 
   if (isLoading) {
     return (
