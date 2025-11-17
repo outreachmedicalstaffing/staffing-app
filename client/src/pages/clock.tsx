@@ -56,19 +56,22 @@ export default function Clock() {
     queryKey: ["/api/auth/me"],
   });
 
-  // Fetch time entries
+  // Fetch time entries - CRITICAL: Include user.id in queryKey to prevent cross-user cache pollution
   const { data: timeEntries = [], isLoading: timeEntriesLoading } = useQuery<TimeEntry[]>({
-    queryKey: ["/api/time/entries"],
+    queryKey: ["/api/time/entries", user?.id],
+    enabled: !!user?.id, // Only fetch when user is loaded
   });
 
-  // Fetch shifts
+  // Fetch shifts - Include user.id in queryKey for proper cache isolation
   const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
-    queryKey: ["/api/shifts"],
+    queryKey: ["/api/shifts", user?.id],
+    enabled: !!user?.id,
   });
 
-  // Fetch shift assignments
+  // Fetch shift assignments - Include user.id in queryKey for proper cache isolation
   const { data: assignments = [] } = useQuery<any[]>({
-    queryKey: ["/api/shift-assignments"],
+    queryKey: ["/api/shift-assignments", user?.id],
+    enabled: !!user?.id,
   });
 
   // Check if user is admin
@@ -80,6 +83,23 @@ export default function Clock() {
   const activeEntry = user?.id
     ? timeEntries.find((e) => !e.clockOut && e.userId === user.id)
     : undefined;
+
+  // DEBUG: Log to verify correct data isolation
+  if (user?.id) {
+    console.log("[Time Clock Debug]", {
+      loggedInUserId: user.id,
+      loggedInUserName: user.fullName,
+      totalTimeEntries: timeEntries.length,
+      activeEntries: timeEntries.filter(e => !e.clockOut).map(e => ({
+        entryUserId: e.userId,
+        program: (e as any).program,
+        matchesLoggedInUser: e.userId === user.id
+      })),
+      hasActiveEntry: !!activeEntry,
+      activeEntryUserId: activeEntry?.userId,
+      activeEntryProgram: (activeEntry as any)?.program,
+    });
+  }
 
   // Get current or next assigned shift
   const now = new Date();
