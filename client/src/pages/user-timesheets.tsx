@@ -4,14 +4,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimeEntry, User, Timesheet } from "@shared/schema";
-import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay, parseISO, addWeeks, subWeeks } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Pencil, Download, Moon } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pencil, Download, Moon, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -40,6 +41,8 @@ export default function UserTimesheets() {
   const [editClockIn, setEditClockIn] = useState("");
   const [editClockOut, setEditClockOut] = useState("");
   const [viewingTimesheet, setViewingTimesheet] = useState<Timesheet | null>(null);
+  const [selectedWeekStart, setSelectedWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [payslipStatusFilter, setPayslipStatusFilter] = useState("all");
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
@@ -211,6 +214,44 @@ export default function UserTimesheets() {
     .filter((ts) => ts.userId === currentUser?.id)
     .sort((a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime());
 
+  // Navigation handlers for payslips week view
+  const handlePreviousWeek = () => {
+    setSelectedWeekStart(subWeeks(selectedWeekStart, 1));
+  };
+
+  const handleNextWeek = () => {
+    setSelectedWeekStart(addWeeks(selectedWeekStart, 1));
+  };
+
+  // Calculate selected week end
+  const selectedWeekEnd = endOfWeek(selectedWeekStart, { weekStartsOn: 1 });
+
+  // Filter payslips by selected week and status
+  const filteredPayslips = allUserTimesheets.filter((ts) => {
+    const tsStart = new Date(ts.periodStart);
+    const tsEnd = new Date(ts.periodEnd);
+
+    // Check if the timesheet period overlaps with the selected week
+    const matchesWeek = (
+      (tsStart <= selectedWeekEnd && tsEnd >= selectedWeekStart) ||
+      isSameDay(tsStart, selectedWeekStart) ||
+      isSameDay(tsEnd, selectedWeekEnd)
+    );
+
+    // Check status filter
+    const matchesStatus = payslipStatusFilter === "all" || (() => {
+      if (payslipStatusFilter === "paid") {
+        return ts.status === "exported";
+      }
+      if (payslipStatusFilter === "processing") {
+        return ts.status === "submitted";
+      }
+      return ts.status === payslipStatusFilter;
+    })();
+
+    return matchesWeek && matchesStatus;
+  });
+
   if (isLoading || timesheetsLoading) {
     return (
       <div className="space-y-6">
@@ -361,26 +402,66 @@ export default function UserTimesheets() {
         <TabsContent value="payslips" className="space-y-4 mt-6">
           <Card>
             <CardContent className="pt-6">
+              {/* Week Navigation Bar */}
+              <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handlePreviousWeek}
+                    data-testid="button-previous-week"
+                    className="h-9 w-9"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="text-sm font-medium min-w-[140px] text-center">
+                    {format(selectedWeekStart, "M/d")} to {format(selectedWeekEnd, "M/d")}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleNextWeek}
+                    data-testid="button-next-week"
+                    className="h-9 w-9"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Select value={payslipStatusFilter} onValueChange={setPayslipStatusFilter}>
+                  <SelectTrigger className="w-[160px]" data-testid="select-payslip-status-filter">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Status filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All payslips</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Summary Stats */}
-              {allUserTimesheets.length > 0 && (() => {
-                // Calculate totals across ALL payslips
-                const totalHoursSum = allUserTimesheets.reduce((sum, ts) =>
+              {filteredPayslips.length > 0 && (() => {
+                // Calculate totals across filtered payslips
+                const totalHoursSum = filteredPayslips.reduce((sum, ts) =>
                   sum + parseFloat(ts.totalHours), 0
                 );
-                const totalRegularSum = allUserTimesheets.reduce((sum, ts) =>
+                const totalRegularSum = filteredPayslips.reduce((sum, ts) =>
                   sum + parseFloat(ts.regularHours || '0'), 0
                 );
-                const totalHolidaySum = allUserTimesheets.reduce((sum, ts) => {
+                const totalHolidaySum = filteredPayslips.reduce((sum, ts) => {
                   const holidayHours = calculateHolidayHours(ts.periodStart, ts.periodEnd);
                   return sum + holidayHours;
                 }, 0);
 
-                // Calculate total pay across all payslips
+                // Calculate total pay across filtered payslips
                 const defaultRate = currentUser?.defaultHourlyRate
                   ? parseFloat(currentUser.defaultHourlyRate)
                   : 0;
 
-                const totalPaySum = allUserTimesheets.reduce((sum, ts) => {
+                const totalPaySum = filteredPayslips.reduce((sum, ts) => {
                   const regularHours = parseFloat(ts.regularHours || '0');
                   const holidayHours = calculateHolidayHours(ts.periodStart, ts.periodEnd);
 
@@ -439,14 +520,16 @@ export default function UserTimesheets() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allUserTimesheets.length === 0 ? (
+                    {filteredPayslips.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          No payslips available yet
+                          {allUserTimesheets.length === 0
+                            ? "No payslips available yet"
+                            : "No payslips found for this week"}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      allUserTimesheets.map((timesheet) => {
+                      filteredPayslips.map((timesheet) => {
                         // Calculate holiday hours for this pay period
                         const holidayHours = calculateHolidayHours(
                           timesheet.periodStart,
