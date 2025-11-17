@@ -41,14 +41,16 @@ export default function Dashboard() {
     queryKey: ['/api/auth/me'],
   });
 
-  // Fetch time entries
+  // Fetch time entries - CRITICAL: Include user.id in queryKey to prevent cross-user cache pollution
   const { data: timeEntries = [], isLoading: timeEntriesLoading } = useQuery<TimeEntry[]>({
-    queryKey: ['/api/time/entries'],
+    queryKey: ['/api/time/entries', user?.id],
+    enabled: !!user?.id, // Only fetch when user is loaded
   });
 
-  // Fetch shifts
+  // Fetch shifts - Include user.id in queryKey for proper cache isolation
   const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
-    queryKey: ['/api/shifts'],
+    queryKey: ['/api/shifts', user?.id],
+    enabled: !!user?.id,
   });
 
   // Fetch documents
@@ -66,9 +68,10 @@ export default function Dashboard() {
     queryKey: ['/api/users'],
   });
 
-  // Fetch shift assignments (to see who is assigned to each shift)
+  // Fetch shift assignments - Include user.id in queryKey for proper cache isolation
   const { data: shiftAssignments = [] } = useQuery<any[]>({
-    queryKey: ['/api/shift-assignments'],
+    queryKey: ['/api/shift-assignments', user?.id],
+    enabled: !!user?.id,
   });
 
   // Fetch updates
@@ -76,8 +79,31 @@ export default function Dashboard() {
     queryKey: ['/api/updates'],
   });
 
-  // Clock in/out logic
-  const activeEntry = timeEntries.find((e) => !e.clockOut);
+  // Clock in/out logic - CRITICAL: Must filter by userId to prevent blocking based on other users' shifts
+  const activeEntry = user?.id
+    ? timeEntries.find((e) => !e.clockOut && e.userId === user.id)
+    : undefined;
+
+  // DEBUG: Log to verify correct data isolation and clock-in blocking
+  if (user?.id && viewingShift) {
+    console.log("[Dashboard Clock-In Debug]", {
+      loggedInUserId: user.id,
+      loggedInUserName: user.fullName,
+      viewingShiftId: viewingShift.id,
+      viewingShiftTitle: viewingShift.title,
+      totalTimeEntries: timeEntries.length,
+      activeEntries: timeEntries.filter(e => !e.clockOut).map(e => ({
+        entryUserId: e.userId,
+        shiftId: (e as any).shiftId,
+        matchesLoggedInUser: e.userId === user.id
+      })),
+      hasActiveEntry: !!activeEntry,
+      activeEntryUserId: activeEntry?.userId,
+      activeEntryShiftId: (activeEntry as any)?.shiftId,
+      shouldAllowClockIn: !activeEntry,
+      shouldShowBlockedMessage: !!activeEntry && (activeEntry as any).shiftId !== viewingShift.id,
+    });
+  }
 
   // Check if currently clocked in to the viewing shift
   const isClockedInToShift = activeEntry && viewingShift &&
@@ -94,8 +120,12 @@ export default function Dashboard() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/time/active"] });
+      // Invalidate all time entries queries (including user-specific ones)
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "/api/time/entries" ||
+          query.queryKey[0] === "/api/time/active"
+      });
       toast({
         title: "Clocked In",
         description: "You have successfully clocked in to this shift",
@@ -121,8 +151,12 @@ export default function Dashboard() {
       return text ? JSON.parse(text) : {};
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time/entries"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/time/active"] });
+      // Invalidate all time entries queries (including user-specific ones)
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "/api/time/entries" ||
+          query.queryKey[0] === "/api/time/active"
+      });
       toast({
         title: "Clocked Out",
         description: "You have successfully clocked out",
