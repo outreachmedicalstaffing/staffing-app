@@ -2615,14 +2615,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // List updates (filtered based on user role and visibility)
   app.get("/api/updates", requireAuth, async (req, res) => {
-    console.log("========== GET UPDATES REQUEST ==========");
+    console.log("\n\n========== GET UPDATES REQUEST ==========");
+    console.log("[Get Updates] Timestamp:", new Date().toISOString());
+    console.log("[Get Updates] Session User ID:", req.session.userId);
+
     try {
       const currentUser = await storage.getUser(req.session.userId!);
       if (!currentUser) {
+        console.log("[Get Updates] ERROR: User not found for session:", req.session.userId);
         return res.status(404).json({ error: "User not found" });
       }
 
-      console.log("[Get Updates] User:", currentUser.id, "Role:", currentUser.role);
+      console.log("[Get Updates] User ID:", currentUser.id);
+      console.log("[Get Updates] User Name:", currentUser.fullName);
+      console.log("[Get Updates] User Role:", currentUser.role);
       console.log("[Get Updates] User.groups array:", currentUser.groups);
       console.log("[Get Updates] User.customFields.programs:", (currentUser.customFields as any)?.programs);
 
@@ -2789,13 +2795,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      console.log("[Get Updates] Returning", updatesWithMetrics.length, "updates to client");
-      console.log("========================================");
+      console.log("\n[Get Updates] ==========================================");
+      console.log("[Get Updates] SENDING RESPONSE TO CLIENT");
+      console.log("[Get Updates] Returning", updatesWithMetrics.length, "updates with metrics");
+      console.log("[Get Updates] Update IDs:", updatesWithMetrics.map(u => u.id));
+      console.log("[Get Updates] ==========================================\n");
       res.json(updatesWithMetrics);
-    } catch (error) {
-      console.error("========== GET UPDATES ERROR ==========");
-      console.error("Failed to list updates:", error);
-      console.error("========================================");
+    } catch (error: any) {
+      console.error("\n========== GET UPDATES ERROR ==========");
+      console.error("[Get Updates] ERROR:", error);
+      console.error("[Get Updates] Error message:", error.message);
+      console.error("[Get Updates] Error stack:", error.stack);
+      console.error("========================================\n");
       res.status(500).json({ error: "Failed to list updates" });
     }
   });
