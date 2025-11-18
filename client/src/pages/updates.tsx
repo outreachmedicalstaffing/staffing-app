@@ -1121,7 +1121,8 @@ export default function Updates() {
                     <h3 className="font-semibold mb-2">Attachment</h3>
                     <a
                       href={selectedUpdate.attachments[0].url}
-                      download={selectedUpdate.attachments[0].name}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="flex items-center gap-2 p-3 border rounded-md bg-muted/50 hover:bg-muted transition-colors"
                     >
                       <Paperclip className="h-4 w-4 flex-shrink-0" />
@@ -1135,7 +1136,8 @@ export default function Updates() {
                         size="sm"
                         className="flex-shrink-0"
                       >
-                        Download
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
                       </Button>
                     </a>
                   </div>
