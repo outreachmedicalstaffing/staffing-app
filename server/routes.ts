@@ -2787,15 +2787,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/updates/:id",
     requireRole("Owner", "Admin"),
     async (req, res) => {
+      console.log("========== UPDATE EDIT REQUEST ==========");
+      console.log("Update ID:", req.params.id);
+      console.log("User ID:", req.session.userId);
+      console.log("Request Body:", JSON.stringify(req.body, null, 2));
+
       try {
         const updateId = req.params.id;
         const userId = req.session.userId!;
 
-        console.log("[Update Edit] Request body:", req.body);
+        console.log("Step 1: Validating request body...");
+        console.log("Raw body before validation:", req.body);
 
         // Validate the update data using the schema
         const validatedData = schema.updateUpdateSchema.parse(req.body);
-        console.log("[Update Edit] Validated data:", validatedData);
+        console.log("Step 2: Validation successful!");
+        console.log("Validated data:", JSON.stringify(validatedData, null, 2));
+
+        console.log("Step 3: Attempting database update...");
+        console.log("Update ID:", updateId);
+        console.log("Data to set:", JSON.stringify({
+          ...validatedData,
+          updatedAt: new Date(),
+        }, null, 2));
 
         const [updated] = await storage.db
           .update(schema.updates)
@@ -2806,12 +2820,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(schema.updates.id, updateId))
           .returning();
 
-        console.log("[Update Edit] Database result:", updated);
+        console.log("Step 4: Database update completed!");
+        console.log("Database result:", JSON.stringify(updated, null, 2));
 
         if (!updated) {
+          console.log("ERROR: Update not found in database");
           return res.status(404).json({ error: "Update not found" });
         }
 
+        console.log("Step 5: Logging audit...");
         await logAudit(
           userId,
           "update",
@@ -2823,16 +2840,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.ip
         );
 
+        console.log("Step 6: Sending response...");
+        console.log("========== UPDATE EDIT SUCCESS ==========");
         res.json(updated);
       } catch (error: any) {
-        console.error("[Update Edit] Error occurred:", error);
-        console.error("[Update Edit] Error message:", error.message);
-        console.error("[Update Edit] Error stack:", error.stack);
+        console.error("========== UPDATE EDIT ERROR ==========");
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error code:", error.code);
+        console.error("Error constructor:", error.constructor.name);
+        console.error("Full error object:", error);
+        console.error("Error keys:", Object.keys(error));
+        console.error("Stack trace:", error.stack);
+
         if (error.errors) {
-          console.error("[Update Edit] Validation errors:", error.errors);
-          return res.status(400).json({ error: error.errors, details: error.message });
+          console.error("Validation errors:", JSON.stringify(error.errors, null, 2));
         }
-        res.status(500).json({ error: "Failed to update update", details: error.message });
+
+        if (error.issues) {
+          console.error("Zod issues:", JSON.stringify(error.issues, null, 2));
+        }
+
+        console.error("========================================");
+
+        if (error.errors || error.issues) {
+          return res.status(400).json({
+            error: "Validation failed",
+            details: error.message,
+            validationErrors: error.errors || error.issues
+          });
+        }
+
+        res.status(500).json({
+          error: "Failed to update update",
+          message: error.message,
+          code: error.code,
+          name: error.name
+        });
       }
     }
   );
