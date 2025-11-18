@@ -2805,14 +2805,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Validated data:", JSON.stringify(validatedData, null, 2));
 
         console.log("Step 3: Preparing data for database update...");
+        console.log("========== PUBLISHDATE DEBUG ==========");
+        console.log("publishDate from validatedData:", validatedData.publishDate);
+        console.log("publishDate type:", typeof validatedData.publishDate);
+        console.log("publishDate JSON:", JSON.stringify(validatedData.publishDate));
+        console.log("publishDate is Date object?:", validatedData.publishDate instanceof Date);
+
         // Ensure publishDate is a Date object if present
         const updateData: any = { ...validatedData };
         if (updateData.publishDate) {
           console.log("Converting publishDate to Date object...");
-          console.log("publishDate before conversion:", updateData.publishDate, "Type:", typeof updateData.publishDate);
-          updateData.publishDate = new Date(updateData.publishDate);
-          console.log("publishDate after conversion:", updateData.publishDate, "Type:", typeof updateData.publishDate);
+          console.log("publishDate before conversion:", updateData.publishDate);
+          console.log("Type before conversion:", typeof updateData.publishDate);
+          console.log("Constructor before:", updateData.publishDate.constructor.name);
+
+          // Create Date object
+          const dateObj = new Date(updateData.publishDate);
+          console.log("Date object created:", dateObj);
+          console.log("Date is valid?:", !isNaN(dateObj.getTime()));
+          console.log("Date.getTime():", dateObj.getTime());
+
+          if (!isNaN(dateObj.getTime())) {
+            console.log("Date toISOString():", dateObj.toISOString());
+            updateData.publishDate = dateObj;
+            console.log("publishDate after conversion:", updateData.publishDate);
+            console.log("Type after conversion:", typeof updateData.publishDate);
+            console.log("Constructor after:", updateData.publishDate.constructor.name);
+          } else {
+            console.error("INVALID DATE:", updateData.publishDate);
+            throw new Error(`Invalid date format: ${updateData.publishDate}`);
+          }
         }
+        console.log("======================================");
+
         updateData.updatedAt = new Date();
 
         console.log("Step 4: Attempting database update...");
