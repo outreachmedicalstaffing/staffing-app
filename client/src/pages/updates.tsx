@@ -721,7 +721,7 @@ export default function Updates() {
       }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingUpdate ? "Edit Update" : "Create New Update"}</DialogTitle>
+            <DialogTitle>{editingUpdate ? "Edit Update" : "Create Update"}</DialogTitle>
             <DialogDescription>
               {editingUpdate ? "Update the announcement details" : "Share an announcement or update with your team"}
             </DialogDescription>
