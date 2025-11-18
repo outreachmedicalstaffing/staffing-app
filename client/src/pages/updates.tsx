@@ -48,6 +48,11 @@ import {
   Clock,
   Pencil,
   Search,
+  Paperclip,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Download,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -63,6 +68,15 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+
+interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  filename: string;
+}
 
 interface Update {
   id: string;
@@ -80,6 +94,7 @@ interface Update {
   likeCount: number;
   commentCount: number;
   isLikedByUser: boolean;
+  attachments?: Attachment[];
 }
 
 interface Comment {
@@ -133,7 +148,9 @@ export default function Updates() {
     targetUserIds: [] as string[],
     targetGroupIds: [] as string[],
     status: "published",
+    attachments: [] as Attachment[],
   });
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   // Get current user
   const { data: user } = useQuery<User>({ queryKey: ["/api/auth/me"] });
@@ -431,7 +448,74 @@ export default function Updates() {
       targetUserIds: [],
       targetGroupIds: [],
       status: "published",
+      attachments: [],
     });
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // Limit to 5 files total
+    if (formData.attachments.length + files.length > 5) {
+      toast({
+        title: "Too many files",
+        description: "You can only upload up to 5 files per update",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingFiles(true);
+    try {
+      const formDataToSend = new FormData();
+      Array.from(files).forEach((file) => {
+        formDataToSend.append("files", file);
+      });
+
+      const res = await fetch("/api/updates/upload", {
+        method: "POST",
+        body: formDataToSend,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to upload files");
+      }
+
+      const result = await res.json();
+
+      setFormData((prev) => ({
+        ...prev,
+        attachments: [...prev.attachments, ...result.attachments],
+      }));
+
+      toast({
+        title: "Files uploaded",
+        description: `${result.attachments.length} file(s) uploaded successfully`,
+      });
+    } catch (error: any) {
+      console.error("File upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload files",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFiles(false);
+      // Reset input
+      event.target.value = "";
+    }
+  };
+
+  // Remove attachment
+  const handleRemoveAttachment = (attachmentId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((a) => a.id !== attachmentId),
+    }));
   };
 
   const handleCreateUpdate = () => {
@@ -470,6 +554,7 @@ export default function Updates() {
       targetUserIds: update.targetUserIds || [],
       targetGroupIds: update.targetGroupIds || [],
       status: update.status,
+      attachments: update.attachments || [],
     });
     setShowCreateDialog(true);
   };
@@ -705,6 +790,16 @@ export default function Updates() {
                     {update.commentCount}
                   </div>
                 </div>
+
+                {/* Attachments preview */}
+                {update.attachments && update.attachments.length > 0 && (
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                    <Paperclip className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {update.attachments.length} attachment{update.attachments.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))
@@ -939,6 +1034,76 @@ export default function Updates() {
                 </div>
               </>
             )}
+
+            {/* File Attachments - Owner/Admin only */}
+            {isAdmin && (
+              <div>
+                <Label>Attachments</Label>
+                <div className="mt-2 space-y-2">
+                  {/* File input */}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      id="file-upload"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                      onChange={handleFileUpload}
+                      disabled={uploadingFiles || formData.attachments.length >= 5}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadingFiles || formData.attachments.length >= 5}
+                      onClick={() => document.getElementById("file-upload")?.click()}
+                    >
+                      <Paperclip className="h-4 w-4 mr-2" />
+                      {uploadingFiles ? "Uploading..." : "Attach Files"}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {formData.attachments.length}/5 files
+                    </span>
+                  </div>
+
+                  {/* Attachment preview list */}
+                  {formData.attachments.length > 0 && (
+                    <div className="space-y-2 border rounded-md p-3">
+                      {formData.attachments.map((attachment) => {
+                        const isImage = attachment.type.startsWith("image/");
+                        return (
+                          <div
+                            key={attachment.id}
+                            className="flex items-center justify-between gap-2 p-2 bg-muted rounded-md"
+                          >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {isImage ? (
+                                <ImageIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              ) : (
+                                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              )}
+                              <span className="text-sm truncate">{attachment.name}</span>
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
+                                ({(attachment.size / 1024).toFixed(1)} KB)
+                              </span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveAttachment(attachment.id)}
+                              className="h-6 w-6 p-0 flex-shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -1006,6 +1171,50 @@ export default function Updates() {
                     {selectedUpdate.commentCount} comments
                   </div>
                 </div>
+
+                {/* Attachments */}
+                {selectedUpdate.attachments && selectedUpdate.attachments.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Attachments</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {selectedUpdate.attachments.map((attachment) => {
+                        const isImage = attachment.type.startsWith("image/");
+                        return (
+                          <a
+                            key={attachment.id}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 border rounded-md hover:bg-muted/50 transition-colors group"
+                          >
+                            {isImage ? (
+                              <div className="w-16 h-16 rounded overflow-hidden bg-muted flex-shrink-0">
+                                <img
+                                  src={attachment.url}
+                                  alt={attachment.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-16 h-16 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                <FileText className="h-8 w-8 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate group-hover:text-primary">
+                                {attachment.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {(attachment.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                            <Download className="h-4 w-4 text-muted-foreground group-hover:text-primary flex-shrink-0" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Comments */}
                 <div>

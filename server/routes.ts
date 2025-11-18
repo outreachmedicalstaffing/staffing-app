@@ -3095,6 +3095,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upload files for update (Owner/Admin only)
+  app.post(
+    "/api/updates/upload",
+    requireRole("Owner", "Admin"),
+    upload.array("files", 5), // Allow up to 5 files
+    async (req, res) => {
+      try {
+        if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+          return res.status(400).json({ error: "No files uploaded" });
+        }
+
+        const userId = req.session.userId!;
+
+        // Log each uploaded file
+        for (const file of req.files) {
+          await logAudit(
+            userId,
+            "upload",
+            "update_attachment",
+            file.filename,
+            false,
+            [],
+            {
+              originalName: file.originalname,
+              size: file.size,
+              mimetype: file.mimetype,
+            },
+            req.ip
+          );
+        }
+
+        // Return array of attachment objects with structured data
+        const attachments = req.files.map((file) => ({
+          id: crypto.randomUUID(),
+          name: file.originalname,
+          url: `/api/files/${file.filename}`,
+          type: file.mimetype,
+          size: file.size,
+          filename: file.filename,
+        }));
+
+        res.json({
+          success: true,
+          attachments,
+        });
+      } catch (error) {
+        console.error("Update file upload error:", error);
+        res.status(500).json({ error: "Failed to upload files" });
+      }
+    }
+  );
+
   // Get comments for update
   app.get("/api/updates/:id/comments", requireAuth, async (req, res) => {
     try {
