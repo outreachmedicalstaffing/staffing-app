@@ -3098,13 +3098,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload files for update (Owner/Admin only)
   app.post(
     "/api/updates/upload",
+    (req, res, next) => {
+      console.log("========== ROUTE HIT: /api/updates/upload ==========");
+      console.log("[Upload Route] Method:", req.method);
+      console.log("[Upload Route] URL:", req.url);
+      console.log("[Upload Route] Session userId:", req.session.userId);
+      console.log("[Upload Route] Content-Type:", req.get('content-type'));
+      next();
+    },
     requireRole("Owner", "Admin"),
     upload.array("files", 5), // Allow up to 5 files
     async (req, res) => {
+      console.log("========== UPDATE FILE UPLOAD REQUEST ==========");
+      console.log("[Update File Upload] Request received:", {
+        userId: req.session.userId,
+        userRole: req.session.userRole,
+        filesCount: req.files?.length || 0,
+        contentType: req.get('content-type'),
+        url: req.url,
+        method: req.method,
+      });
+
       try {
         if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+          console.log("[Update File Upload] ERROR: No files in request");
+          console.log("[Update File Upload] req.files:", req.files);
           return res.status(400).json({ error: "No files uploaded" });
         }
+
+        console.log("[Update File Upload] Files received:", req.files.map(f => ({
+          originalname: f.originalname,
+          mimetype: f.mimetype,
+          size: f.size,
+          filename: f.filename,
+        })));
 
         const userId = req.session.userId!;
 
@@ -3136,13 +3163,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filename: file.filename,
         }));
 
+        console.log("[Update File Upload] Success! Returning attachments:", attachments);
+        console.log("==============================================");
+
         res.json({
           success: true,
           attachments,
         });
-      } catch (error) {
-        console.error("Update file upload error:", error);
-        res.status(500).json({ error: "Failed to upload files" });
+      } catch (error: any) {
+        console.error("========== UPDATE FILE UPLOAD ERROR ==========");
+        console.error("[Update File Upload] Error:", error);
+        console.error("[Update File Upload] Error message:", error.message);
+        console.error("[Update File Upload] Error stack:", error.stack);
+        console.error("=============================================");
+        res.status(500).json({ error: "Failed to upload files", message: error.message });
       }
     }
   );

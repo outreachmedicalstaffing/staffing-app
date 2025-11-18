@@ -457,6 +457,8 @@ export default function Updates() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    console.log("[File Upload] Starting upload for", files.length, "file(s)");
+
     // Limit to 5 files total
     if (formData.attachments.length + files.length > 5) {
       toast({
@@ -471,8 +473,11 @@ export default function Updates() {
     try {
       const formDataToSend = new FormData();
       Array.from(files).forEach((file) => {
+        console.log("[File Upload] Adding file:", file.name, file.type, file.size);
         formDataToSend.append("files", file);
       });
+
+      console.log("[File Upload] Sending request to /api/updates/upload");
 
       const res = await fetch("/api/updates/upload", {
         method: "POST",
@@ -480,12 +485,28 @@ export default function Updates() {
         credentials: "include",
       });
 
+      console.log("[File Upload] Response status:", res.status, res.statusText);
+      console.log("[File Upload] Response content-type:", res.headers.get("content-type"));
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to upload files");
+        console.error("[File Upload] Response not OK");
+        const contentType = res.headers.get("content-type");
+        let errorMessage = "Failed to upload files";
+
+        if (contentType && contentType.includes("application/json")) {
+          const error = await res.json();
+          console.error("[File Upload] Error response:", error);
+          errorMessage = error.error || errorMessage;
+        } else {
+          const text = await res.text();
+          console.error("[File Upload] HTML response (first 500 chars):", text.substring(0, 500));
+          errorMessage = `Server error (${res.status}): Endpoint may not exist or server error occurred`;
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await res.json();
+      console.log("[File Upload] Success! Result:", result);
 
       setFormData((prev) => ({
         ...prev,
@@ -497,7 +518,9 @@ export default function Updates() {
         description: `${result.attachments.length} file(s) uploaded successfully`,
       });
     } catch (error: any) {
-      console.error("File upload error:", error);
+      console.error("[File Upload] Error caught:", error);
+      console.error("[File Upload] Error message:", error.message);
+      console.error("[File Upload] Error stack:", error.stack);
       toast({
         title: "Upload failed",
         description: error.message || "Failed to upload files",
