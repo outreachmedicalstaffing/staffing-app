@@ -3193,7 +3193,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filename: file.filename,
         }));
 
-        console.log("[Update File Upload] Success! Returning attachments:", attachments);
+        console.log("[Update File Upload] ========== SUCCESS! ==========");
+        console.log("[Update File Upload] Number of files processed:", attachments.length);
+        console.log("[Update File Upload] Returning response:");
+        console.log(JSON.stringify({
+          success: true,
+          attachments,
+        }, null, 2));
+        console.log("[Update File Upload] Each attachment:");
+        attachments.forEach((att, i) => {
+          console.log(`  [${i}] ${att.name} - ${att.size} bytes - ${att.type}`);
+          console.log(`      URL: ${att.url}`);
+          console.log(`      ID: ${att.id}`);
+        });
         console.log("==============================================");
 
         res.json({

@@ -171,6 +171,17 @@ export default function Updates() {
     });
   }, [updatesRaw, dataUpdatedAt]);
 
+  // Log when attachments change in formData
+  useEffect(() => {
+    console.log("[FormData Attachments] ========== ATTACHMENTS CHANGED ==========");
+    console.log("[FormData Attachments] Count:", formData.attachments.length);
+    console.log("[FormData Attachments] Attachments:", formData.attachments);
+    formData.attachments.forEach((att, i) => {
+      console.log(`[FormData Attachments] [${i}] ${att.name} - ID: ${att.id}`);
+    });
+    console.log("[FormData Attachments] =======================================");
+  }, [formData.attachments]);
+
   // Sort updates by createdAt descending (newest first) as a safety measure
   const updates = useMemo(() => {
     console.log("[Updates Page] Sorting updates, count:", updatesRaw.length);
@@ -455,12 +466,21 @@ export default function Updates() {
   // Handle file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    console.log("[File Upload] ========== HANDLER CALLED ==========");
+    console.log("[File Upload] event.target.files:", files);
+    console.log("[File Upload] files?.length:", files?.length);
+
+    if (!files || files.length === 0) {
+      console.log("[File Upload] No files selected, returning early");
+      return;
+    }
 
     console.log("[File Upload] Starting upload for", files.length, "file(s)");
+    console.log("[File Upload] Current attachments count:", formData.attachments.length);
 
     // Limit to 5 files total
     if (formData.attachments.length + files.length > 5) {
+      console.log("[File Upload] Too many files - limit exceeded");
       toast({
         title: "Too many files",
         description: "You can only upload up to 5 files per update",
@@ -469,6 +489,7 @@ export default function Updates() {
       return;
     }
 
+    console.log("[File Upload] Setting uploadingFiles to true");
     setUploadingFiles(true);
     try {
       const formDataToSend = new FormData();
@@ -506,17 +527,34 @@ export default function Updates() {
       }
 
       const result = await res.json();
-      console.log("[File Upload] Success! Result:", result);
+      console.log("[File Upload] ========== SUCCESS! ==========");
+      console.log("[File Upload] Full result object:", JSON.stringify(result, null, 2));
+      console.log("[File Upload] result.success:", result.success);
+      console.log("[File Upload] result.attachments:", result.attachments);
+      console.log("[File Upload] Number of attachments returned:", result.attachments?.length);
 
-      setFormData((prev) => ({
-        ...prev,
-        attachments: [...prev.attachments, ...result.attachments],
-      }));
+      if (result.attachments && Array.isArray(result.attachments)) {
+        console.log("[File Upload] BEFORE state update - current attachments:", formData.attachments);
+        console.log("[File Upload] New attachments to add:", result.attachments);
 
-      toast({
-        title: "Files uploaded",
-        description: `${result.attachments.length} file(s) uploaded successfully`,
-      });
+        setFormData((prev) => {
+          const updated = {
+            ...prev,
+            attachments: [...prev.attachments, ...result.attachments],
+          };
+          console.log("[File Upload] AFTER state update - new attachments:", updated.attachments);
+          console.log("[File Upload] Total attachment count:", updated.attachments.length);
+          return updated;
+        });
+
+        toast({
+          title: "Files uploaded",
+          description: `${result.attachments.length} file(s) uploaded successfully`,
+        });
+      } else {
+        console.error("[File Upload] ERROR: result.attachments is not an array:", result.attachments);
+        throw new Error("Server response missing attachments array");
+      }
     } catch (error: any) {
       console.error("[File Upload] Error caught:", error);
       console.error("[File Upload] Error message:", error.message);
@@ -1098,9 +1136,15 @@ export default function Updates() {
                   </div>
 
                   {/* Attachment preview list */}
-                  {formData.attachments.length > 0 && (
+                  {(() => {
+                    console.log("[Attachments UI] Rendering attachments list. Count:", formData.attachments.length);
+                    console.log("[Attachments UI] Attachments:", formData.attachments);
+                    return null;
+                  })()}
+                  {formData.attachments.length > 0 ? (
                     <div className="space-y-2 border rounded-md p-3">
-                      {formData.attachments.map((attachment) => {
+                      {formData.attachments.map((attachment, index) => {
+                        console.log(`[Attachments UI] Rendering attachment [${index}]:`, attachment);
                         const isImage = attachment.type.startsWith("image/");
                         return (
                           <div
@@ -1130,6 +1174,10 @@ export default function Updates() {
                           </div>
                         );
                       })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No attachments yet. Click "Attach Files" to add files.
                     </div>
                   )}
                 </div>
