@@ -2844,27 +2844,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload attachment for update (Admin/Owner only)
   app.post(
     "/api/updates/attachment",
+    requireAuth,
     requireRole("Owner", "Admin"),
     upload.single('file'),
     async (req, res) => {
+      console.log("========== ATTACHMENT UPLOAD ==========");
+      console.log("User ID:", req.session.userId);
+      console.log("File received:", req.file ? {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      } : "No file");
+
       try {
         if (!req.file) {
+          console.log("ERROR: No file in request");
           return res.status(400).json({ error: "No file uploaded" });
         }
 
         const file = req.file;
         const fileUrl = `/uploads/${file.filename}`;
 
-        res.json({
+        const attachment = {
           id: file.filename,
           name: file.originalname,
           url: fileUrl,
           type: file.mimetype,
           size: file.size,
-        });
+        };
+
+        console.log("Returning attachment:", attachment);
+        console.log("========================================");
+        res.json(attachment);
       } catch (error: any) {
-        console.error("Failed to upload attachment:", error);
-        res.status(500).json({ error: "Failed to upload attachment" });
+        console.error("========== ATTACHMENT UPLOAD ERROR ==========");
+        console.error("Error:", error);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+        console.error("============================================");
+        res.status(500).json({
+          error: "Failed to upload attachment",
+          message: error.message
+        });
       }
     }
   );
