@@ -47,6 +47,7 @@ import {
   XCircle,
   Clock,
   Pencil,
+  Search,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -122,6 +123,7 @@ export default function Updates() {
   const [openUserSelect, setOpenUserSelect] = useState(false);
   const [openGroupSelect, setOpenGroupSelect] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -161,6 +163,31 @@ export default function Updates() {
       return dateB - dateA; // Descending order (newest first)
     });
   }, [updatesRaw]);
+
+  // Filter updates based on search query
+  const filteredUpdates = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return updates;
+    }
+
+    const searchLower = searchQuery.toLowerCase();
+    return updates.filter(update => {
+      // Search in title
+      if (update.title.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      // Search in content
+      if (update.content.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      // Search in formatted date
+      const formattedDate = format(new Date(update.publishDate), "MMM d, yyyy").toLowerCase();
+      if (formattedDate.includes(searchLower)) {
+        return true;
+      }
+      return false;
+    });
+  }, [updates, searchQuery]);
 
   // Fetch users for targeting
   const { data: users = [] } = useQuery<User[]>({
@@ -502,6 +529,21 @@ export default function Updates() {
         )}
       </div>
 
+      {/* Search Bar */}
+      <div className="flex justify-end">
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search updates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+            data-testid="input-search-updates"
+          />
+        </div>
+      </div>
+
       {/* Pending Approvals Section */}
       {isAdmin && pendingApprovals.length > 0 && (
         <Card className="border-orange-200 bg-orange-50/50">
@@ -572,16 +614,16 @@ export default function Updates() {
 
       {/* Updates Feed */}
       <div className="space-y-4">
-        {updates.length === 0 ? (
+        {filteredUpdates.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
               <p className="text-muted-foreground text-center">
-                No updates available
+                {searchQuery.trim() ? "No updates found matching your search" : "No updates available"}
               </p>
             </CardContent>
           </Card>
         ) : (
-          updates.map((update) => (
+          filteredUpdates.map((update) => (
             <Card
               key={update.id}
               className="hover:shadow-md transition-shadow cursor-pointer"
