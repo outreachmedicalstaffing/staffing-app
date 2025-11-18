@@ -2804,23 +2804,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Step 2: Validation successful!");
         console.log("Validated data:", JSON.stringify(validatedData, null, 2));
 
-        console.log("Step 3: Attempting database update...");
+        console.log("Step 3: Preparing data for database update...");
+        // Ensure publishDate is a Date object if present
+        const updateData: any = { ...validatedData };
+        if (updateData.publishDate) {
+          console.log("Converting publishDate to Date object...");
+          console.log("publishDate before conversion:", updateData.publishDate, "Type:", typeof updateData.publishDate);
+          updateData.publishDate = new Date(updateData.publishDate);
+          console.log("publishDate after conversion:", updateData.publishDate, "Type:", typeof updateData.publishDate);
+        }
+        updateData.updatedAt = new Date();
+
+        console.log("Step 4: Attempting database update...");
         console.log("Update ID:", updateId);
-        console.log("Data to set:", JSON.stringify({
-          ...validatedData,
-          updatedAt: new Date(),
-        }, null, 2));
+        console.log("Data to set:", updateData);
 
         const [updated] = await storage.db
           .update(schema.updates)
-          .set({
-            ...validatedData,
-            updatedAt: new Date(),
-          })
+          .set(updateData)
           .where(eq(schema.updates.id, updateId))
           .returning();
 
-        console.log("Step 4: Database update completed!");
+        console.log("Step 5: Database update completed!");
         console.log("Database result:", JSON.stringify(updated, null, 2));
 
         if (!updated) {
@@ -2828,19 +2833,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ error: "Update not found" });
         }
 
-        console.log("Step 5: Logging audit...");
+        console.log("Step 6: Logging audit...");
         await logAudit(
           userId,
           "update",
           "update",
           updateId,
           false,
-          Object.keys(validatedData),
+          Object.keys(updateData),
           {},
           req.ip
         );
 
-        console.log("Step 6: Sending response...");
+        console.log("Step 7: Sending response...");
         console.log("========== UPDATE EDIT SUCCESS ==========");
         res.json(updated);
       } catch (error: any) {
