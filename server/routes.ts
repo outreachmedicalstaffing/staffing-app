@@ -206,6 +206,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check user's group memberships
+  app.get("/api/auth/me/groups", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const customFields = user.customFields as any;
+      const programs = customFields?.programs || [];
+
+      res.json({
+        userId: user.id,
+        fullName: user.fullName,
+        groups: user.groups || [],
+        programs: programs,
+        groupsArray: user.groups,
+        debug: {
+          hasGroupsField: !!user.groups,
+          isGroupsArray: Array.isArray(user.groups),
+          groupsLength: user.groups?.length || 0,
+          programsLength: programs.length,
+        }
+      });
+    } catch (error) {
+      console.error("[Get User Groups] Error:", error);
+      res.status(500).json({ error: "Failed to get user groups" });
+    }
+  });
+
   // ===== User Profile Routes =====
 
   // Update user profile
@@ -2592,7 +2622,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      console.log("[Get Updates] User:", currentUser.id, "Role:", currentUser.role, "Groups:", currentUser.groups);
+      console.log("[Get Updates] User:", currentUser.id, "Role:", currentUser.role);
+      console.log("[Get Updates] User.groups array:", currentUser.groups);
+      console.log("[Get Updates] User.customFields.programs:", (currentUser.customFields as any)?.programs);
 
       const allUpdates = await storage.db
         .select()
@@ -2612,24 +2644,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Helper function to check if user is in a group
       const isUserInGroup = (groupId: string): boolean => {
+        console.log("[Get Updates] ===== Checking group:", groupId);
+
         // Check if it's an auto-program group
         if (groupId.startsWith('auto-program-')) {
           const programName = groupId.replace('auto-program-', '');
           const userCustomFields = currentUser.customFields as any;
           const userPrograms = userCustomFields?.programs || [];
           const inProgram = userPrograms.includes(programName);
-          console.log("[Get Updates] Program group check:", programName, "User in program:", inProgram);
+
+          console.log("[Get Updates]   Type: Program Group");
+          console.log("[Get Updates]   Program name:", programName);
+          console.log("[Get Updates]   User programs:", userPrograms);
+          console.log("[Get Updates]   Result:", inProgram ? "✓ IN GROUP" : "✗ NOT IN GROUP");
+
           return inProgram;
         }
 
         // For discipline and general groups, check user's groups array
+        console.log("[Get Updates]   Type: Discipline/General Group");
+        console.log("[Get Updates]   User.groups array:", currentUser.groups);
+
         if (currentUser.groups && Array.isArray(currentUser.groups)) {
           const inGroup = currentUser.groups.includes(groupId);
-          console.log("[Get Updates] Group check:", groupId, "User in group:", inGroup, "User groups:", currentUser.groups);
+          console.log("[Get Updates]   Result:", inGroup ? "✓ IN GROUP" : "✗ NOT IN GROUP");
           return inGroup;
         }
 
-        console.log("[Get Updates] User has no groups array, returning false for group:", groupId);
+        console.log("[Get Updates]   Result: ✗ User has no groups array");
         return false;
       };
 
@@ -2687,7 +2729,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return false;
       });
 
-      console.log("[Get Updates] Filtered updates count:", filteredUpdates.length);
+      console.log("[Get Updates] ========================================");
+      console.log("[Get Updates] FILTERING COMPLETE");
+      console.log("[Get Updates] Total updates:", allUpdates.length);
+      console.log("[Get Updates] Filtered updates:", filteredUpdates.length);
+      console.log("[Get Updates] User will see:", filteredUpdates.map(u => ({ id: u.id, title: u.title })));
+      console.log("[Get Updates] ========================================");
 
       // Get metrics for each update
       const updatesWithMetrics = await Promise.all(
