@@ -428,13 +428,21 @@ export const updates = pgTable("updates", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const insertUpdateSchema = createInsertSchema(updates).omit({
+export const insertUpdateSchema = createInsertSchema(updates, {
+  publishDate: z.union([z.string(), z.date()]).transform((val) =>
+    typeof val === 'string' ? new Date(val) : val
+  ),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const updateUpdateSchema = createInsertSchema(updates).omit({
+export const updateUpdateSchema = createInsertSchema(updates, {
+  publishDate: z.union([z.string(), z.date()]).transform((val) =>
+    typeof val === 'string' ? new Date(val) : val
+  ).optional(),
+}).omit({
   id: true,
   createdBy: true,
   createdAt: true,

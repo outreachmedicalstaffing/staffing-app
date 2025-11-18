@@ -2791,8 +2791,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updateId = req.params.id;
         const userId = req.session.userId!;
 
+        console.log("[Update Edit] Request body:", req.body);
+
         // Validate the update data using the schema
         const validatedData = schema.updateUpdateSchema.parse(req.body);
+        console.log("[Update Edit] Validated data:", validatedData);
 
         const [updated] = await storage.db
           .update(schema.updates)
@@ -2802,6 +2805,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(schema.updates.id, updateId))
           .returning();
+
+        console.log("[Update Edit] Database result:", updated);
 
         if (!updated) {
           return res.status(404).json({ error: "Update not found" });
@@ -2820,12 +2825,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json(updated);
       } catch (error: any) {
-        console.error("Failed to update update:", error);
+        console.error("[Update Edit] Error occurred:", error);
+        console.error("[Update Edit] Error message:", error.message);
+        console.error("[Update Edit] Error stack:", error.stack);
         if (error.errors) {
-          console.error("Validation errors:", error.errors);
-          return res.status(400).json({ error: error.errors });
+          console.error("[Update Edit] Validation errors:", error.errors);
+          return res.status(400).json({ error: error.errors, details: error.message });
         }
-        res.status(500).json({ error: "Failed to update update" });
+        res.status(500).json({ error: "Failed to update update", details: error.message });
       }
     }
   );
