@@ -455,16 +455,24 @@ export default function Updates() {
     setAttachment(null);
   };
 
+  // Button click handler - opens file picker
+  const handleAttachmentButtonClick = () => {
+    if (isUploadingAttachment) {
+      console.log('[Upload] Blocked: already uploading');
+      return;
+    }
+    console.log('[Upload] Opening file picker');
+    fileInputRef.current?.click();
+  };
+
+  // File selection handler - uploads the file
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
-    // Prevent multiple uploads
     if (!file || isUploadingAttachment) {
-      console.log('[Attachment] Skipping upload:', { hasFile: !!file, isUploading: isUploadingAttachment });
+      console.log('[Upload] Skipping:', { hasFile: !!file, uploading: isUploadingAttachment });
       return;
     }
-
-    console.log('[Attachment] Starting upload:', file.name);
 
     // Validate file size (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
@@ -476,29 +484,35 @@ export default function Updates() {
       return;
     }
 
+    console.log('[Upload] Starting upload for:', file.name);
     setIsUploadingAttachment(true);
 
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      console.log('[Attachment] Sending upload request...');
-      const res = await apiRequest('POST', '/api/updates/attachment', formData);
+      const response = await fetch('/api/updates/attachment', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
 
-      if (!res.ok) {
-        throw new Error(`Upload failed with status: ${res.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
 
-      const uploadedFile = await res.json();
-      console.log('[Attachment] Upload successful:', uploadedFile);
+      const data = await response.json();
+      console.log('[Upload] Success:', data);
 
-      setAttachment(uploadedFile);
+      setAttachment(data);
       toast({
         title: "Success",
         description: "File uploaded successfully",
       });
+
     } catch (error: any) {
-      console.error("[Attachment] Upload error:", error);
+      console.error('[Upload] Error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to upload file",
@@ -506,7 +520,7 @@ export default function Updates() {
       });
     } finally {
       setIsUploadingAttachment(false);
-      // Reset file input to allow selecting the same file again
+      // Clear the input so the same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -514,6 +528,7 @@ export default function Updates() {
   };
 
   const handleRemoveAttachment = () => {
+    console.log('[Upload] Removing attachment');
     setAttachment(null);
   };
 
@@ -1042,20 +1057,15 @@ export default function Updates() {
                 ref={fileInputRef}
                 type="file"
                 onChange={handleFileSelect}
-                className="hidden"
+                style={{ display: 'none' }}
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png,.gif"
-                disabled={isUploadingAttachment}
               />
 
               {!attachment ? (
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    if (!isUploadingAttachment && fileInputRef.current) {
-                      fileInputRef.current.click();
-                    }
-                  }}
+                  onClick={handleAttachmentButtonClick}
                   disabled={isUploadingAttachment}
                   className="w-full"
                 >
