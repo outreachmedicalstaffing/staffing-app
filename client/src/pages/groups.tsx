@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Users as UsersIcon, UserX, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -91,8 +91,6 @@ export default function Groups() {
   const [groupName, setGroupName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("general");
   const [deleteConfirmGroup, setDeleteConfirmGroup] = useState<Group | null>(null);
-  const [viewingGroup, setViewingGroup] = useState<Group | null>(null);
-  const [showMembersModal, setShowMembersModal] = useState(false);
 
   // Get current user to check role
   const { data: currentUser, isLoading: isLoadingUser } = useQuery<User>({
@@ -368,11 +366,6 @@ export default function Groups() {
     setDeleteConfirmGroup(null);
   };
 
-  const handleViewMembers = (group: Group) => {
-    setViewingGroup(group);
-    setShowMembersModal(true);
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -451,12 +444,7 @@ export default function Groups() {
                                     onCheckedChange={() => toggleGroupSelection(group.id)}
                                   />
                                 </TableCell>
-                                <TableCell
-                                  className="font-medium cursor-pointer hover:text-primary transition-colors"
-                                  onClick={() => handleViewMembers(group)}
-                                >
-                                  {group.name}
-                                </TableCell>
+                                <TableCell className="font-medium">{group.name}</TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
                                   {getMemberCount(group)}
                                 </TableCell>
@@ -573,136 +561,6 @@ export default function Groups() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Group Members Modal */}
-      <Dialog open={showMembersModal} onOpenChange={setShowMembersModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UsersIcon className="h-5 w-5" />
-              {viewingGroup?.name}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">
-                Members ({viewingGroup?.category === 'program'
-                  ? users.filter(user => {
-                      const userCustomFields = user.customFields as any;
-                      const userPrograms = userCustomFields?.programs || [];
-                      return Array.isArray(userPrograms) && userPrograms.includes(viewingGroup.name);
-                    }).length
-                  : viewingGroup?.memberIds?.length || 0
-                })
-              </h3>
-            </div>
-
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {viewingGroup?.category === 'program' ? (
-                // For program groups, show users who have this program in their customFields
-                <>
-                  {users.filter(user => {
-                    const userCustomFields = user.customFields as any;
-                    const userPrograms = userCustomFields?.programs || [];
-                    return Array.isArray(userPrograms) && userPrograms.includes(viewingGroup.name);
-                  }).length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <UsersIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No members in this program yet</p>
-                    </div>
-                  ) : (
-                    users.filter(user => {
-                      const userCustomFields = user.customFields as any;
-                      const userPrograms = userCustomFields?.programs || [];
-                      return Array.isArray(userPrograms) && userPrograms.includes(viewingGroup.name);
-                    }).map(user => (
-                      <div
-                        key={user.id}
-                        className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
-                            {user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                          </div>
-                          <div>
-                            <p className="font-medium">{user.fullName}</p>
-                            <p className="text-sm text-muted-foreground">{user.role}</p>
-                          </div>
-                        </div>
-                        <Badge variant="secondary">Program Member</Badge>
-                      </div>
-                    ))
-                  )}
-                </>
-              ) : (
-                // For general/discipline groups, show members from memberIds
-                <>
-                  {(!viewingGroup?.memberIds || viewingGroup.memberIds.length === 0) ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <UsersIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No members in this group yet</p>
-                    </div>
-                  ) : (
-                    viewingGroup.memberIds.map(userId => {
-                      const user = users.find(u => u.id === userId);
-                      if (!user) return null;
-
-                      return (
-                        <div
-                          key={user.id}
-                          className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
-                              {user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                            </div>
-                            <div>
-                              <p className="font-medium">{user.fullName}</p>
-                              <p className="text-sm text-muted-foreground">{user.role}</p>
-                            </div>
-                          </div>
-                          {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                // Remove member from group
-                                const updatedGroups = groups.map(g =>
-                                  g.id === viewingGroup.id
-                                    ? { ...g, memberIds: g.memberIds.filter(id => id !== userId) }
-                                    : g
-                                );
-                                setGroups(updatedGroups);
-                                saveGroupsToStorage(updatedGroups);
-                                syncGroupsToServer(updatedGroups);
-                                setViewingGroup({ ...viewingGroup, memberIds: viewingGroup.memberIds.filter(id => id !== userId) });
-                                toast({
-                                  title: "Success",
-                                  description: "Member removed from group",
-                                });
-                              }}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <UserX className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMembersModal(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
