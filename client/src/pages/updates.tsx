@@ -222,6 +222,11 @@ export default function Updates() {
     setGroups(loadedGroups);
   }, []);
 
+  // Debug attachment state changes
+  useEffect(() => {
+    console.log('[Attachment] State changed:', attachment);
+  }, [attachment]);
+
   // Create program groups from the predefined program options
   const autoProgramGroups = useMemo((): Group[] => {
     return PROGRAM_OPTIONS.map(programName => ({
@@ -452,7 +457,14 @@ export default function Updates() {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+
+    // Prevent multiple uploads
+    if (!file || isUploadingAttachment) {
+      console.log('[Attachment] Skipping upload:', { hasFile: !!file, isUploading: isUploadingAttachment });
+      return;
+    }
+
+    console.log('[Attachment] Starting upload:', file.name);
 
     // Validate file size (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
@@ -470,24 +482,31 @@ export default function Updates() {
       const formData = new FormData();
       formData.append('file', file);
 
+      console.log('[Attachment] Sending upload request...');
       const res = await apiRequest('POST', '/api/updates/attachment', formData);
+
+      if (!res.ok) {
+        throw new Error(`Upload failed with status: ${res.status}`);
+      }
+
       const uploadedFile = await res.json();
+      console.log('[Attachment] Upload successful:', uploadedFile);
 
       setAttachment(uploadedFile);
       toast({
         title: "Success",
         description: "File uploaded successfully",
       });
-    } catch (error) {
-      console.error("Failed to upload file:", error);
+    } catch (error: any) {
+      console.error("[Attachment] Upload error:", error);
       toast({
         title: "Error",
-        description: "Failed to upload file",
+        description: error.message || "Failed to upload file",
         variant: "destructive",
       });
     } finally {
       setIsUploadingAttachment(false);
-      // Reset file input
+      // Reset file input to allow selecting the same file again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -1025,13 +1044,18 @@ export default function Updates() {
                 onChange={handleFileSelect}
                 className="hidden"
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png,.gif"
+                disabled={isUploadingAttachment}
               />
 
               {!attachment ? (
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    if (!isUploadingAttachment && fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }}
                   disabled={isUploadingAttachment}
                   className="w-full"
                 >
