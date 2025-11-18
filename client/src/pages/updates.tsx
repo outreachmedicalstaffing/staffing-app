@@ -138,12 +138,23 @@ export default function Updates() {
   const isAdmin = user && ["Admin", "Owner"].includes(user.role);
 
   // Fetch all updates
-  const { data: updatesRaw = [], isLoading } = useQuery<Update[]>({
+  const { data: updatesRaw = [], isLoading, dataUpdatedAt } = useQuery<Update[]>({
     queryKey: ["/api/updates"],
   });
 
+  // Log when updates data changes
+  useEffect(() => {
+    console.log("[Updates Page] Updates data changed:", {
+      count: updatesRaw.length,
+      timestamp: new Date().toISOString(),
+      dataUpdatedAt,
+      updates: updatesRaw.map(u => ({ id: u.id, title: u.title, status: u.status })),
+    });
+  }, [updatesRaw, dataUpdatedAt]);
+
   // Sort updates by createdAt descending (newest first) as a safety measure
   const updates = useMemo(() => {
+    console.log("[Updates Page] Sorting updates, count:", updatesRaw.length);
     return [...updatesRaw].sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
@@ -202,11 +213,16 @@ export default function Updates() {
   // Create update mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      console.log("[Updates Page] Creating update:", data);
       const res = await apiRequest("POST", "/api/updates", data);
-      return res.json();
+      const result = await res.json();
+      console.log("[Updates Page] Update created:", result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[Updates Page] Create success, invalidating queries");
       queryClient.invalidateQueries({ queryKey: ["/api/updates"] });
+      console.log("[Updates Page] Queries invalidated");
       toast({
         title: "Update created",
         description: "Your update has been created successfully",
@@ -214,7 +230,8 @@ export default function Updates() {
       setShowCreateDialog(false);
       resetForm();
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("[Updates Page] Create error:", error);
       toast({
         title: "Error",
         description: "Failed to create update",

@@ -2585,16 +2585,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // List updates (filtered based on user role and visibility)
   app.get("/api/updates", requireAuth, async (req, res) => {
+    console.log("========== GET UPDATES REQUEST ==========");
     try {
       const currentUser = await storage.getUser(req.session.userId!);
       if (!currentUser) {
         return res.status(404).json({ error: "User not found" });
       }
 
+      console.log("[Get Updates] User:", currentUser.id, "Role:", currentUser.role);
+
       const allUpdates = await storage.db
         .select()
         .from(schema.updates)
         .orderBy(desc(schema.updates.createdAt));
+
+      console.log("[Get Updates] Total updates in DB:", allUpdates.length);
+      if (allUpdates.length > 0) {
+        console.log("[Get Updates] First update:", {
+          id: allUpdates[0].id,
+          title: allUpdates[0].title,
+          status: allUpdates[0].status,
+          visibility: allUpdates[0].visibility,
+          createdBy: allUpdates[0].createdBy,
+        });
+      }
 
       // Helper function to check if user is in a group
       const isUserInGroup = (groupId: string): boolean => {
@@ -2619,22 +2633,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filteredUpdates = allUpdates.filter(update => {
         // Admins/Owners can see all updates
         if (["Admin", "Owner"].includes(currentUser.role)) {
+          console.log("[Get Updates] Admin/Owner - showing update:", update.id);
           return true;
         }
 
         // Only show published updates to non-admins
         if (update.status !== "published") {
+          console.log("[Get Updates] Filtering out non-published update:", update.id, "Status:", update.status);
           return false;
         }
 
         // Check visibility
         if (update.visibility === "all") {
+          console.log("[Get Updates] Visibility 'all' - showing update:", update.id);
           return true;
         }
 
         if (update.visibility === "specific_users") {
           // Check if user is in targetUserIds
           if (update.targetUserIds && update.targetUserIds.includes(currentUser.id)) {
+            console.log("[Get Updates] User in targetUserIds - showing update:", update.id);
             return true;
           }
 
@@ -2642,14 +2660,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (update.targetGroupIds && update.targetGroupIds.length > 0) {
             for (const groupId of update.targetGroupIds) {
               if (isUserInGroup(groupId)) {
+                console.log("[Get Updates] User in group - showing update:", update.id);
                 return true;
               }
             }
           }
         }
 
+        console.log("[Get Updates] Filtering out update:", update.id, "Visibility:", update.visibility);
         return false;
       });
+
+      console.log("[Get Updates] Filtered updates count:", filteredUpdates.length);
 
       // Get metrics for each update
       const updatesWithMetrics = await Promise.all(
@@ -2704,9 +2726,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      console.log("[Get Updates] Returning", updatesWithMetrics.length, "updates to client");
+      console.log("========================================");
       res.json(updatesWithMetrics);
     } catch (error) {
+      console.error("========== GET UPDATES ERROR ==========");
       console.error("Failed to list updates:", error);
+      console.error("========================================");
       res.status(500).json({ error: "Failed to list updates" });
     }
   });
