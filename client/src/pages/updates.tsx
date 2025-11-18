@@ -542,6 +542,9 @@ export default function Updates() {
   };
 
   const handleCreateUpdate = () => {
+    console.log("[handleCreateUpdate] Current formData:", formData);
+    console.log("[handleCreateUpdate] Attachments in formData:", formData.attachments);
+
     if (!formData.title || !formData.content) {
       toast({
         title: "Error",
@@ -558,11 +561,16 @@ export default function Updates() {
       publishDate: publishDateTimestamp,
     };
 
+    console.log("[handleCreateUpdate] Data to send:", dataToSend);
+    console.log("[handleCreateUpdate] Attachments in dataToSend:", dataToSend.attachments);
+
     if (editingUpdate) {
       // Update existing update
+      console.log("[handleCreateUpdate] Editing update:", editingUpdate.id);
       updateMutation.mutate({ id: editingUpdate.id, data: dataToSend });
     } else {
       // Create new update
+      console.log("[handleCreateUpdate] Creating new update");
       createMutation.mutate(dataToSend);
     }
   };

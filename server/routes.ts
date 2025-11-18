@@ -2715,7 +2715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .limit(1),
           ]);
 
-          return {
+          const updateWithMetrics = {
             ...update,
             viewCount: views[0].count,
             likeCount: likes[0].count,
@@ -2723,10 +2723,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isLikedByUser: userLike.length > 0,
             isAcknowledgedByUser: userAck.length > 0,
           };
+
+          // Log attachments for debugging
+          if (update.attachments) {
+            console.log(`[Get Updates] Update ${update.id} has ${Array.isArray(update.attachments) ? update.attachments.length : 'invalid'} attachments:`, update.attachments);
+          }
+
+          return updateWithMetrics;
         })
       );
 
       console.log("[Get Updates] Returning", updatesWithMetrics.length, "updates to client");
+      if (updatesWithMetrics.length > 0 && updatesWithMetrics[0].attachments) {
+        console.log("[Get Updates] First update attachments:", updatesWithMetrics[0].attachments);
+      }
       console.log("========================================");
       res.json(updatesWithMetrics);
     } catch (error) {
@@ -2786,6 +2796,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/updates",
     requireRole("Owner", "Admin"),
     async (req, res) => {
+      console.log("========== CREATE UPDATE REQUEST ==========");
+      console.log("[Create Update] Request body:", JSON.stringify(req.body, null, 2));
+      console.log("[Create Update] Attachments in request:", req.body.attachments);
+
       try {
         const userId = req.session.userId!;
 
@@ -2794,10 +2808,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdBy: userId,
         });
 
+        console.log("[Create Update] Parsed update data:", JSON.stringify(newUpdate, null, 2));
+        console.log("[Create Update] Attachments after parse:", newUpdate.attachments);
+
         const [created] = await storage.db
           .insert(schema.updates)
           .values(newUpdate)
           .returning();
+
+        console.log("[Create Update] Created update:", JSON.stringify(created, null, 2));
+        console.log("[Create Update] Attachments in created:", created.attachments);
+        console.log("==========================================");
 
         await logAudit(
           userId,
@@ -2812,7 +2833,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json(created);
       } catch (error: any) {
+        console.error("========== CREATE UPDATE ERROR ==========");
         console.error("Failed to create update:", error);
+        console.error("Error details:", error.message);
+        console.error("Error stack:", error.stack);
+        console.error("========================================");
         if (error.errors) {
           return res.status(400).json({ error: error.errors });
         }
@@ -2830,6 +2855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Update ID:", req.params.id);
       console.log("User ID:", req.session.userId);
       console.log("Request Body:", JSON.stringify(req.body, null, 2));
+      console.log("[Update Edit] Attachments in request:", req.body.attachments);
 
       try {
         const updateId = req.params.id;
@@ -2837,11 +2863,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log("Step 1: Validating request body...");
         console.log("Raw body before validation:", req.body);
+        console.log("Attachments before validation:", req.body.attachments);
 
         // Validate the update data using the schema
         const validatedData = schema.updateUpdateSchema.parse(req.body);
         console.log("Step 2: Validation successful!");
         console.log("Validated data:", JSON.stringify(validatedData, null, 2));
+        console.log("Attachments after validation:", validatedData.attachments);
 
         console.log("Step 3: Preparing data for database update...");
         console.log("========== PUBLISHDATE DEBUG ==========");
@@ -2882,6 +2910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Step 4: Attempting database update...");
         console.log("Update ID:", updateId);
         console.log("Data to set:", updateData);
+        console.log("Attachments in data to set:", updateData.attachments);
 
         const [updated] = await storage.db
           .update(schema.updates)
@@ -2891,6 +2920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log("Step 5: Database update completed!");
         console.log("Database result:", JSON.stringify(updated, null, 2));
+        console.log("Attachments in updated record:", updated.attachments);
 
         if (!updated) {
           console.log("ERROR: Update not found in database");
