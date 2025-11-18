@@ -2648,6 +2648,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // CRITICAL: Owner and Admin see ALL updates - check this FIRST
+      if (["Owner", "Admin"].includes(currentUser.role)) {
+        console.log("[Get Updates] ⭐⭐⭐ USER IS OWNER/ADMIN ⭐⭐⭐");
+        console.log("[Get Updates] Returning ALL", allUpdates.length, "updates (no filtering applied)");
+        console.log("[Get Updates] Update titles:", allUpdates.map(u => u.title));
+
+        // Get metrics for each update
+        const updatesWithMetrics = await Promise.all(
+          allUpdates.map(async (update) => {
+            const [views, likes, comments] = await Promise.all([
+              storage.db
+                .select({ count: count() })
+                .from(schema.updateViews)
+                .where(eq(schema.updateViews.updateId, update.id)),
+              storage.db
+                .select({ count: count() })
+                .from(schema.updateLikes)
+                .where(eq(schema.updateLikes.updateId, update.id)),
+              storage.db
+                .select({ count: count() })
+                .from(schema.updateComments)
+                .where(eq(schema.updateComments.updateId, update.id)),
+            ]);
+
+            const [userLike, userAck] = await Promise.all([
+              storage.db
+                .select()
+                .from(schema.updateLikes)
+                .where(
+                  and(
+                    eq(schema.updateLikes.updateId, update.id),
+                    eq(schema.updateLikes.userId, currentUser.id)
+                  )
+                )
+                .limit(1),
+              storage.db
+                .select()
+                .from(schema.updateAcknowledgments)
+                .where(
+                  and(
+                    eq(schema.updateAcknowledgments.updateId, update.id),
+                    eq(schema.updateAcknowledgments.userId, currentUser.id)
+                  )
+                )
+                .limit(1),
+            ]);
+
+            return {
+              ...update,
+              viewCount: Number(views[0]?.count || 0),
+              likeCount: Number(likes[0]?.count || 0),
+              commentCount: Number(comments[0]?.count || 0),
+              isLikedByUser: userLike.length > 0,
+              isAcknowledgedByUser: userAck.length > 0,
+            };
+          })
+        );
+
+        console.log("[Get Updates] Returning", updatesWithMetrics.length, "updates to Owner/Admin");
+        return res.json(updatesWithMetrics);
+      }
+
+      console.log("[Get Updates] Regular user - applying visibility filtering");
+
       // Helper function to check if user is in a group
       const isUserInGroup = (groupId: string): boolean => {
         console.log("[Get Updates] ===== Checking group:", groupId);
@@ -2681,15 +2745,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return false;
       };
 
-      // Filter updates based on user role and visibility
+      // Filter updates based on visibility (only for regular users)
       const filteredUpdates = allUpdates.filter(update => {
         console.log("[Get Updates] Evaluating update:", update.id, "Title:", update.title, "Visibility:", update.visibility);
-
-        // Admins/Owners can see all updates
-        if (["Admin", "Owner"].includes(currentUser.role)) {
-          console.log("[Get Updates] ✓ Admin/Owner - showing update:", update.id);
-          return true;
-        }
 
         // Only show published updates to non-admins
         if (update.status !== "published") {
