@@ -48,11 +48,6 @@ import {
   Clock,
   Pencil,
   Search,
-  Paperclip,
-  X,
-  FileText,
-  Image as ImageIcon,
-  Download,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -68,15 +63,6 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-
-interface Attachment {
-  id: string;
-  name: string;
-  url: string;
-  type: string;
-  size: number;
-  filename: string;
-}
 
 interface Update {
   id: string;
@@ -94,7 +80,6 @@ interface Update {
   likeCount: number;
   commentCount: number;
   isLikedByUser: boolean;
-  attachments?: Attachment[];
 }
 
 interface Comment {
@@ -148,9 +133,7 @@ export default function Updates() {
     targetUserIds: [] as string[],
     targetGroupIds: [] as string[],
     status: "published",
-    attachments: [] as Attachment[],
   });
-  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   // Get current user
   const { data: user } = useQuery<User>({ queryKey: ["/api/auth/me"] });
@@ -170,17 +153,6 @@ export default function Updates() {
       updates: updatesRaw.map(u => ({ id: u.id, title: u.title, status: u.status })),
     });
   }, [updatesRaw, dataUpdatedAt]);
-
-  // Log when attachments change in formData
-  useEffect(() => {
-    console.log("[FormData Attachments] ========== ATTACHMENTS CHANGED ==========");
-    console.log("[FormData Attachments] Count:", formData.attachments.length);
-    console.log("[FormData Attachments] Attachments:", formData.attachments);
-    formData.attachments.forEach((att, i) => {
-      console.log(`[FormData Attachments] [${i}] ${att.name} - ID: ${att.id}`);
-    });
-    console.log("[FormData Attachments] =======================================");
-  }, [formData.attachments]);
 
   // Sort updates by createdAt descending (newest first) as a safety measure
   const updates = useMemo(() => {
@@ -459,130 +431,10 @@ export default function Updates() {
       targetUserIds: [],
       targetGroupIds: [],
       status: "published",
-      attachments: [],
     });
   };
 
-  // Handle file upload
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    console.log("[File Upload] ========== HANDLER CALLED ==========");
-    console.log("[File Upload] event.target.files:", files);
-    console.log("[File Upload] files?.length:", files?.length);
-
-    if (!files || files.length === 0) {
-      console.log("[File Upload] No files selected, returning early");
-      return;
-    }
-
-    console.log("[File Upload] Starting upload for", files.length, "file(s)");
-    console.log("[File Upload] Current attachments count:", formData.attachments.length);
-
-    // Limit to 5 files total
-    if (formData.attachments.length + files.length > 5) {
-      console.log("[File Upload] Too many files - limit exceeded");
-      toast({
-        title: "Too many files",
-        description: "You can only upload up to 5 files per update",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log("[File Upload] Setting uploadingFiles to true");
-    setUploadingFiles(true);
-    try {
-      const formDataToSend = new FormData();
-      Array.from(files).forEach((file) => {
-        console.log("[File Upload] Adding file:", file.name, file.type, file.size);
-        formDataToSend.append("files", file);
-      });
-
-      console.log("[File Upload] Sending request to /api/updates/upload");
-
-      const res = await fetch("/api/updates/upload", {
-        method: "POST",
-        body: formDataToSend,
-        credentials: "include",
-      });
-
-      console.log("[File Upload] Response status:", res.status, res.statusText);
-      console.log("[File Upload] Response content-type:", res.headers.get("content-type"));
-
-      if (!res.ok) {
-        console.error("[File Upload] Response not OK");
-        const contentType = res.headers.get("content-type");
-        let errorMessage = "Failed to upload files";
-
-        if (contentType && contentType.includes("application/json")) {
-          const error = await res.json();
-          console.error("[File Upload] Error response:", error);
-          errorMessage = error.error || errorMessage;
-        } else {
-          const text = await res.text();
-          console.error("[File Upload] HTML response (first 500 chars):", text.substring(0, 500));
-          errorMessage = `Server error (${res.status}): Endpoint may not exist or server error occurred`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const result = await res.json();
-      console.log("[File Upload] ========== SUCCESS! ==========");
-      console.log("[File Upload] Full result object:", JSON.stringify(result, null, 2));
-      console.log("[File Upload] result.success:", result.success);
-      console.log("[File Upload] result.attachments:", result.attachments);
-      console.log("[File Upload] Number of attachments returned:", result.attachments?.length);
-
-      if (result.attachments && Array.isArray(result.attachments)) {
-        console.log("[File Upload] BEFORE state update - current attachments:", formData.attachments);
-        console.log("[File Upload] New attachments to add:", result.attachments);
-
-        setFormData((prev) => {
-          const updated = {
-            ...prev,
-            attachments: [...prev.attachments, ...result.attachments],
-          };
-          console.log("[File Upload] AFTER state update - new attachments:", updated.attachments);
-          console.log("[File Upload] Total attachment count:", updated.attachments.length);
-          return updated;
-        });
-
-        toast({
-          title: "Files uploaded",
-          description: `${result.attachments.length} file(s) uploaded successfully`,
-        });
-      } else {
-        console.error("[File Upload] ERROR: result.attachments is not an array:", result.attachments);
-        throw new Error("Server response missing attachments array");
-      }
-    } catch (error: any) {
-      console.error("[File Upload] Error caught:", error);
-      console.error("[File Upload] Error message:", error.message);
-      console.error("[File Upload] Error stack:", error.stack);
-      toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload files",
-        variant: "destructive",
-      });
-    } finally {
-      setUploadingFiles(false);
-      // Reset input
-      event.target.value = "";
-    }
-  };
-
-  // Remove attachment
-  const handleRemoveAttachment = (attachmentId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      attachments: prev.attachments.filter((a) => a.id !== attachmentId),
-    }));
-  };
-
   const handleCreateUpdate = () => {
-    console.log("[handleCreateUpdate] Current formData:", formData);
-    console.log("[handleCreateUpdate] Attachments in formData:", formData.attachments);
-
     if (!formData.title || !formData.content) {
       toast({
         title: "Error",
@@ -599,16 +451,11 @@ export default function Updates() {
       publishDate: publishDateTimestamp,
     };
 
-    console.log("[handleCreateUpdate] Data to send:", dataToSend);
-    console.log("[handleCreateUpdate] Attachments in dataToSend:", dataToSend.attachments);
-
     if (editingUpdate) {
       // Update existing update
-      console.log("[handleCreateUpdate] Editing update:", editingUpdate.id);
       updateMutation.mutate({ id: editingUpdate.id, data: dataToSend });
     } else {
       // Create new update
-      console.log("[handleCreateUpdate] Creating new update");
       createMutation.mutate(dataToSend);
     }
   };
@@ -623,7 +470,6 @@ export default function Updates() {
       targetUserIds: update.targetUserIds || [],
       targetGroupIds: update.targetGroupIds || [],
       status: update.status,
-      attachments: update.attachments || [],
     });
     setShowCreateDialog(true);
   };
@@ -859,16 +705,6 @@ export default function Updates() {
                     {update.commentCount}
                   </div>
                 </div>
-
-                {/* Attachments preview */}
-                {update.attachments && update.attachments.length > 0 && (
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                    <Paperclip className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {update.attachments.length} attachment{update.attachments.length > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))
@@ -1103,86 +939,6 @@ export default function Updates() {
                 </div>
               </>
             )}
-
-            {/* File Attachments - Owner/Admin only */}
-            {isAdmin && (
-              <div>
-                <Label>Attachments</Label>
-                <div className="mt-2 space-y-2">
-                  {/* File input */}
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="file"
-                      id="file-upload"
-                      multiple
-                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
-                      onChange={handleFileUpload}
-                      disabled={uploadingFiles || formData.attachments.length >= 5}
-                      className="hidden"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={uploadingFiles || formData.attachments.length >= 5}
-                      onClick={() => document.getElementById("file-upload")?.click()}
-                    >
-                      <Paperclip className="h-4 w-4 mr-2" />
-                      {uploadingFiles ? "Uploading..." : "Attach Files"}
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                      {formData.attachments.length}/5 files
-                    </span>
-                  </div>
-
-                  {/* Attachment preview list */}
-                  {(() => {
-                    console.log("[Attachments UI] Rendering attachments list. Count:", formData.attachments.length);
-                    console.log("[Attachments UI] Attachments:", formData.attachments);
-                    return null;
-                  })()}
-                  {formData.attachments.length > 0 ? (
-                    <div className="space-y-2 border rounded-md p-3">
-                      {formData.attachments.map((attachment, index) => {
-                        console.log(`[Attachments UI] Rendering attachment [${index}]:`, attachment);
-                        const isImage = attachment.type.startsWith("image/");
-                        return (
-                          <div
-                            key={attachment.id}
-                            className="flex items-center justify-between gap-2 p-2 bg-muted rounded-md"
-                          >
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              {isImage ? (
-                                <ImageIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              ) : (
-                                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              )}
-                              <span className="text-sm truncate">{attachment.name}</span>
-                              <span className="text-xs text-muted-foreground flex-shrink-0">
-                                ({(attachment.size / 1024).toFixed(1)} KB)
-                              </span>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveAttachment(attachment.id)}
-                              className="h-6 w-6 p-0 flex-shrink-0"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      No attachments yet. Click "Attach Files" to add files.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           <DialogFooter>
@@ -1250,50 +1006,6 @@ export default function Updates() {
                     {selectedUpdate.commentCount} comments
                   </div>
                 </div>
-
-                {/* Attachments */}
-                {selectedUpdate.attachments && selectedUpdate.attachments.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-3">Attachments</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      {selectedUpdate.attachments.map((attachment) => {
-                        const isImage = attachment.type.startsWith("image/");
-                        return (
-                          <a
-                            key={attachment.id}
-                            href={attachment.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-3 p-3 border rounded-md hover:bg-muted/50 transition-colors group"
-                          >
-                            {isImage ? (
-                              <div className="w-16 h-16 rounded overflow-hidden bg-muted flex-shrink-0">
-                                <img
-                                  src={attachment.url}
-                                  alt={attachment.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-16 h-16 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                                <FileText className="h-8 w-8 text-muted-foreground" />
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate group-hover:text-primary">
-                                {attachment.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {(attachment.size / 1024).toFixed(1)} KB
-                              </p>
-                            </div>
-                            <Download className="h-4 w-4 text-muted-foreground group-hover:text-primary flex-shrink-0" />
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 {/* Comments */}
                 <div>

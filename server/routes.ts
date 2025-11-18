@@ -2715,7 +2715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .limit(1),
           ]);
 
-          const updateWithMetrics = {
+          return {
             ...update,
             viewCount: views[0].count,
             likeCount: likes[0].count,
@@ -2723,20 +2723,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isLikedByUser: userLike.length > 0,
             isAcknowledgedByUser: userAck.length > 0,
           };
-
-          // Log attachments for debugging
-          if (update.attachments) {
-            console.log(`[Get Updates] Update ${update.id} has ${Array.isArray(update.attachments) ? update.attachments.length : 'invalid'} attachments:`, update.attachments);
-          }
-
-          return updateWithMetrics;
         })
       );
 
       console.log("[Get Updates] Returning", updatesWithMetrics.length, "updates to client");
-      if (updatesWithMetrics.length > 0 && updatesWithMetrics[0].attachments) {
-        console.log("[Get Updates] First update attachments:", updatesWithMetrics[0].attachments);
-      }
       console.log("========================================");
       res.json(updatesWithMetrics);
     } catch (error) {
@@ -2796,10 +2786,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/updates",
     requireRole("Owner", "Admin"),
     async (req, res) => {
-      console.log("========== CREATE UPDATE REQUEST ==========");
-      console.log("[Create Update] Request body:", JSON.stringify(req.body, null, 2));
-      console.log("[Create Update] Attachments in request:", req.body.attachments);
-
       try {
         const userId = req.session.userId!;
 
@@ -2808,17 +2794,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdBy: userId,
         });
 
-        console.log("[Create Update] Parsed update data:", JSON.stringify(newUpdate, null, 2));
-        console.log("[Create Update] Attachments after parse:", newUpdate.attachments);
-
         const [created] = await storage.db
           .insert(schema.updates)
           .values(newUpdate)
           .returning();
-
-        console.log("[Create Update] Created update:", JSON.stringify(created, null, 2));
-        console.log("[Create Update] Attachments in created:", created.attachments);
-        console.log("==========================================");
 
         await logAudit(
           userId,
@@ -2855,7 +2834,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Update ID:", req.params.id);
       console.log("User ID:", req.session.userId);
       console.log("Request Body:", JSON.stringify(req.body, null, 2));
-      console.log("[Update Edit] Attachments in request:", req.body.attachments);
 
       try {
         const updateId = req.params.id;
@@ -2863,13 +2841,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log("Step 1: Validating request body...");
         console.log("Raw body before validation:", req.body);
-        console.log("Attachments before validation:", req.body.attachments);
 
         // Validate the update data using the schema
         const validatedData = schema.updateUpdateSchema.parse(req.body);
         console.log("Step 2: Validation successful!");
         console.log("Validated data:", JSON.stringify(validatedData, null, 2));
-        console.log("Attachments after validation:", validatedData.attachments);
 
         console.log("Step 3: Preparing data for database update...");
         console.log("========== PUBLISHDATE DEBUG ==========");
@@ -2910,7 +2886,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Step 4: Attempting database update...");
         console.log("Update ID:", updateId);
         console.log("Data to set:", updateData);
-        console.log("Attachments in data to set:", updateData.attachments);
 
         const [updated] = await storage.db
           .update(schema.updates)
@@ -2920,7 +2895,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log("Step 5: Database update completed!");
         console.log("Database result:", JSON.stringify(updated, null, 2));
-        console.log("Attachments in updated record:", updated.attachments);
 
         if (!updated) {
           console.log("ERROR: Update not found in database");
@@ -3124,104 +3098,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-
-  // Upload files for update (Owner/Admin only)
-  app.post(
-    "/api/updates/upload",
-    (req, res, next) => {
-      console.log("========== ROUTE HIT: /api/updates/upload ==========");
-      console.log("[Upload Route] Method:", req.method);
-      console.log("[Upload Route] URL:", req.url);
-      console.log("[Upload Route] Session userId:", req.session.userId);
-      console.log("[Upload Route] Content-Type:", req.get('content-type'));
-      next();
-    },
-    requireRole("Owner", "Admin"),
-    upload.array("files", 5), // Allow up to 5 files
-    async (req, res) => {
-      console.log("========== UPDATE FILE UPLOAD REQUEST ==========");
-      console.log("[Update File Upload] Request received:", {
-        userId: req.session.userId,
-        userRole: req.session.userRole,
-        filesCount: req.files?.length || 0,
-        contentType: req.get('content-type'),
-        url: req.url,
-        method: req.method,
-      });
-
-      try {
-        if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
-          console.log("[Update File Upload] ERROR: No files in request");
-          console.log("[Update File Upload] req.files:", req.files);
-          return res.status(400).json({ error: "No files uploaded" });
-        }
-
-        console.log("[Update File Upload] Files received:", req.files.map(f => ({
-          originalname: f.originalname,
-          mimetype: f.mimetype,
-          size: f.size,
-          filename: f.filename,
-        })));
-
-        const userId = req.session.userId!;
-
-        // Log each uploaded file
-        for (const file of req.files) {
-          await logAudit(
-            userId,
-            "upload",
-            "update_attachment",
-            file.filename,
-            false,
-            [],
-            {
-              originalName: file.originalname,
-              size: file.size,
-              mimetype: file.mimetype,
-            },
-            req.ip
-          );
-        }
-
-        // Return array of attachment objects with structured data
-        const attachments = req.files.map((file) => ({
-          id: crypto.randomUUID(),
-          name: file.originalname,
-          url: `/api/files/${file.filename}`,
-          type: file.mimetype,
-          size: file.size,
-          filename: file.filename,
-        }));
-
-        console.log("[Update File Upload] ========== SUCCESS! ==========");
-        console.log("[Update File Upload] Number of files processed:", attachments.length);
-        console.log("[Update File Upload] Returning response:");
-        console.log(JSON.stringify({
-          success: true,
-          attachments,
-        }, null, 2));
-        console.log("[Update File Upload] Each attachment:");
-        attachments.forEach((att, i) => {
-          console.log(`  [${i}] ${att.name} - ${att.size} bytes - ${att.type}`);
-          console.log(`      URL: ${att.url}`);
-          console.log(`      ID: ${att.id}`);
-        });
-        console.log("==============================================");
-
-        res.json({
-          success: true,
-          attachments,
-        });
-      } catch (error: any) {
-        console.error("========== UPDATE FILE UPLOAD ERROR ==========");
-        console.error("[Update File Upload] Error:", error);
-        console.error("[Update File Upload] Error message:", error.message);
-        console.error("[Update File Upload] Error stack:", error.stack);
-        console.error("=============================================");
-        res.status(500).json({ error: "Failed to upload files", message: error.message });
-      }
-    }
-  );
 
   // Get comments for update
   app.get("/api/updates/:id/comments", requireAuth, async (req, res) => {
