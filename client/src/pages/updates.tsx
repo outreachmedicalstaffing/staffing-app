@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +48,9 @@ import {
   Clock,
   Pencil,
   Search,
+  Paperclip,
+  X,
+  Upload,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -64,6 +67,14 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
+interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+}
+
 interface Update {
   id: string;
   title: string;
@@ -75,6 +86,7 @@ interface Update {
   targetGroupIds: string[] | null;
   status: string;
   metadata: string | null;
+  attachments?: Attachment[] | null;
   createdAt: string;
   viewCount: number;
   likeCount: number;
@@ -124,6 +136,9 @@ export default function Updates() {
   const [openGroupSelect, setOpenGroupSelect] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -432,6 +447,61 @@ export default function Updates() {
       targetGroupIds: [],
       status: "published",
     });
+    setAttachment(null);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "File size must be less than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingAttachment(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await apiRequest('POST', '/api/updates/attachment', formData);
+      const uploadedFile = await res.json();
+
+      setAttachment(uploadedFile);
+      toast({
+        title: "Success",
+        description: "File uploaded successfully",
+      });
+    } catch (error) {
+      console.error("Failed to upload file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAttachment(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachment(null);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   const handleCreateUpdate = () => {
@@ -449,6 +519,7 @@ export default function Updates() {
     const dataToSend = {
       ...formData,
       publishDate: publishDateTimestamp,
+      attachments: attachment ? [attachment] : [],
     };
 
     if (editingUpdate) {
@@ -471,6 +542,7 @@ export default function Updates() {
       targetGroupIds: update.targetGroupIds || [],
       status: update.status,
     });
+    setAttachment(update.attachments && update.attachments.length > 0 ? update.attachments[0] : null);
     setShowCreateDialog(true);
   };
 
@@ -939,6 +1011,63 @@ export default function Updates() {
                 </div>
               </>
             )}
+
+            {/* Attachment Upload Section */}
+            <div className="border-t pt-4 mt-4">
+              <Label>Attachment (Optional)</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Add one file to this update (max 10MB)
+              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileSelect}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png,.gif"
+              />
+
+              {!attachment ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingAttachment}
+                  className="w-full"
+                >
+                  {isUploadingAttachment ? (
+                    <>
+                      <Upload className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Paperclip className="h-4 w-4 mr-2" />
+                      Add Attachment
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="flex items-center justify-between p-3 border rounded-md bg-muted/50">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Paperclip className="h-4 w-4 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{attachment.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveAttachment}
+                    className="flex-shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
@@ -985,6 +1114,32 @@ export default function Updates() {
                 <div className="prose prose-sm max-w-none">
                   <p className="whitespace-pre-wrap">{selectedUpdate.content}</p>
                 </div>
+
+                {/* Attachment */}
+                {selectedUpdate.attachments && selectedUpdate.attachments.length > 0 && (
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-2">Attachment</h3>
+                    <a
+                      href={selectedUpdate.attachments[0].url}
+                      download={selectedUpdate.attachments[0].name}
+                      className="flex items-center gap-2 p-3 border rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <Paperclip className="h-4 w-4 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{selectedUpdate.attachments[0].name}</p>
+                        <p className="text-xs text-muted-foreground">{formatFileSize(selectedUpdate.attachments[0].size)}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="flex-shrink-0"
+                      >
+                        Download
+                      </Button>
+                    </a>
+                  </div>
+                )}
 
                 {/* Stats */}
                 <div className="flex items-center gap-4 py-4 border-y">

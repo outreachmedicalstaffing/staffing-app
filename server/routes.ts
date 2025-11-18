@@ -2825,6 +2825,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Upload attachment for update (Admin/Owner only)
+  app.post(
+    "/api/updates/attachment",
+    requireRole("Owner", "Admin"),
+    upload.single('file'),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        const file = req.file;
+        const fileUrl = `/uploads/${file.filename}`;
+
+        res.json({
+          id: file.filename,
+          name: file.originalname,
+          url: fileUrl,
+          type: file.mimetype,
+          size: file.size,
+        });
+      } catch (error: any) {
+        console.error("Failed to upload attachment:", error);
+        res.status(500).json({ error: "Failed to upload attachment" });
+      }
+    }
+  );
+
   // Update update (Admin/Owner only)
   app.patch(
     "/api/updates/:id",
