@@ -523,6 +523,28 @@ export const insertUpdateCommentSchema = createInsertSchema(
 export type InsertUpdateComment = z.infer<typeof insertUpdateCommentSchema>;
 export type UpdateComment = typeof updateComments.$inferSelect;
 
+// Update acknowledgments - track which users have confirmed/read updates
+export const updateAcknowledgments = pgTable("update_acknowledgments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  updateId: varchar("update_id")
+    .notNull()
+    .references(() => updates.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at").notNull().defaultNow(),
+});
+
+export const insertUpdateAcknowledgmentSchema = createInsertSchema(updateAcknowledgments).omit({
+  id: true,
+  acknowledgedAt: true,
+});
+
+export type InsertUpdateAcknowledgment = z.infer<typeof insertUpdateAcknowledgmentSchema>;
+export type UpdateAcknowledgment = typeof updateAcknowledgments.$inferSelect;
+
 // Audit logs for HIPAA compliance - comprehensive tracking
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id")

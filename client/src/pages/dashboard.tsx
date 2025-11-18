@@ -14,6 +14,7 @@ interface Update {
   createdAt: string;
   visibility: string;
   status: string;
+  isAcknowledgedByUser?: boolean;
 }
 import { format, isAfter, isBefore, startOfWeek, endOfWeek, differenceInDays, addDays, startOfDay, endOfDay } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -161,6 +162,29 @@ export default function Dashboard() {
         title: "Clocked Out",
         description: "You have successfully clocked out",
       });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Acknowledge update mutation
+  const acknowledgeUpdateMutation = useMutation({
+    mutationFn: async (updateId: string) => {
+      const res = await apiRequest("POST", `/api/updates/${updateId}/acknowledge`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/updates'] });
+      toast({
+        title: "Confirmed",
+        description: "Update has been marked as read",
+      });
+      setViewingUpdate(null);
     },
     onError: (error: Error) => {
       toast({
@@ -551,7 +575,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
-                {updates.slice(0, 5).map(update => (
+                {updates.filter(update => !update.isAcknowledgedByUser).slice(0, 5).map(update => (
                   <div
                     key={update.id}
                     className="p-3 rounded-md border-2 border-red-500 bg-[#1565C0] hover-elevate cursor-pointer"
@@ -570,8 +594,8 @@ export default function Dashboard() {
                   </div>
                 ))}
 
-                {updates.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-8">No updates available</p>
+                {updates.filter(update => !update.isAcknowledgedByUser).length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">No new updates</p>
                 )}
               </div>
               <Button
@@ -778,7 +802,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Close Button */}
+              {/* Action Buttons */}
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button
                   variant="outline"
@@ -786,6 +810,13 @@ export default function Dashboard() {
                   data-testid="button-close-update-details"
                 >
                   Close
+                </Button>
+                <Button
+                  onClick={() => acknowledgeUpdateMutation.mutate(viewingUpdate.id)}
+                  disabled={acknowledgeUpdateMutation.isPending}
+                  data-testid="button-confirm-update"
+                >
+                  {acknowledgeUpdateMutation.isPending ? "Confirming..." : "Confirm"}
                 </Button>
               </div>
             </div>

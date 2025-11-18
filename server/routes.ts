@@ -2669,17 +2669,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .where(eq(schema.updateComments.updateId, update.id)),
           ]);
 
-          // Check if current user has liked
-          const userLike = await storage.db
-            .select()
-            .from(schema.updateLikes)
-            .where(
-              and(
-                eq(schema.updateLikes.updateId, update.id),
-                eq(schema.updateLikes.userId, currentUser.id)
+          // Check if current user has liked and acknowledged
+          const [userLike, userAck] = await Promise.all([
+            storage.db
+              .select()
+              .from(schema.updateLikes)
+              .where(
+                and(
+                  eq(schema.updateLikes.updateId, update.id),
+                  eq(schema.updateLikes.userId, currentUser.id)
+                )
               )
-            )
-            .limit(1);
+              .limit(1),
+            storage.db
+              .select()
+              .from(schema.updateAcknowledgments)
+              .where(
+                and(
+                  eq(schema.updateAcknowledgments.updateId, update.id),
+                  eq(schema.updateAcknowledgments.userId, currentUser.id)
+                )
+              )
+              .limit(1),
+          ]);
 
           return {
             ...update,
@@ -2687,6 +2699,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             likeCount: likes[0].count,
             commentCount: comments[0].count,
             isLikedByUser: userLike.length > 0,
+            isAcknowledgedByUser: userAck.length > 0,
           };
         })
       );
@@ -2980,6 +2993,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to like/unlike update:", error);
       res.status(500).json({ error: "Failed to like/unlike update" });
+    }
+  });
+
+  // Acknowledge/confirm update (mark as read)
+  app.post("/api/updates/:id/acknowledge", requireAuth, async (req, res) => {
+    try {
+      const updateId = req.params.id;
+      const userId = req.session.userId!;
+
+      // Check if already acknowledged
+      const existingAck = await storage.db
+        .select()
+        .from(schema.updateAcknowledgments)
+        .where(
+          and(
+            eq(schema.updateAcknowledgments.updateId, updateId),
+            eq(schema.updateAcknowledgments.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (existingAck.length === 0) {
+        // Acknowledge for the first time
+        await storage.db.insert(schema.updateAcknowledgments).values({
+          updateId,
+          userId,
+        });
+
+        await logAudit(
+          userId,
+          "acknowledge",
+          "update",
+          updateId,
+          false,
+          [],
+          {},
+          req.ip
+        );
+
+        res.json({ acknowledged: true });
+      } else {
+        // Already acknowledged
+        res.json({ acknowledged: true });
+      }
+    } catch (error) {
+      console.error("Failed to acknowledge update:", error);
+      res.status(500).json({ error: "Failed to acknowledge update" });
     }
   });
 
