@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronDown, ChevronRight, Plus, Pencil, Trash2 } from "lucide-react";
@@ -62,8 +64,22 @@ function saveGroupsToStorage(groups: Group[]) {
   }
 }
 
+async function syncGroupsToServer(groups: Group[]) {
+  try {
+    console.log("[Groups] Syncing groups to server...");
+    const res = await apiRequest("POST", "/api/groups/sync", { groups });
+    const result = await res.json();
+    console.log("[Groups] Sync result:", result);
+    return result;
+  } catch (error) {
+    console.error("[Groups] Failed to sync groups to server:", error);
+    throw error;
+  }
+}
+
 export default function Groups() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
@@ -115,6 +131,15 @@ export default function Groups() {
     const loadedGroups = loadGroupsFromStorage();
     setGroups(loadedGroups);
   }, []);
+
+  // Sync groups to server when loaded
+  useEffect(() => {
+    if (isAdmin && groups.length > 0) {
+      syncGroupsToServer(groups).catch(error => {
+        console.error("[Groups] Failed to sync on mount:", error);
+      });
+    }
+  }, [isAdmin, groups.length]); // Only sync when groups are loaded and user is admin
 
   // Create program groups from the predefined program options
   const autoProgramGroups = useMemo((): Group[] => {
@@ -256,18 +281,18 @@ export default function Groups() {
     setIsModalOpen(true);
   };
 
-  const handleSaveGroup = () => {
+  const handleSaveGroup = async () => {
     if (!groupName.trim()) return;
+
+    let updatedGroups: Group[];
 
     if (editingGroup) {
       // Edit existing group
-      const updatedGroups = groups.map(g =>
+      updatedGroups = groups.map(g =>
         g.id === editingGroup.id
           ? { ...g, name: groupName.trim(), category: selectedCategory }
           : g
       );
-      setGroups(updatedGroups);
-      saveGroupsToStorage(updatedGroups);
     } else {
       // Add new group
       const newGroup: Group = {
@@ -279,9 +304,25 @@ export default function Groups() {
         createdAt: new Date().toISOString(),
       };
 
-      const updatedGroups = [...groups, newGroup];
-      setGroups(updatedGroups);
-      saveGroupsToStorage(updatedGroups);
+      updatedGroups = [...groups, newGroup];
+    }
+
+    setGroups(updatedGroups);
+    saveGroupsToStorage(updatedGroups);
+
+    // Sync to server
+    try {
+      await syncGroupsToServer(updatedGroups);
+      toast({
+        title: "Success",
+        description: "Group saved and synced to server",
+      });
+    } catch (error) {
+      toast({
+        title: "Warning",
+        description: "Group saved locally but failed to sync to server",
+        variant: "destructive",
+      });
     }
 
     // Reset and close modal
@@ -295,7 +336,7 @@ export default function Groups() {
     setDeleteConfirmGroup(group);
   };
 
-  const confirmDeleteGroup = () => {
+  const confirmDeleteGroup = async () => {
     if (!deleteConfirmGroup) return;
 
     const updatedGroups = groups.filter(g => g.id !== deleteConfirmGroup.id);
@@ -306,6 +347,21 @@ export default function Groups() {
     const newSelected = new Set(selectedGroups);
     newSelected.delete(deleteConfirmGroup.id);
     setSelectedGroups(newSelected);
+
+    // Sync to server
+    try {
+      await syncGroupsToServer(updatedGroups);
+      toast({
+        title: "Success",
+        description: "Group deleted and synced to server",
+      });
+    } catch (error) {
+      toast({
+        title: "Warning",
+        description: "Group deleted locally but failed to sync to server",
+        variant: "destructive",
+      });
+    }
 
     setDeleteConfirmGroup(null);
   };

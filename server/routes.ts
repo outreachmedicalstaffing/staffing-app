@@ -2592,7 +2592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      console.log("[Get Updates] User:", currentUser.id, "Role:", currentUser.role);
+      console.log("[Get Updates] User:", currentUser.id, "Role:", currentUser.role, "Groups:", currentUser.groups);
 
       const allUpdates = await storage.db
         .select()
@@ -2617,57 +2617,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const programName = groupId.replace('auto-program-', '');
           const userCustomFields = currentUser.customFields as any;
           const userPrograms = userCustomFields?.programs || [];
-          return userPrograms.includes(programName);
+          const inProgram = userPrograms.includes(programName);
+          console.log("[Get Updates] Program group check:", programName, "User in program:", inProgram);
+          return inProgram;
         }
 
-        // For discipline and general groups stored in localStorage,
-        // we can't check membership server-side without storing groups in DB.
-        // As a workaround, we'll return false here, which means only program groups
-        // and direct user targeting will work for now.
-        // To fully support discipline/general groups, we'd need to store group
-        // membership in the database or send group metadata with the update.
+        // For discipline and general groups, check user's groups array
+        if (currentUser.groups && Array.isArray(currentUser.groups)) {
+          const inGroup = currentUser.groups.includes(groupId);
+          console.log("[Get Updates] Group check:", groupId, "User in group:", inGroup, "User groups:", currentUser.groups);
+          return inGroup;
+        }
+
+        console.log("[Get Updates] User has no groups array, returning false for group:", groupId);
         return false;
       };
 
       // Filter updates based on user role and visibility
       const filteredUpdates = allUpdates.filter(update => {
+        console.log("[Get Updates] Evaluating update:", update.id, "Title:", update.title, "Visibility:", update.visibility);
+
         // Admins/Owners can see all updates
         if (["Admin", "Owner"].includes(currentUser.role)) {
-          console.log("[Get Updates] Admin/Owner - showing update:", update.id);
+          console.log("[Get Updates] ✓ Admin/Owner - showing update:", update.id);
           return true;
         }
 
         // Only show published updates to non-admins
         if (update.status !== "published") {
-          console.log("[Get Updates] Filtering out non-published update:", update.id, "Status:", update.status);
+          console.log("[Get Updates] ✗ Filtering out non-published update:", update.id, "Status:", update.status);
           return false;
         }
 
         // Check visibility
         if (update.visibility === "all") {
-          console.log("[Get Updates] Visibility 'all' - showing update:", update.id);
+          console.log("[Get Updates] ✓ Visibility 'all' - showing update:", update.id);
           return true;
         }
 
         if (update.visibility === "specific_users") {
+          console.log("[Get Updates] Checking specific_users targeting for update:", update.id);
+          console.log("[Get Updates]   - targetUserIds:", update.targetUserIds);
+          console.log("[Get Updates]   - targetGroupIds:", update.targetGroupIds);
+
           // Check if user is in targetUserIds
           if (update.targetUserIds && update.targetUserIds.includes(currentUser.id)) {
-            console.log("[Get Updates] User in targetUserIds - showing update:", update.id);
+            console.log("[Get Updates] ✓ User in targetUserIds - showing update:", update.id);
             return true;
           }
 
           // Check if user is in any of the target groups
           if (update.targetGroupIds && update.targetGroupIds.length > 0) {
+            console.log("[Get Updates] Checking group membership for", update.targetGroupIds.length, "groups");
             for (const groupId of update.targetGroupIds) {
               if (isUserInGroup(groupId)) {
-                console.log("[Get Updates] User in group - showing update:", update.id);
+                console.log("[Get Updates] ✓ User in group", groupId, "- showing update:", update.id);
                 return true;
               }
             }
+            console.log("[Get Updates] ✗ User not in any target groups - filtering out update:", update.id);
+            return false;
           }
+
+          console.log("[Get Updates] ✗ No targeting match - filtering out update:", update.id);
+          return false;
         }
 
-        console.log("[Get Updates] Filtering out update:", update.id, "Visibility:", update.visibility);
+        console.log("[Get Updates] ✗ Unknown visibility type - filtering out update:", update.id, "Visibility:", update.visibility);
         return false;
       });
 
@@ -3429,6 +3445,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to update user" });
     }
   });
+
+  // Sync group membership to user.groups field
+  app.post(
+    "/api/groups/sync",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const { groups } = req.body;
+
+        if (!Array.isArray(groups)) {
+          return res.status(400).json({ error: "Groups must be an array" });
+        }
+
+        console.log("[Sync Groups] Syncing", groups.length, "groups to user database");
+
+        // Build a map of userId -> array of groupIds they belong to
+        const userGroupsMap: Record<string, string[]> = {};
+
+        // For each group, add its ID to all member users' groups arrays
+        for (const group of groups) {
+          if (group.category !== 'program' && Array.isArray(group.memberIds)) {
+            for (const userId of group.memberIds) {
+              if (!userGroupsMap[userId]) {
+                userGroupsMap[userId] = [];
+              }
+              userGroupsMap[userId].push(group.id);
+            }
+          }
+        }
+
+        console.log("[Sync Groups] Updating", Object.keys(userGroupsMap).length, "users");
+
+        // Update each user's groups field
+        let updatedCount = 0;
+        for (const [userId, groupIds] of Object.entries(userGroupsMap)) {
+          try {
+            await storage.db
+              .update(schema.users)
+              .set({ groups: groupIds })
+              .where(eq(schema.users.id, userId));
+            updatedCount++;
+            console.log("[Sync Groups] Updated user", userId, "with groups:", groupIds);
+          } catch (error) {
+            console.error("[Sync Groups] Failed to update user", userId, error);
+          }
+        }
+
+        // Also clear groups for users not in any group
+        const allUsers = await storage.db.select({ id: schema.users.id }).from(schema.users);
+        for (const user of allUsers) {
+          if (!userGroupsMap[user.id]) {
+            try {
+              await storage.db
+                .update(schema.users)
+                .set({ groups: [] })
+                .where(eq(schema.users.id, user.id));
+              console.log("[Sync Groups] Cleared groups for user", user.id);
+            } catch (error) {
+              console.error("[Sync Groups] Failed to clear groups for user", user.id, error);
+            }
+          }
+        }
+
+        res.json({
+          success: true,
+          message: `Synced ${updatedCount} users with group membership`
+        });
+      } catch (error: any) {
+        console.error("[Sync Groups] Error:", error);
+        res.status(500).json({ error: "Failed to sync groups" });
+      }
+    }
+  );
 
   // ===== Settings Routes =====
 
