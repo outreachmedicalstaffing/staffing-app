@@ -175,10 +175,25 @@ export default function Dashboard() {
   // Acknowledge update mutation
   const acknowledgeUpdateMutation = useMutation({
     mutationFn: async (updateId: string) => {
-      const res = await apiRequest("POST", `/api/updates/${updateId}/acknowledge`, {});
-      return res.json();
+      console.log("[Dashboard] Acknowledging update:", updateId);
+      console.log("[Dashboard] Calling:", `POST /api/updates/${updateId}/acknowledge`);
+
+      try {
+        const res = await apiRequest("POST", `/api/updates/${updateId}/acknowledge`, {});
+        console.log("[Dashboard] Response status:", res.status);
+        console.log("[Dashboard] Response OK:", res.ok);
+
+        const data = await res.json();
+        console.log("[Dashboard] Response data:", data);
+        return data;
+      } catch (error: any) {
+        console.error("[Dashboard] Acknowledge error:", error);
+        console.error("[Dashboard] Error message:", error.message);
+        throw error;
+      }
     },
     onSuccess: () => {
+      console.log("[Dashboard] Acknowledge success");
       queryClient.invalidateQueries({ queryKey: ['/api/updates'] });
       toast({
         title: "Confirmed",
@@ -187,6 +202,7 @@ export default function Dashboard() {
       setViewingUpdate(null);
     },
     onError: (error: Error) => {
+      console.error("[Dashboard] Acknowledge mutation error:", error);
       toast({
         title: "Error",
         description: error.message,

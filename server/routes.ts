@@ -2998,9 +2998,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Acknowledge/confirm update (mark as read)
   app.post("/api/updates/:id/acknowledge", requireAuth, async (req, res) => {
+    console.log("========== UPDATE ACKNOWLEDGE REQUEST ==========");
+    console.log("[Update Acknowledge] Request received:", {
+      updateId: req.params.id,
+      userId: req.session.userId,
+      url: req.url,
+      method: req.method,
+    });
+
     try {
       const updateId = req.params.id;
       const userId = req.session.userId!;
+
+      console.log("[Update Acknowledge] Checking for existing acknowledgment...");
 
       // Check if already acknowledged
       const existingAck = await storage.db
@@ -3014,13 +3024,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .limit(1);
 
+      console.log("[Update Acknowledge] Existing acknowledgment:", existingAck.length > 0 ? "Found" : "Not found");
+
       if (existingAck.length === 0) {
+        console.log("[Update Acknowledge] Creating new acknowledgment...");
         // Acknowledge for the first time
         await storage.db.insert(schema.updateAcknowledgments).values({
           updateId,
           userId,
         });
 
+        console.log("[Update Acknowledge] Logging audit...");
         await logAudit(
           userId,
           "acknowledge",
@@ -3032,14 +3046,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.ip
         );
 
+        console.log("[Update Acknowledge] Success - new acknowledgment");
         res.json({ acknowledged: true });
       } else {
+        console.log("[Update Acknowledge] Success - already acknowledged");
         // Already acknowledged
         res.json({ acknowledged: true });
       }
-    } catch (error) {
-      console.error("Failed to acknowledge update:", error);
-      res.status(500).json({ error: "Failed to acknowledge update" });
+    } catch (error: any) {
+      console.error("========== UPDATE ACKNOWLEDGE ERROR ==========");
+      console.error("[Update Acknowledge] Error:", error);
+      console.error("[Update Acknowledge] Error message:", error.message);
+      console.error("[Update Acknowledge] Error stack:", error.stack);
+      console.error("[Update Acknowledge] Error name:", error.name);
+      console.error("[Update Acknowledge] Error code:", error.code);
+      console.error("=============================================");
+      res.status(500).json({
+        error: "Failed to acknowledge update",
+        message: error.message,
+        code: error.code,
+      });
     }
   });
 
