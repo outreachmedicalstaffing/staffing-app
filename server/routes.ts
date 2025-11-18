@@ -3315,20 +3315,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
+      console.log("[Get Users] Request from:", currentUser.fullName, "Role:", currentUser.role);
+      console.log("[Get Users] Query params:", req.query);
+
       // Only Owner and Admin can see all users
       const canSeeAllUsers = ["Owner", "Admin"].includes(currentUser.role);
 
       let users;
       if (canSeeAllUsers) {
         const status = req.query.status as string | undefined;
+        console.log("[Get Users] Fetching all users, status filter:", status);
         users = await storage.listUsers(status);
+        console.log("[Get Users] Found", users.length, "users");
       } else {
         // Regular users can only see themselves
         users = [currentUser];
+        console.log("[Get Users] Regular user - returning only self");
       }
 
       // Remove password hashes from response
       const sanitizedUsers = users.map(({ passwordHash, ...user }) => user);
+      console.log("[Get Users] Returning", sanitizedUsers.length, "sanitized users");
 
       await logAudit(
         req.session.userId,

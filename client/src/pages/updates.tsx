@@ -205,10 +205,18 @@ export default function Updates() {
   }, [updates, searchQuery]);
 
   // Fetch users for targeting
-  const { data: users = [] } = useQuery<User[]>({
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: isAdmin,
   });
+
+  // Debug: Log users when they change
+  useEffect(() => {
+    if (users.length > 0) {
+      console.log('[Updates] Loaded users for targeting:', users.length, 'users');
+      console.log('[Updates] User list:', users.map(u => ({ id: u.id, name: u.fullName, role: u.role })));
+    }
+  }, [users]);
 
   // Fetch comments for selected update
   const { data: comments = [] } = useQuery<Comment[]>({
@@ -936,32 +944,45 @@ export default function Updates() {
                     <PopoverContent className="w-full p-0">
                       <Command>
                         <CommandInput placeholder="Search users..." />
-                        <CommandEmpty>No users found.</CommandEmpty>
+                        <CommandEmpty>
+                          {isLoadingUsers ? "Loading users..." : "No users found."}
+                        </CommandEmpty>
                         <CommandGroup className="max-h-64 overflow-auto">
-                          {users.map((user) => (
-                            <CommandItem
-                              key={user.id}
-                              onSelect={() => {
-                                const isSelected = formData.targetUserIds.includes(user.id);
-                                setFormData({
-                                  ...formData,
-                                  targetUserIds: isSelected
-                                    ? formData.targetUserIds.filter((id) => id !== user.id)
-                                    : [...formData.targetUserIds, user.id],
-                                });
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.targetUserIds.includes(user.id)
-                                    ? "opacity-100"
-                                    : "opacity-0"
-                                )}
-                              />
-                              {user.fullName} ({user.role})
-                            </CommandItem>
-                          ))}
+                          {isLoadingUsers ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              Loading users...
+                            </div>
+                          ) : users.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              No users available
+                            </div>
+                          ) : (
+                            users.map((user) => (
+                              <CommandItem
+                                key={user.id}
+                                onSelect={() => {
+                                  console.log('[Target Users] Toggling user:', user.fullName);
+                                  const isSelected = formData.targetUserIds.includes(user.id);
+                                  setFormData({
+                                    ...formData,
+                                    targetUserIds: isSelected
+                                      ? formData.targetUserIds.filter((id) => id !== user.id)
+                                      : [...formData.targetUserIds, user.id],
+                                  });
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.targetUserIds.includes(user.id)
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {user.fullName} ({user.role})
+                              </CommandItem>
+                            ))
+                          )}
                         </CommandGroup>
                       </Command>
                     </PopoverContent>
