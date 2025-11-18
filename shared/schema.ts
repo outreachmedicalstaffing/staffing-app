@@ -434,7 +434,16 @@ export const insertUpdateSchema = createInsertSchema(updates).omit({
   updatedAt: true,
 });
 
+export const updateUpdateSchema = createInsertSchema(updates).omit({
+  id: true,
+  createdBy: true,
+  createdAt: true,
+  updatedAt: true,
+  metadata: true,
+}).partial();
+
 export type InsertUpdate = z.infer<typeof insertUpdateSchema>;
+export type UpdateUpdate = z.infer<typeof updateUpdateSchema>;
 export type Update = typeof updates.$inferSelect;
 
 // Update views tracking

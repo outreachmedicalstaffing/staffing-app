@@ -2791,10 +2791,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updateId = req.params.id;
         const userId = req.session.userId!;
 
+        // Validate the update data using the schema
+        const validatedData = schema.updateUpdateSchema.parse(req.body);
+
         const [updated] = await storage.db
           .update(schema.updates)
           .set({
-            ...req.body,
+            ...validatedData,
             updatedAt: new Date(),
           })
           .where(eq(schema.updates.id, updateId))
@@ -2810,7 +2813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "update",
           updateId,
           false,
-          Object.keys(req.body),
+          Object.keys(validatedData),
           {},
           req.ip
         );
@@ -2819,6 +2822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error: any) {
         console.error("Failed to update update:", error);
         if (error.errors) {
+          console.error("Validation errors:", error.errors);
           return res.status(400).json({ error: error.errors });
         }
         res.status(500).json({ error: "Failed to update update" });

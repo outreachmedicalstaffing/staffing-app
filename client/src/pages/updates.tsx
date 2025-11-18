@@ -226,6 +226,7 @@ export default function Updates() {
   // Update/edit mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      console.log("[Update Edit] Sending update request:", { id, data });
       const res = await apiRequest("PATCH", `/api/updates/${id}`, data);
       return res.json();
     },
@@ -239,10 +240,11 @@ export default function Updates() {
       setEditingUpdate(null);
       resetForm();
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("[Update Edit] Error:", error.message || error);
       toast({
         title: "Error",
-        description: "Failed to save update",
+        description: error.message || "Failed to save update",
         variant: "destructive",
       });
     },
