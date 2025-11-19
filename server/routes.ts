@@ -3936,6 +3936,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // DIAGNOSTIC ENDPOINT - Check if updates exist in database
+  app.get(
+    "/api/diagnostic/updates",
+    requireAuth,
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      console.log("========================================");
+      console.log("DIAGNOSTIC: Checking updates in database");
+      console.log("========================================");
+
+      try {
+        // Get all updates
+        const updates = await storage.db
+          .select()
+          .from(schema.updates)
+          .orderBy(desc(schema.updates.createdAt));
+
+        console.log(`Total updates found: ${updates.length}`);
+
+        if (updates.length > 0) {
+          console.log("First 5 updates:");
+          updates.slice(0, 5).forEach((u, i) => {
+            console.log(`${i + 1}. ${u.title} (Status: ${u.status}, Visibility: ${u.visibility})`);
+          });
+        }
+
+        // Search for specific known titles
+        const knownTitles = [
+          'Vitas Patient Expiration Update - Midstate',
+          'Vitas Patient Expiration Update - Citrus',
+          'AdventHealth Hospice Training',
+          'Vitas After-Hours Phone Number'
+        ];
+
+        const foundTitles = updates.filter(u =>
+          knownTitles.some(known => u.title.includes(known.split(' -')[0]))
+        );
+
+        res.json({
+          success: true,
+          totalCount: updates.length,
+          updates: updates.map(u => ({
+            id: u.id,
+            title: u.title,
+            status: u.status,
+            visibility: u.visibility,
+            targetUserIds: u.targetUserIds,
+            targetGroupIds: u.targetGroupIds,
+            createdAt: u.createdAt,
+            publishDate: u.publishDate,
+          })),
+          knownUpdatesFound: foundTitles.map(u => u.title),
+          diagnosis: updates.length === 0
+            ? "⚠️ WARNING: No updates found in database! Data may have been lost."
+            : `✅ Found ${updates.length} updates in database.`
+        });
+      } catch (error: any) {
+        console.error("DIAGNOSTIC ERROR:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          stack: error.stack,
+          diagnosis: "❌ Error querying database"
+        });
+      }
+    }
+  );
+
   const httpServer = createServer(app);
   return httpServer;
 }
