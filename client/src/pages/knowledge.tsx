@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { PROGRAM_OPTIONS } from "@/lib/constants";
 import type { KnowledgeArticle, User } from "@shared/schema";
 
 type Article = {
@@ -31,25 +32,9 @@ type Article = {
   createdAt: Date;
 };
 
-interface Group {
+interface ProgramGroup {
   id: string;
   name: string;
-  category: string;
-  memberIds: string[];
-  assignmentIds: string[];
-  createdAt: string;
-}
-
-const STORAGE_KEY = "staffing-app-groups";
-
-function loadGroupsFromStorage(): Group[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch (error) {
-    console.error("Error loading groups from localStorage:", error);
-    return [];
-  }
 }
 
 export default function Knowledge() {
@@ -69,7 +54,6 @@ export default function Knowledge() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [openProgramSelect, setOpenProgramSelect] = useState(false);
 
   // Form fields for Create Article
@@ -86,16 +70,13 @@ export default function Knowledge() {
   const [editStatus, setEditStatus] = useState<"draft" | "published">("draft");
   const [editContent, setEditContent] = useState("");
 
-  // Load groups from localStorage
-  useEffect(() => {
-    const loadedGroups = loadGroupsFromStorage();
-    setGroups(loadedGroups);
+  // Create program groups from the predefined program options
+  const programGroups = useMemo((): ProgramGroup[] => {
+    return PROGRAM_OPTIONS.map(programName => ({
+      id: `auto-program-${programName}`,
+      name: programName,
+    }));
   }, []);
-
-  // Filter to only show Program groups (auto-program-*)
-  const programGroups = useMemo(() => {
-    return groups.filter(group => group.id.startsWith('auto-program-'));
-  }, [groups]);
 
   // Fetch articles from API
   const { data: articles = [], isLoading } = useQuery<Article[]>({
