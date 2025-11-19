@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, FileText, Eye } from "lucide-react";
+import { Search, Plus, FileText, Eye, Check, ChevronsUpDown } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import type { KnowledgeArticle, User } from "@shared/schema";
 
 type Article = {
@@ -20,11 +23,34 @@ type Article = {
   type: string;
   category: "Getting Started" | "HR" | "Compliance" | "Operations";
   publishStatus: "draft" | "published";
+  visibility?: string;
+  targetGroupIds?: string[] | null;
   content: string | null;
   authorId: string;
   lastUpdated: Date;
   createdAt: Date;
 };
+
+interface Group {
+  id: string;
+  name: string;
+  category: string;
+  memberIds: string[];
+  assignmentIds: string[];
+  createdAt: string;
+}
+
+const STORAGE_KEY = "staffing-app-groups";
+
+function loadGroupsFromStorage(): Group[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error("Error loading groups from localStorage:", error);
+    return [];
+  }
+}
 
 export default function Knowledge() {
   const queryClient = useQueryClient();
@@ -43,11 +69,15 @@ export default function Knowledge() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [openProgramSelect, setOpenProgramSelect] = useState(false);
 
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
   const [newStatus, setNewStatus] = useState<"draft" | "published">("draft");
+  const [newVisibility, setNewVisibility] = useState("all");
+  const [newTargetProgramIds, setNewTargetProgramIds] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
 
   // Form fields for Edit Article
@@ -55,6 +85,17 @@ export default function Knowledge() {
   const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
   const [editStatus, setEditStatus] = useState<"draft" | "published">("draft");
   const [editContent, setEditContent] = useState("");
+
+  // Load groups from localStorage
+  useEffect(() => {
+    const loadedGroups = loadGroupsFromStorage();
+    setGroups(loadedGroups);
+  }, []);
+
+  // Filter to only show Program groups (auto-program-*)
+  const programGroups = useMemo(() => {
+    return groups.filter(group => group.id.startsWith('auto-program-'));
+  }, [groups]);
 
   // Fetch articles from API
   const { data: articles = [], isLoading } = useQuery<Article[]>({
@@ -150,6 +191,8 @@ export default function Knowledge() {
       type: "page",
       category: newCategory,
       publishStatus: newStatus,
+      visibility: newVisibility,
+      targetGroupIds: newTargetProgramIds.length > 0 ? newTargetProgramIds : null,
       content: newContent || "",
     });
 
@@ -157,6 +200,8 @@ export default function Knowledge() {
     setNewTitle("");
     setNewCategory("Getting Started");
     setNewStatus("draft");
+    setNewVisibility("all");
+    setNewTargetProgramIds([]);
     setNewContent("");
     setShowCreateDialog(false);
   };
@@ -573,6 +618,83 @@ export default function Knowledge() {
                 </Select>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="article-visibility">Visibility</Label>
+              <Select value={newVisibility} onValueChange={(value) => setNewVisibility(value)}>
+                <SelectTrigger id="article-visibility">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="specific_programs">Specific Programs</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {newVisibility === "specific_programs" && (
+              <div className="space-y-2">
+                <Label>Target Programs</Label>
+                <Popover open={openProgramSelect} onOpenChange={setOpenProgramSelect}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openProgramSelect}
+                      className="w-full justify-between"
+                    >
+                      {newTargetProgramIds.length > 0
+                        ? `${newTargetProgramIds.length} program(s) selected`
+                        : "Select programs..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search programs..." />
+                      <CommandEmpty>No programs found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {programGroups.map((program) => (
+                          <CommandItem
+                            key={program.id}
+                            onSelect={() => {
+                              const isSelected = newTargetProgramIds.includes(program.id);
+                              setNewTargetProgramIds(
+                                isSelected
+                                  ? newTargetProgramIds.filter((id) => id !== program.id)
+                                  : [...newTargetProgramIds, program.id]
+                              );
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                newTargetProgramIds.includes(program.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {program.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {newTargetProgramIds.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {newTargetProgramIds.map((programId) => {
+                      const program = programGroups.find((g) => g.id === programId);
+                      return program ? (
+                        <Badge key={programId} variant="secondary">
+                          {program.name}
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="article-content">Content (Supports Markdown)</Label>

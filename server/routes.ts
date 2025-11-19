@@ -2545,18 +2545,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== Knowledge Base Routes =====
 
-  // List knowledge articles
+  // List knowledge articles (filtered based on user role and visibility)
   app.get("/api/knowledge", requireAuth, async (req, res) => {
     try {
-      const category = req.query.category as string | undefined;
-      const publishStatus = req.query.publishStatus as string | undefined;
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
 
-      const articles = await storage.listKnowledgeArticles(
-        category,
-        publishStatus,
-      );
-      res.json(articles);
+      // Get all articles
+      const allArticles = await storage.db
+        .select()
+        .from(schema.knowledgeArticles)
+        .orderBy(desc(schema.knowledgeArticles.createdAt));
+
+      // CRITICAL: Owner and Admin ALWAYS see ALL articles
+      if (currentUser.role === "Owner" || currentUser.role === "Admin") {
+        return res.json(allArticles);
+      }
+
+      // Filter articles based on visibility for regular users
+      const filteredArticles = allArticles.filter(article => {
+        // Only show published articles to non-admins
+        if (article.publishStatus !== "published") {
+          return false;
+        }
+
+        // Handle null/undefined visibility - treat as "all"
+        if (!article.visibility || article.visibility === "all") {
+          return true;
+        }
+
+        // Check specific_programs visibility
+        if (article.visibility === "specific_programs") {
+          // If no target programs specified, don't show
+          if (!article.targetGroupIds || article.targetGroupIds.length === 0) {
+            return false;
+          }
+
+          // Get user's programs from customFields
+          const userCustomFields = currentUser.customFields as any;
+          const userPrograms = userCustomFields?.programs || [];
+
+          // Check if user is in any of the target programs
+          // targetGroupIds are like "auto-program-Vitas Nature Coast"
+          // userPrograms are like "Vitas Nature Coast"
+          for (const targetGroupId of article.targetGroupIds) {
+            if (targetGroupId.startsWith('auto-program-')) {
+              const programName = targetGroupId.replace('auto-program-', '');
+              if (userPrograms.includes(programName)) {
+                return true;
+              }
+            }
+          }
+
+          return false;
+        }
+
+        return false;
+      });
+
+      res.json(filteredArticles);
     } catch (error) {
+      console.error("Error fetching knowledge articles:", error);
       res.status(500).json({ error: "Failed to list knowledge articles" });
     }
   });
