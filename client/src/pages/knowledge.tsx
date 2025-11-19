@@ -259,7 +259,6 @@ export default function Knowledge() {
         visibility: editVisibility,
         targetGroupIds: editTargetProgramIds.length > 0 ? editTargetProgramIds : null,
         content: editContent,
-        lastUpdated: new Date(),
       },
     });
 
