@@ -48,10 +48,9 @@ export default function Dashboard() {
     enabled: !!user?.id, // Only fetch when user is loaded
   });
 
-  // Fetch shifts - Include user.id in queryKey for proper cache isolation
+  // Fetch shifts - Backend filters by user role automatically
   const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
-    queryKey: ['/api/shifts', user?.id],
-    enabled: !!user?.id,
+    queryKey: ['/api/shifts'],
   });
 
   // Fetch documents
@@ -69,10 +68,9 @@ export default function Dashboard() {
     queryKey: ['/api/users'],
   });
 
-  // Fetch shift assignments - Include user.id in queryKey for proper cache isolation
+  // Fetch shift assignments - Backend filters by user role automatically
   const { data: shiftAssignments = [] } = useQuery<any[]>({
-    queryKey: ['/api/shift-assignments', user?.id],
-    enabled: !!user?.id,
+    queryKey: ['/api/shift-assignments'],
   });
 
   // Fetch updates

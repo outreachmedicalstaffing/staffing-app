@@ -62,10 +62,9 @@ export default function Clock() {
     enabled: !!user?.id, // Only fetch when user is loaded
   });
 
-  // Fetch shifts - Include user.id in queryKey for proper cache isolation
+  // Fetch shifts - Backend filters by user role automatically
   const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
-    queryKey: ["/api/shifts", user?.id],
-    enabled: !!user?.id,
+    queryKey: ["/api/shifts"],
   });
 
   // Check if user is admin
