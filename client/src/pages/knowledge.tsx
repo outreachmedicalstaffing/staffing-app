@@ -404,11 +404,13 @@ export default function Knowledge() {
         />
       </div>
 
-      <Tabs defaultValue="all" className="space-y-4">
+      <Tabs defaultValue={isAdmin ? "all" : "getting-started"} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="all">
-            All Content
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="all">
+              All Content
+            </TabsTrigger>
+          )}
           <TabsTrigger value="getting-started">
             Getting Started
           </TabsTrigger>
@@ -423,59 +425,61 @@ export default function Knowledge() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>All Articles & Resources</CardTitle>
-              <CardDescription>{articles.length} items</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {articles.map((article) => (
-                  <Card key={article.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="pt-6">
-                      <div className="space-y-4">
-                        <div className="flex items-start space-x-3">
-                          <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                            {article.description && (
-                              <p className="text-sm text-muted-foreground">{article.description}</p>
+        {isAdmin && (
+          <TabsContent value="all" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Articles & Resources</CardTitle>
+                <CardDescription>{articles.length} items</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {articles.map((article) => (
+                    <Card key={article.id} className="hover:shadow-lg transition-shadow">
+                      <CardContent className="pt-6">
+                        <div className="space-y-4">
+                          <div className="flex items-start space-x-3">
+                            <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-base mb-1">{article.title}</h3>
+                              {article.description && (
+                                <p className="text-sm text-muted-foreground">{article.description}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <Badge className={getCategoryColor(article.category)}>
+                              {article.category}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Updated {formatTimestamp(article.lastUpdated)}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            {isAdmin && (
+                              <>
+                                <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                  Edit
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t">
-                          <Badge className={getCategoryColor(article.category)}>
-                            {article.category}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            Updated {formatTimestamp(article.lastUpdated)}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </Button>
-                          {isAdmin && (
-                            <>
-                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
-                                Edit
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="getting-started" className="space-y-4">
           <Card>
