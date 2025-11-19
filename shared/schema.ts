@@ -424,7 +424,6 @@ export const updates = pgTable("updates", {
   targetGroupIds: text("target_group_ids").array(), // For specific groups
   status: text("status").notNull().default("draft"), // draft, published, archived
   metadata: text("metadata"), // JSON metadata for special update types (e.g., time entry approval)
-  attachments: jsonb("attachments").default(sql`'[]'::jsonb`), // Array of { id, name, url, type, size }
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

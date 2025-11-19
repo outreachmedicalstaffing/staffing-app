@@ -67,14 +67,6 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
-interface Attachment {
-  id: string;
-  name: string;
-  url: string;
-  type: string;
-  size: number;
-}
-
 interface Update {
   id: string;
   title: string;
@@ -86,7 +78,6 @@ interface Update {
   targetGroupIds: string[] | null;
   status: string;
   metadata: string | null;
-  attachments?: Attachment[] | null;
   createdAt: string;
   viewCount: number;
   likeCount: number;
