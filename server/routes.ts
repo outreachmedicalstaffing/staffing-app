@@ -535,8 +535,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           activeEntryId: activeEntry.id,
           activeEntryUserId: activeEntry.userId,
           mismatch: activeEntry.userId !== userId,
+          clockInTime: activeEntry.clockIn,
         });
-        return res.status(400).json({ error: "Already clocked in" });
+
+        // Provide detailed error message showing when they clocked in
+        const clockInTime = new Date(activeEntry.clockIn).toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        return res.status(400).json({
+          error: "Already clocked in",
+          message: `You are already clocked in since ${clockInTime}. Please clock out before clocking in again.`,
+          activeEntry: {
+            id: activeEntry.id,
+            clockIn: activeEntry.clockIn,
+            location: activeEntry.location
+          }
+        });
       }
 
       console.log("[Clock-In Allowed] No active entry found, proceeding with clock-in:", {

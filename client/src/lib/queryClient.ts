@@ -7,10 +7,12 @@ async function throwIfResNotOk(res: Response) {
       const json = JSON.parse(text);
       // If the response is JSON with an error field, use that
       if (json.error) {
-        // Include details if available for better debugging
-        const errorMessage = json.details
-          ? `${json.error}: ${json.details}`
-          : json.error;
+        // Prefer message field (more detailed), fall back to details, then just error
+        const errorMessage = json.message
+          ? json.message
+          : json.details
+            ? `${json.error}: ${json.details}`
+            : json.error;
         throw new Error(errorMessage);
       }
     } catch (e) {
