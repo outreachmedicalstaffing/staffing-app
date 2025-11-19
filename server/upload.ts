@@ -5,8 +5,12 @@ import { Request } from 'express';
 // Ensure uploads directory exists
 import fs from 'fs';
 const uploadsDir = './uploads';
+const knowledgeUploadsDir = './uploads/knowledge';
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+}
+if (!fs.existsSync(knowledgeUploadsDir)) {
+  fs.mkdirSync(knowledgeUploadsDir, { recursive: true });
 }
 
 // Configure storage
@@ -40,6 +44,28 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
 // Configure upload middleware
 export const upload = multer({
   storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file
+  },
+  fileFilter: fileFilter
+});
+
+// Configure knowledge article upload middleware (saves to /uploads/knowledge/)
+const knowledgeStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads/knowledge/');
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename: timestamp-randomnumber-originalname
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext);
+    cb(null, `${basename}-${uniqueSuffix}${ext}`);
+  }
+});
+
+export const knowledgeUpload = multer({
+  storage: knowledgeStorage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit per file
   },

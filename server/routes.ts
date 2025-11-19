@@ -20,7 +20,7 @@ import {
   insertShiftTemplateSchema,
 } from "@shared/schema";
 import "./types"; // Import session and request type augmentations
-import { upload } from "./upload";
+import { upload, knowledgeUpload } from "./upload";
 import path from "path";
 import fs from "fs";
 import { pool } from "./db";
@@ -2735,6 +2735,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Upload attachment for knowledge article
+  app.post(
+    "/api/knowledge/upload",
+    requireAuth,
+    requireRole("Owner", "Admin", "HR"),
+    knowledgeUpload.single('file'),
+    async (req, res) => {
+      try {
+        console.log("[Upload Knowledge Attachment] Request received");
+
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        const file = req.file;
+        const fileUrl = `/uploads/knowledge/${file.filename}`;
+        const fileSize = (file.size / 1024 / 1024).toFixed(2); // Size in MB
+
+        await logAudit(
+          req.session.userId,
+          "upload",
+          "knowledge_attachment",
+          file.filename,
+          false,
+          [],
+          {
+            fileName: file.originalname,
+            fileSize: file.size,
+            mimeType: file.mimetype
+          },
+          req.ip,
+        );
+
+        console.log("[Upload Knowledge Attachment] File uploaded:", {
+          originalName: file.originalname,
+          savedAs: file.filename,
+          size: fileSize + ' MB',
+          url: fileUrl
+        });
+
+        res.json({
+          url: fileUrl,
+          filename: file.originalname,
+          size: fileSize,
+          type: file.mimetype
+        });
+      } catch (error) {
+        console.error("[Upload Knowledge Attachment] Error:", error);
+        res.status(500).json({
+          error: "Failed to upload attachment",
+          details: error instanceof Error ? error.message : String(error)
+        });
+      }
+    },
+  );
+
   // ===== Updates/Announcements Routes =====
 
   // List updates (filtered based on user role and visibility)
@@ -4107,6 +4163,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  // Serve uploaded files statically (for knowledge attachments and other uploads)
+  app.use('/uploads', (req, res, next) => {
+    const filePath = path.join(process.cwd(), 'uploads', req.path);
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      res.sendFile(filePath);
+    } else {
+      next();
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

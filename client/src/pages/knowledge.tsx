@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2 } from "lucide-react";
+import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2, Upload, X, Download, Paperclip } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -38,6 +38,7 @@ type Article = {
   targetGroupIds?: string[] | null;
   content: string | null;
   authorId: string;
+  attachments?: string[] | null;
   lastUpdated: Date;
   createdAt: Date;
 };
@@ -74,6 +75,8 @@ export default function Knowledge() {
   const [newVisibility, setNewVisibility] = useState("all");
   const [newTargetProgramIds, setNewTargetProgramIds] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
+  const [newAttachments, setNewAttachments] = useState<string[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // Form fields for Edit Article
   const [editTitle, setEditTitle] = useState("");
@@ -82,6 +85,7 @@ export default function Knowledge() {
   const [editVisibility, setEditVisibility] = useState("all");
   const [editTargetProgramIds, setEditTargetProgramIds] = useState<string[]>([]);
   const [editContent, setEditContent] = useState("");
+  const [editAttachments, setEditAttachments] = useState<string[]>([]);
   const [openEditProgramSelect, setOpenEditProgramSelect] = useState(false);
 
   // Create program groups from the predefined program options
@@ -164,6 +168,63 @@ export default function Knowledge() {
     }
   };
 
+  // Handle file upload
+  const handleFileUpload = async (file: File, isEdit: boolean = false) => {
+    if (!file) return;
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 10MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/knowledge/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+
+      const data = await res.json();
+
+      // Add the file URL to attachments
+      if (isEdit) {
+        setEditAttachments([...editAttachments, data.url]);
+      } else {
+        setNewAttachments([...newAttachments, data.url]);
+      }
+
+      toast({ title: "File uploaded successfully" });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: "Failed to upload file",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  // Remove attachment
+  const handleRemoveAttachment = (url: string, isEdit: boolean = false) => {
+    if (isEdit) {
+      setEditAttachments(editAttachments.filter(a => a !== url));
+    } else {
+      setNewAttachments(newAttachments.filter(a => a !== url));
+    }
+  };
+
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "Getting Started":
@@ -214,6 +275,7 @@ export default function Knowledge() {
       visibility: newVisibility,
       targetGroupIds: newTargetProgramIds.length > 0 ? newTargetProgramIds : null,
       content: newContent || "",
+      attachments: newAttachments.length > 0 ? newAttachments : null,
     });
 
     // Reset form
@@ -223,6 +285,7 @@ export default function Knowledge() {
     setNewVisibility("all");
     setNewTargetProgramIds([]);
     setNewContent("");
+    setNewAttachments([]);
     setShowCreateDialog(false);
   };
 
@@ -239,6 +302,7 @@ export default function Knowledge() {
     setEditVisibility(article.visibility || "all");
     setEditTargetProgramIds(article.targetGroupIds || []);
     setEditContent(article.content || "");
+    setEditAttachments(article.attachments || []);
     setShowEditDialog(true);
   };
 
@@ -259,6 +323,7 @@ export default function Knowledge() {
         visibility: editVisibility,
         targetGroupIds: editTargetProgramIds.length > 0 ? editTargetProgramIds : null,
         content: editContent,
+        attachments: editAttachments.length > 0 ? editAttachments : null,
       },
     });
 
@@ -270,6 +335,7 @@ export default function Knowledge() {
     setEditVisibility("all");
     setEditTargetProgramIds([]);
     setEditContent("");
+    setEditAttachments([]);
     setShowEditDialog(false);
   };
 
@@ -289,6 +355,18 @@ export default function Knowledge() {
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? "s" : ""} ago`;
     return d.toLocaleDateString();
+  };
+
+  // Extract filename from URL
+  const getFilenameFromUrl = (url: string) => {
+    const parts = url.split('/');
+    const filename = parts[parts.length - 1];
+    // Try to extract original name (before timestamp)
+    const match = filename.match(/^(.+)-\d+-\d+(\..+)$/);
+    if (match) {
+      return match[1] + match[2];
+    }
+    return filename;
   };
 
   if (isLoading) {
@@ -756,6 +834,59 @@ export default function Knowledge() {
                 className="min-h-[300px] font-mono text-sm"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label>Attachments (Optional)</Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <div className="flex flex-col items-center gap-2">
+                  <Upload className="h-8 w-8 text-gray-400" />
+                  <div className="text-sm text-gray-600 text-center">
+                    <label htmlFor="file-upload-new" className="cursor-pointer text-red-600 hover:text-red-700 font-medium">
+                      Click to upload
+                    </label>
+                    <input
+                      id="file-upload-new"
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileUpload(file, false);
+                          e.target.value = '';
+                        }
+                      }}
+                      disabled={uploadingFile}
+                    />
+                    <span className="text-gray-500"> or drag and drop</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PDF, Word, Excel, Text, or Images (max 10MB)
+                  </p>
+                </div>
+              </div>
+
+              {newAttachments.length > 0 && (
+                <div className="space-y-2 mt-3">
+                  {newAttachments.map((url, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">{getFilenameFromUrl(url)}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveAttachment(url, false)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
@@ -794,6 +925,32 @@ export default function Knowledge() {
               {viewingArticle?.content || "No content available"}
             </div>
           </div>
+
+          {viewingArticle?.attachments && viewingArticle.attachments.length > 0 && (
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Paperclip className="h-4 w-4" />
+                Attachments
+              </h3>
+              <div className="space-y-2">
+                {viewingArticle.attachments.map((url, index) => (
+                  <a
+                    key={index}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-red-600" />
+                      <span className="text-sm font-medium">{getFilenameFromUrl(url)}</span>
+                    </div>
+                    <Download className="h-4 w-4 text-gray-400 group-hover:text-red-600" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowViewDialog(false)}>
@@ -955,6 +1112,59 @@ export default function Knowledge() {
                 onChange={(e) => setEditContent(e.target.value)}
                 className="min-h-[300px] font-mono text-sm"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Attachments (Optional)</Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <div className="flex flex-col items-center gap-2">
+                  <Upload className="h-8 w-8 text-gray-400" />
+                  <div className="text-sm text-gray-600 text-center">
+                    <label htmlFor="file-upload-edit" className="cursor-pointer text-red-600 hover:text-red-700 font-medium">
+                      Click to upload
+                    </label>
+                    <input
+                      id="file-upload-edit"
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileUpload(file, true);
+                          e.target.value = '';
+                        }
+                      }}
+                      disabled={uploadingFile}
+                    />
+                    <span className="text-gray-500"> or drag and drop</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PDF, Word, Excel, Text, or Images (max 10MB)
+                  </p>
+                </div>
+              </div>
+
+              {editAttachments.length > 0 && (
+                <div className="space-y-2 mt-3">
+                  {editAttachments.map((url, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">{getFilenameFromUrl(url)}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveAttachment(url, true)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

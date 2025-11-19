@@ -394,6 +394,7 @@ export const knowledgeArticles = pgTable("knowledge_articles", {
   authorId: varchar("author_id")
     .notNull()
     .references(() => users.id),
+  attachments: text("attachments").array(), // Array of attachment file paths
   lastUpdated: timestamp("last_updated").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
