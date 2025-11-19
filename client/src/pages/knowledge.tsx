@@ -68,7 +68,10 @@ export default function Knowledge() {
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
   const [editStatus, setEditStatus] = useState<"draft" | "published">("draft");
+  const [editVisibility, setEditVisibility] = useState("all");
+  const [editTargetProgramIds, setEditTargetProgramIds] = useState<string[]>([]);
   const [editContent, setEditContent] = useState("");
+  const [openEditProgramSelect, setOpenEditProgramSelect] = useState(false);
 
   // Create program groups from the predefined program options
   const programGroups = useMemo((): ProgramGroup[] => {
@@ -197,6 +200,8 @@ export default function Knowledge() {
     setEditTitle(article.title);
     setEditCategory(article.category);
     setEditStatus(article.publishStatus);
+    setEditVisibility(article.visibility || "all");
+    setEditTargetProgramIds(article.targetGroupIds || []);
     setEditContent(article.content || "");
     setShowEditDialog(true);
   };
@@ -215,6 +220,8 @@ export default function Knowledge() {
         title: editTitle,
         category: editCategory,
         publishStatus: editStatus,
+        visibility: editVisibility,
+        targetGroupIds: editTargetProgramIds.length > 0 ? editTargetProgramIds : null,
         content: editContent,
         lastUpdated: new Date(),
       },
@@ -225,6 +232,8 @@ export default function Knowledge() {
     setEditTitle("");
     setEditCategory("Getting Started");
     setEditStatus("draft");
+    setEditVisibility("all");
+    setEditTargetProgramIds([]);
     setEditContent("");
     setShowEditDialog(false);
   };
@@ -799,6 +808,83 @@ export default function Knowledge() {
                 </Select>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-article-visibility">Visibility</Label>
+              <Select value={editVisibility} onValueChange={(value) => setEditVisibility(value)}>
+                <SelectTrigger id="edit-article-visibility">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="specific_programs">Specific Programs</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {editVisibility === "specific_programs" && (
+              <div className="space-y-2">
+                <Label>Target Programs</Label>
+                <Popover open={openEditProgramSelect} onOpenChange={setOpenEditProgramSelect}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openEditProgramSelect}
+                      className="w-full justify-between"
+                    >
+                      {editTargetProgramIds.length > 0
+                        ? `${editTargetProgramIds.length} program(s) selected`
+                        : "Select programs..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search programs..." />
+                      <CommandEmpty>No programs found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {programGroups.map((program) => (
+                          <CommandItem
+                            key={program.id}
+                            onSelect={() => {
+                              const isSelected = editTargetProgramIds.includes(program.id);
+                              setEditTargetProgramIds(
+                                isSelected
+                                  ? editTargetProgramIds.filter((id) => id !== program.id)
+                                  : [...editTargetProgramIds, program.id]
+                              );
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                editTargetProgramIds.includes(program.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {program.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {editTargetProgramIds.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {editTargetProgramIds.map((programId) => {
+                      const program = programGroups.find((g) => g.id === programId);
+                      return program ? (
+                        <Badge key={programId} variant="secondary">
+                          {program.name}
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="edit-article-content">Content (Supports Markdown)</Label>
