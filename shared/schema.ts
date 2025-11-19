@@ -403,6 +403,7 @@ export const insertKnowledgeArticleSchema = createInsertSchema(
 ).omit({
   id: true,
   createdAt: true,
+  lastUpdated: true,
 });
 
 export type InsertKnowledgeArticle = z.infer<
