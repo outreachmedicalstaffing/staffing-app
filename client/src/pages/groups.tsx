@@ -91,6 +91,7 @@ export default function Groups() {
   const [groupName, setGroupName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("general");
   const [deleteConfirmGroup, setDeleteConfirmGroup] = useState<Group | null>(null);
+  const [viewMembersGroup, setViewMembersGroup] = useState<Group | null>(null);
 
   // Get current user to check role
   const { data: currentUser, isLoading: isLoadingUser } = useQuery<User>({
@@ -191,6 +192,39 @@ export default function Groups() {
     } else {
       // For general groups, use memberIds array
       return group.memberIds?.length || 0;
+    }
+  };
+
+  // Function to get actual member User objects for a group
+  const getGroupMembers = (group: Group): User[] => {
+    if (group.category === 'discipline') {
+      // For discipline groups, return users whose role matches the group name
+      const groupNameLower = group.name.toLowerCase();
+
+      return users.filter(user => {
+        if (!user.role) return false;
+
+        const userRole = user.role.toLowerCase();
+
+        return groupNameLower.includes(userRole) ||
+               userRole.includes(groupNameLower) ||
+               (group.name.match(/\(([^)]+)\)/)?.[1]?.toLowerCase() === userRole);
+      });
+    } else if (group.category === 'program') {
+      // For program groups, return users who have this program assigned
+      return users.filter(user => {
+        if (!user.customFields || typeof user.customFields !== 'object') {
+          return false;
+        }
+
+        const customFields = user.customFields as Record<string, any>;
+        const programs = customFields.programs;
+
+        return Array.isArray(programs) && programs.includes(group.name);
+      });
+    } else {
+      // For general groups, return users whose IDs are in memberIds array
+      return users.filter(user => group.memberIds?.includes(user.id));
     }
   };
 
@@ -444,8 +478,18 @@ export default function Groups() {
                                     onCheckedChange={() => toggleGroupSelection(group.id)}
                                   />
                                 </TableCell>
-                                <TableCell className="font-medium">{group.name}</TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
+                                <TableCell
+                                  className="font-medium cursor-pointer hover:underline hover:text-primary transition-colors"
+                                  onClick={() => setViewMembersGroup(group)}
+                                  title="Click to view members"
+                                >
+                                  {group.name}
+                                </TableCell>
+                                <TableCell
+                                  className="text-sm text-muted-foreground cursor-pointer hover:text-primary hover:font-semibold transition-all"
+                                  onClick={() => setViewMembersGroup(group)}
+                                  title="Click to view members"
+                                >
                                   {getMemberCount(group)}
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
@@ -561,6 +605,63 @@ export default function Groups() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Members Modal */}
+      <Dialog open={!!viewMembersGroup} onOpenChange={(open) => !open && setViewMembersGroup(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Members of {viewMembersGroup?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {viewMembersGroup && (() => {
+              const members = getGroupMembers(viewMembersGroup);
+
+              if (members.length === 0) {
+                return (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No members in this group yet
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                  <div className="text-sm text-muted-foreground mb-4">
+                    {members.length} {members.length === 1 ? 'member' : 'members'}
+                  </div>
+                  <div className="space-y-2">
+                    {members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                      >
+                        <div className="space-y-1 flex-1">
+                          <div className="font-medium">{member.fullName}</div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {member.role}
+                            </Badge>
+                            {member.email && (
+                              <span className="text-xs text-muted-foreground">
+                                {member.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewMembersGroup(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
