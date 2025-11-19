@@ -981,8 +981,18 @@ export default function Schedule() {
     return { hours, labor };
   };
 
-  const calculateDayStats = (day: Date) => {
-    const dayShifts = getShiftsForDay(day);
+  const calculateDayStats = (day: Date, userId?: number) => {
+    let dayShifts = getShiftsForDay(day);
+
+    // If userId is provided (for regular users), filter shifts by user
+    if (userId !== undefined) {
+      dayShifts = dayShifts.filter((shift) => {
+        const assignment = shiftAssignments.find(
+          (a) => a.shiftId === shift.id && a.userId === userId,
+        );
+        return !!assignment;
+      });
+    }
 
     const scheduledLabor = dayShifts.reduce((sum, shift) => {
       return sum + calculateShiftLabor(shift);
@@ -1243,7 +1253,7 @@ export default function Schedule() {
               <div className="border-r p-3 bg-muted/30"></div>
 
               {weekDays.map((day, idx) => {
-                const stats = calculateDayStats(day);
+                const stats = calculateDayStats(day, !isAdmin ? currentUser?.id : undefined);
                 const isToday =
                   day.toDateString() === new Date().toDateString();
 
