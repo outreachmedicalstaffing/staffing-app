@@ -115,20 +115,22 @@ export default function Clock() {
 
   // Filter entries for current payroll week (current user only)
   // CRITICAL: Must filter by userId to prevent showing other users' time entries
+  // IMPORTANT: Always include active entries (clockOut is NULL) regardless of clock-in date
   const weekEntries = user?.id
     ? timeEntries
         .filter((e) => {
           // Only show the current user's time entries
           if (e.userId !== user.id) return false;
 
+          // Always include active entries (not clocked out yet)
+          if (!e.clockOut) return true;
+
+          // For completed entries, check if clock-in or clock-out is within payroll week
           const clockIn = new Date(e.clockIn);
+          const clockOut = new Date(e.clockOut);
           return (
             isWithinInterval(clockIn, { start: payrollStart, end: payrollEnd }) ||
-            (e.clockOut &&
-              isWithinInterval(new Date(e.clockOut), {
-                start: payrollStart,
-                end: payrollEnd,
-              }))
+            isWithinInterval(clockOut, { start: payrollStart, end: payrollEnd })
           );
         })
         .sort((a, b) => new Date(b.clockIn).getTime() - new Date(a.clockIn).getTime())
