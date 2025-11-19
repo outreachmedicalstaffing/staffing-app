@@ -2618,10 +2618,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole("Owner", "Admin", "HR"),
     async (req, res) => {
       try {
+        console.log("[Create Knowledge] Request body:", JSON.stringify(req.body, null, 2));
+
         const data = insertKnowledgeArticleSchema.parse({
           ...req.body,
           authorId: req.session.userId!,
         });
+
+        console.log("[Create Knowledge] Validated data:", JSON.stringify(data, null, 2));
 
         const article = await storage.createKnowledgeArticle(data);
         await logAudit(
@@ -2634,11 +2638,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {},
           req.ip,
         );
+
+        console.log("[Create Knowledge] Article created successfully:", article.id);
         res.json(article);
       } catch (error) {
         if (error instanceof z.ZodError) {
+          console.log("[Create Knowledge] Validation errors:", JSON.stringify(error.errors, null, 2));
           return res.status(400).json({ error: error.errors });
         }
+        console.error("[Create Knowledge] Error:", error);
         res.status(500).json({ error: "Failed to create knowledge article" });
       }
     },
@@ -2650,9 +2658,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole("Owner", "Admin", "HR"),
     async (req, res) => {
       try {
+        console.log("[Update Knowledge] Article ID:", req.params.id);
+        console.log("[Update Knowledge] Request body:", JSON.stringify(req.body, null, 2));
+
         // Validate update data
         const updateSchema = insertKnowledgeArticleSchema.partial();
         const data = updateSchema.parse(req.body);
+
+        console.log("[Update Knowledge] Validated data:", JSON.stringify(data, null, 2));
 
         const article = await storage.updateKnowledgeArticle(
           req.params.id,
@@ -2672,11 +2685,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {},
           req.ip,
         );
+
+        console.log("[Update Knowledge] Article updated successfully:", article.id);
         res.json(article);
       } catch (error) {
         if (error instanceof z.ZodError) {
+          console.log("[Update Knowledge] Validation errors:", JSON.stringify(error.errors, null, 2));
           return res.status(400).json({ error: error.errors });
         }
+        console.error("[Update Knowledge] Error:", error);
         res.status(500).json({ error: "Failed to update knowledge article" });
       }
     },
