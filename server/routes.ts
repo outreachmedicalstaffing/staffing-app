@@ -2699,6 +2699,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Delete knowledge article
+  app.delete(
+    "/api/knowledge/:id",
+    requireRole("Owner", "Admin", "HR"),
+    async (req, res) => {
+      try {
+        console.log("[Delete Knowledge] Article ID:", req.params.id);
+
+        const article = await storage.getKnowledgeArticle(req.params.id);
+        if (!article) {
+          console.log("[Delete Knowledge] Article not found:", req.params.id);
+          return res.status(404).json({ error: "Knowledge article not found" });
+        }
+
+        await storage.deleteKnowledgeArticle(req.params.id);
+
+        await logAudit(
+          req.session.userId,
+          "delete",
+          "knowledge_article",
+          req.params.id,
+          false,
+          [],
+          {},
+          req.ip,
+        );
+
+        console.log("[Delete Knowledge] Article deleted successfully:", req.params.id);
+        res.status(204).send();
+      } catch (error) {
+        console.error("[Delete Knowledge] Error:", error);
+        res.status(500).json({ error: "Failed to delete knowledge article" });
+      }
+    },
+  );
+
   // ===== Updates/Announcements Routes =====
 
   // List updates (filtered based on user role and visibility)

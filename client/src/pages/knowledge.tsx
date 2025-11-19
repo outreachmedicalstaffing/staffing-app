@@ -5,9 +5,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, FileText, Eye, Check, ChevronsUpDown } from "lucide-react";
+import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
@@ -54,6 +64,7 @@ export default function Knowledge() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [deleteConfirmArticle, setDeleteConfirmArticle] = useState<Article | null>(null);
   const [openProgramSelect, setOpenProgramSelect] = useState(false);
 
   // Form fields for Create Article
@@ -127,6 +138,31 @@ export default function Knowledge() {
       toast({ title: "Failed to update article", variant: "destructive" });
     },
   });
+
+  // Delete article mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/knowledge/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete article");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge"] });
+      toast({ title: "Article deleted successfully" });
+      setDeleteConfirmArticle(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to delete article", variant: "destructive" });
+    },
+  });
+
+  const handleDeleteArticle = () => {
+    if (deleteConfirmArticle) {
+      deleteMutation.mutate(deleteConfirmArticle.id);
+    }
+  };
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -345,9 +381,14 @@ export default function Knowledge() {
                             View
                           </Button>
                           {isAdmin && (
-                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                              Edit
-                            </Button>
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -394,9 +435,14 @@ export default function Knowledge() {
                             View
                           </Button>
                           {isAdmin && (
-                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                              Edit
-                            </Button>
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -443,9 +489,14 @@ export default function Knowledge() {
                             View
                           </Button>
                           {isAdmin && (
-                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                              Edit
-                            </Button>
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -492,9 +543,14 @@ export default function Knowledge() {
                             View
                           </Button>
                           {isAdmin && (
-                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                              Edit
-                            </Button>
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -541,9 +597,14 @@ export default function Knowledge() {
                             View
                           </Button>
                           {isAdmin && (
-                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditArticle(article)}>
-                              Edit
-                            </Button>
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -908,6 +969,24 @@ export default function Knowledge() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmArticle} onOpenChange={() => setDeleteConfirmArticle(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Article</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteConfirmArticle?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteArticle} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
