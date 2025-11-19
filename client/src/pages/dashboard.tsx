@@ -16,7 +16,7 @@ interface Update {
   status: string;
   isAcknowledgedByUser?: boolean;
 }
-import { format, isAfter, isBefore, startOfWeek, endOfWeek, differenceInDays, addDays, startOfDay, endOfDay } from "date-fns";
+import { format, isAfter, isBefore, startOfWeek, endOfWeek, differenceInDays, addDays } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -234,8 +234,6 @@ export default function Dashboard() {
   // This week: Nov 17-23 (Mon to Sun), Last week: Nov 10-16 (Mon to Sun)
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
 
   // Hours this week
   const weekTimeEntries = timeEntries.filter(entry => {
@@ -292,10 +290,11 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   // Today's shifts - for admins (all users' shifts for today)
+  // Note: Use toDateString() for date comparison (same as Schedule page logic)
   // Deduplicate shifts by ID to prevent double-counting
   const todayShiftsFiltered = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
-    return shiftDate >= todayStart && shiftDate <= todayEnd;
+    return shiftDate.toDateString() === now.toDateString();
   });
 
   // Deduplicate by shift ID (in case there are duplicate records)
