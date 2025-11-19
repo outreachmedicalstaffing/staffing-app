@@ -7,6 +7,10 @@ import { pool } from "./db";
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
+
 const PgSession = ConnectPgSimple(session);
 // Session configuration
 app.use(

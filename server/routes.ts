@@ -4164,16 +4164,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Serve uploaded files statically (for knowledge attachments and other uploads)
-  app.use('/uploads', (req, res, next) => {
-    const filePath = path.join(process.cwd(), 'uploads', req.path);
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      res.sendFile(filePath);
-    } else {
-      next();
-    }
-  });
-
   const httpServer = createServer(app);
   return httpServer;
 }
