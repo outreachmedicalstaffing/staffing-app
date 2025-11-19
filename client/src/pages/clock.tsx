@@ -56,10 +56,9 @@ export default function Clock() {
     queryKey: ["/api/auth/me"],
   });
 
-  // Fetch time entries - CRITICAL: Include user.id in queryKey to prevent cross-user cache pollution
+  // Fetch time entries - Backend filters by session userId automatically
   const { data: timeEntries = [], isLoading: timeEntriesLoading } = useQuery<TimeEntry[]>({
-    queryKey: ["/api/time/entries", user?.id],
-    enabled: !!user?.id, // Only fetch when user is loaded
+    queryKey: ["/api/time/entries"],
   });
 
   // Fetch shifts - Backend filters by user role automatically
