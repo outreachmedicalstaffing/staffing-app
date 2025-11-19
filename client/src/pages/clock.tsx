@@ -68,12 +68,6 @@ export default function Clock() {
     enabled: !!user?.id,
   });
 
-  // Fetch shift assignments - Include user.id in queryKey for proper cache isolation
-  const { data: assignments = [] } = useQuery<any[]>({
-    queryKey: ["/api/shift-assignments", user?.id],
-    enabled: !!user?.id,
-  });
-
   // Check if user is admin
   const isAdmin = user?.role?.toLowerCase() === "owner" || user?.role?.toLowerCase() === "admin";
 
@@ -102,10 +96,9 @@ export default function Clock() {
   }
 
   // Get current or next assigned shift
+  // Note: Backend already filters shifts for regular users to only their assigned shifts
   const now = new Date();
-  const myShifts = shifts.filter((s) =>
-    assignments.some((a) => a.shiftId === s.id && a.userId === user?.id),
-  );
+  const myShifts = shifts;
 
   const currentShift = myShifts.find(
     (s) => new Date(s.startTime) <= now && now <= new Date(s.endTime),

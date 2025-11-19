@@ -252,20 +252,12 @@ export default function Dashboard() {
     return sum;
   }, 0);
 
-  // Shifts this week - for regular users, only their assigned shifts
+  // Shifts this week
+  // Note: Backend already filters shifts for regular users to only their assigned shifts
   // Deduplicate shifts by ID to prevent double-counting
   const weekShiftsFiltered = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
-    if (!(shiftDate >= weekStart && shiftDate <= weekEnd)) {
-      return false;
-    }
-    // For regular users, only count their assigned shifts
-    if (!isAdmin) {
-      const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
-      return assignment && assignment.userId === user?.id;
-    }
-    // For admins, count all shifts
-    return true;
+    return shiftDate >= weekStart && shiftDate <= weekEnd;
   });
 
   // Deduplicate by shift ID (in case there are duplicate records)
@@ -278,23 +270,13 @@ export default function Dashboard() {
     return true;
   });
 
-  // Upcoming shifts (next 7 days) - for regular users, only their assigned shifts, for admins all shifts
+  // Upcoming shifts (next 7 days)
+  // Note: Backend already filters shifts for regular users to only their assigned shifts
   // Deduplicate shifts by ID to prevent double-counting
   const upcomingShiftsFiltered = shifts.filter(shift => {
     const shiftDate = new Date(shift.startTime);
     // Check if shift is in the next 7 days
-    if (!isAfter(shiftDate, now) || !isBefore(shiftDate, addDays(now, 7))) {
-      return false;
-    }
-
-    // For regular users, only show their assigned shifts
-    if (!isAdmin) {
-      const assignment = shiftAssignments.find(a => a.shiftId === shift.id);
-      return assignment && assignment.userId === user?.id;
-    }
-
-    // For admins, show all shifts
-    return true;
+    return isAfter(shiftDate, now) && isBefore(shiftDate, addDays(now, 7));
   });
 
   // Deduplicate by shift ID (in case there are duplicate records)
