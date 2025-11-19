@@ -2545,17 +2545,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== Knowledge Base Routes =====
 
-  // List knowledge articles
+  // List knowledge articles (filtered based on user role and visibility)
   app.get("/api/knowledge", requireAuth, async (req, res) => {
     try {
-      const category = req.query.category as string | undefined;
-      const publishStatus = req.query.publishStatus as string | undefined;
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
 
-      const articles = await storage.listKnowledgeArticles(
-        category,
-        publishStatus,
-      );
-      res.json(articles);
+      // Get all articles
+      const allArticles = await storage.db
+        .select()
+        .from(schema.knowledgeArticles)
+        .orderBy(desc(schema.knowledgeArticles.createdAt));
+
+      // Owner and Admin see ALL articles
+      if (["Owner", "Admin"].includes(currentUser.role)) {
+        return res.json(allArticles);
+      }
+
+      // Helper function to check if user is in a group
+      const isUserInGroup = (groupId: string): boolean => {
+        // Check if it's an auto-program group
+        if (groupId.startsWith('auto-program-')) {
+          const programName = groupId.replace('auto-program-', '');
+          const userCustomFields = currentUser.customFields as any;
+          const userPrograms = userCustomFields?.programs || [];
+          return userPrograms.includes(programName);
+        }
+
+        // For discipline and general groups, check user's groups array
+        if (currentUser.groups && Array.isArray(currentUser.groups)) {
+          return currentUser.groups.includes(groupId);
+        }
+
+        return false;
+      };
+
+      // Filter articles based on visibility (only for regular users)
+      const filteredArticles = allArticles.filter(article => {
+        // Only show published articles to non-admins
+        if (article.publishStatus !== "published") {
+          return false;
+        }
+
+        // Check visibility
+        if (article.visibility === "all") {
+          return true;
+        }
+
+        if (article.visibility === "specific_groups") {
+          // Check if user is in any of the target groups
+          if (article.targetGroupIds && article.targetGroupIds.length > 0) {
+            for (const groupId of article.targetGroupIds) {
+              if (isUserInGroup(groupId)) {
+                return true;
+              }
+            }
+            return false;
+          }
+          return false;
+        }
+
+        return false;
+      });
+
+      res.json(filteredArticles);
     } catch (error) {
       res.status(500).json({ error: "Failed to list knowledge articles" });
     }

@@ -389,6 +389,8 @@ export const knowledgeArticles = pgTable("knowledge_articles", {
   type: text("type").notNull(), // page, pdf, folder
   category: text("category").notNull(), // HR, Compliance, Operations
   publishStatus: text("publish_status").notNull().default("draft"), // draft, published
+  visibility: text("visibility").notNull().default("all"), // all, specific_groups
+  targetGroupIds: text("target_group_ids").array(), // For specific groups
   authorId: varchar("author_id")
     .notNull()
     .references(() => users.id),
