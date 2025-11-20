@@ -416,22 +416,14 @@ export function UserTimesheetDetail({
       return res.ok;  // Don't try to parse JSON from delete response
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey[0]?.toString().startsWith("/api/time/entries") ??
-          false,
-      });
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey[0]?.toString().startsWith("/api/timesheets") ??
-          false,
-      });
       toast({
         title: "Time entry deleted",
         description: "Time entry deleted successfully",
       });
       setDeleteDialogOpen(false);
       setSelectedEntryForDelete(null);
+      // Reload to show updated timesheet
+      setTimeout(() => window.location.reload(), 500);
     },
     onError: () => {
       toast({
