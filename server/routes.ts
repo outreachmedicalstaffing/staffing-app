@@ -1151,6 +1151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             visibility: "specific_users",
             targetUserIds: [entry.userId],
             status: "published",
+            metadata: JSON.stringify({ type: 'time_entry_approval' }),
           });
         }
 
@@ -1243,6 +1244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             visibility: "specific_users",
             targetUserIds: [entry.userId],
             status: "published",
+            metadata: JSON.stringify({ type: 'time_entry_approval' }),
           });
         }
 

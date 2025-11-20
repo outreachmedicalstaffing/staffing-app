@@ -170,14 +170,27 @@ export default function Updates() {
     });
   }, [updatesRaw]);
 
-  // Filter updates based on search query
+  // Filter updates based on search query and exclude system notifications
   const filteredUpdates = useMemo(() => {
+    // First filter out system notifications (time entry approvals/edits)
+    const nonSystemUpdates = updates.filter(update => {
+      if (!update.metadata) return true;
+      try {
+        const metadata = JSON.parse(update.metadata);
+        // Exclude time entry system notifications from the main feed
+        return metadata.type !== 'time_entry_approval' && metadata.type !== 'time_entry_edit';
+      } catch {
+        return true;
+      }
+    });
+
+    // Then apply search filter if there's a search query
     if (!searchQuery.trim()) {
-      return updates;
+      return nonSystemUpdates;
     }
 
     const searchLower = searchQuery.toLowerCase();
-    return updates.filter(update => {
+    return nonSystemUpdates.filter(update => {
       // Search in title
       if (update.title.toLowerCase().includes(searchLower)) {
         return true;
