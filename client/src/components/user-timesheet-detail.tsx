@@ -412,7 +412,8 @@ export function UserTimesheetDetail({
   const deleteTimeEntryMutation = useMutation({
     mutationFn: async (entryId: string) => {
       const res = await apiRequest("DELETE", `/api/time/entries/${entryId}`, {});
-      return res.json();
+      if (!res.ok) throw new Error('Failed to delete');
+      return res.ok;  // Don't try to parse JSON from delete response
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
