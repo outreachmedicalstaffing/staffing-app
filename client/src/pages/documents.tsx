@@ -8,6 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { User } from "@shared/schema";
 import {
   Dialog,
@@ -46,6 +53,7 @@ interface Document {
   status?: "approved" | "expired" | "pending" | "rejected";
   rejectionReason?: string;
   userId?: string; // ID of user who uploaded the document (matches User.id type)
+  category?: "General" | "AdventHealth"; // Document category for filtering
 }
 
 export default function Documents() {
@@ -61,6 +69,7 @@ export default function Documents() {
   const [visibleToUsers, setVisibleToUsers] = useState(true);
   const [enableUserUpload, setEnableUserUpload] = useState(true);
   const [requireReview, setRequireReview] = useState(true);
+  const [documentCategory, setDocumentCategory] = useState<"General" | "AdventHealth">("General");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
@@ -119,6 +128,7 @@ export default function Documents() {
     setVisibleToUsers(true);
     setEnableUserUpload(true);
     setRequireReview(true);
+    setDocumentCategory("General");
     setIsEditMode(false);
     setEditingDocumentId(null);
   };
@@ -134,6 +144,7 @@ export default function Documents() {
     setVisibleToUsers(doc.visibleToUsers);
     setEnableUserUpload(doc.enableUserUpload);
     setRequireReview(doc.requireReview);
+    setDocumentCategory(doc.category || "General");
 
     // Set edit mode
     setIsEditMode(true);
@@ -207,6 +218,7 @@ export default function Documents() {
               visibleToUsers: visibleToUsers,
               enableUserUpload: enableUserUpload,
               requireReview: requireReview,
+              category: documentCategory,
             };
           }
           return doc;
@@ -251,6 +263,7 @@ export default function Documents() {
           visibleToUsers: visibleToUsers,
           enableUserUpload: enableUserUpload,
           requireReview: requireReview,
+          category: documentCategory,
         };
 
         // Add to documents array
@@ -761,6 +774,19 @@ export default function Documents() {
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={documentCategory} onValueChange={(value: "General" | "AdventHealth") => setDocumentCategory(value)}>
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="General">General</SelectItem>
+                  <SelectItem value="AdventHealth">AdventHealth</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-4 pt-2">
@@ -1763,7 +1789,10 @@ export default function Documents() {
               <TabsTrigger value="expired">Expired</TabsTrigger>
             )}
             {isAdmin && (
-              <TabsTrigger value="user-documents">All Users</TabsTrigger>
+              <>
+                <TabsTrigger value="user-documents">All Users</TabsTrigger>
+                <TabsTrigger value="adventhealth">AdventHealth</TabsTrigger>
+              </>
             )}
           </TabsList>
 
@@ -2196,7 +2225,8 @@ export default function Documents() {
           )}
 
           {isAdmin && (
-            <TabsContent value="user-documents" className="mt-4">
+            <>
+              <TabsContent value="user-documents" className="mt-4">
               <div className="space-y-4">
                 {/* Section Header */}
                 <div>
@@ -2377,6 +2407,136 @@ export default function Documents() {
                 </div>
               </div>
             </TabsContent>
+
+            {/* AdventHealth Tab */}
+            <TabsContent value="adventhealth" className="mt-4">
+              <div className="space-y-4">
+                {/* Section Header */}
+                <div>
+                  <h2 className="text-xl font-semibold">AdventHealth Documents</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Document requirements assigned to AdventHealth
+                  </p>
+                </div>
+
+                {/* Document Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {documents.filter(doc => !doc.status && doc.category === "AdventHealth").length === 0 ? (
+                    <div className="col-span-2 text-center py-12 text-muted-foreground">
+                      No AdventHealth documents found. Create a new document and assign it to the AdventHealth category.
+                    </div>
+                  ) : (
+                    documents
+                      .filter(doc => !doc.status && doc.category === "AdventHealth")
+                      .map((doc) => {
+                      const formatDate = (dateString: string) => {
+                        if (!dateString) return "N/A";
+                        // Parse YYYY-MM-DD as local date to avoid timezone issues
+                        const [year, month, day] = dateString.split('-').map(Number);
+                        const date = new Date(year, month - 1, day);
+                        return date.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        });
+                      };
+
+                      return (
+                        <Card key={doc.id} className="hover:shadow-lg transition-shadow">
+                          <CardContent className="pt-6">
+                            <div className="space-y-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-lg truncate">{doc.title}</h3>
+                                  {doc.description && (
+                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                      {doc.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <Badge className="ml-2 bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0">
+                                  AdventHealth
+                                </Badge>
+                              </div>
+
+                              <div className="space-y-2 text-sm">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-muted-foreground">Uploaded:</span>
+                                  <span className="font-medium">{formatDate(doc.uploadedDate)}</span>
+                                </div>
+                                {doc.hasExpiration && doc.expirationDate && (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Expires:</span>
+                                    <span className="font-medium">{formatDate(doc.expirationDate)}</span>
+                                  </div>
+                                )}
+                                {doc.fileName && (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">File:</span>
+                                    <span className="font-medium truncate ml-2">{doc.fileName}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {doc.notes && (
+                                <div className="bg-muted/50 rounded-lg p-3">
+                                  <p className="text-sm text-muted-foreground">{doc.notes}</p>
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-2 pt-2">
+                                {doc.visibleToUsers && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Visible to users
+                                  </Badge>
+                                )}
+                                {!doc.visibleToUsers && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <EyeOff className="h-3 w-3 mr-1" />
+                                    Hidden from users
+                                  </Badge>
+                                )}
+                                {doc.enableUserUpload && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Upload className="h-3 w-3 mr-1" />
+                                    User upload enabled
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="flex gap-2 pt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditDocument(doc)}
+                                  className="flex-1"
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => {
+                                    setDocumentToDelete(doc.id);
+                                    setShowDeleteDialog(true);
+                                  }}
+                                  className="flex-1"
+                                >
+                                  <Trash className="h-4 w-4 mr-1" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+            </>
           )}
         </Tabs>
       </div>
