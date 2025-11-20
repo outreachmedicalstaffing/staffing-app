@@ -32,6 +32,7 @@ import {
   Moon,
   CheckCircle,
   XCircle,
+  Trash2,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimeEntry, User } from "@shared/schema";
@@ -142,6 +143,9 @@ export function UserTimesheetDetail({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedEntryForReject, setSelectedEntryForReject] = useState<TimeEntry | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedEntryForDelete, setSelectedEntryForDelete] = useState<TimeEntry | null>(null);
   // Image preview state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
@@ -399,6 +403,39 @@ export function UserTimesheetDetail({
       toast({
         title: "Error",
         description: "Failed to reject time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete time entry mutation
+  const deleteTimeEntryMutation = useMutation({
+    mutationFn: async (entryId: string) => {
+      const res = await apiRequest("DELETE", `/api/time/entries/${entryId}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0]?.toString().startsWith("/api/time/entries") ??
+          false,
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0]?.toString().startsWith("/api/timesheets") ??
+          false,
+      });
+      toast({
+        title: "Time entry deleted",
+        description: "Time entry deleted successfully",
+      });
+      setDeleteDialogOpen(false);
+      setSelectedEntryForDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete time entry",
         variant: "destructive",
       });
     },
@@ -981,9 +1018,22 @@ export function UserTimesheetDetail({
                           {/* Actions */}
                           <TableCell>
                             {canEdit && (
-                              <Button variant="ghost" size="icon" onClick={() => handleLockToggle(date, overnightCont)} className="h-8 w-8">
-                                {isLocked ? <Lock className="h-4 w-4 text-red-600" /> : <Unlock className="h-4 w-4 text-muted-foreground" />}
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => handleLockToggle(date, overnightCont)} className="h-8 w-8">
+                                  {isLocked ? <Lock className="h-4 w-4 text-red-600" /> : <Unlock className="h-4 w-4 text-muted-foreground" />}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setSelectedEntryForDelete(overnightCont);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                  className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             )}
                           </TableCell>
 
@@ -1439,19 +1489,33 @@ export function UserTimesheetDetail({
                         {/* Actions */}
                         <TableCell>
                           {canEdit && entry && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleLockToggle(date, entry)}
-                              data-testid={`button-lock-${format(date, "yyyy-MM-dd")}`}
-                              className="h-8 w-8"
-                            >
-                              {isLocked ? (
-                                <Lock className="h-4 w-4 text-red-600" />
-                              ) : (
-                                <Unlock className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleLockToggle(date, entry)}
+                                data-testid={`button-lock-${format(date, "yyyy-MM-dd")}`}
+                                className="h-8 w-8"
+                              >
+                                {isLocked ? (
+                                  <Lock className="h-4 w-4 text-red-600" />
+                                ) : (
+                                  <Unlock className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedEntryForDelete(entry);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                data-testid={`button-delete-${format(date, "yyyy-MM-dd")}`}
+                                className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
 
@@ -1952,6 +2016,54 @@ export function UserTimesheetDetail({
               className="bg-red-600 hover:bg-red-700"
             >
               {rejectTimeEntryMutation.isPending ? "Rejecting..." : "Reject"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-16 w-16 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="h-8 w-8 text-red-600" />
+              </div>
+              <AlertDialogTitle className="text-center">
+                Delete Time Entry
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-center">
+              Are you sure you want to delete this time entry? This action cannot be undone.
+              {selectedEntryForDelete && (
+                <div className="mt-4 p-3 bg-muted rounded-lg text-sm">
+                  <p><strong>Date:</strong> {format(new Date(selectedEntryForDelete.clockIn), "EEEE, MMMM d, yyyy")}</p>
+                  <p><strong>Time:</strong> {format(new Date(selectedEntryForDelete.clockIn), "h:mm a")} - {selectedEntryForDelete.clockOut ? format(new Date(selectedEntryForDelete.clockOut), "h:mm a") : "In Progress"}</p>
+                  {selectedEntryForDelete.location && <p><strong>Location:</strong> {selectedEntryForDelete.location}</p>}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setSelectedEntryForDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (selectedEntryForDelete) {
+                  deleteTimeEntryMutation.mutate(selectedEntryForDelete.id);
+                }
+              }}
+              disabled={deleteTimeEntryMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteTimeEntryMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

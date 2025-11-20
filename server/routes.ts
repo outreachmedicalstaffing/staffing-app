@@ -1267,6 +1267,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
+  // Delete time entry
+  app.delete(
+    "/api/time/entries/:id",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const entryId = req.params.id;
+        const entry = await storage.getTimeEntry(entryId);
+
+        if (!entry) {
+          return res.status(404).json({ error: "Time entry not found" });
+        }
+
+        // Get entry details for audit log before deletion
+        const entryDetails = {
+          userId: entry.userId,
+          clockIn: entry.clockIn,
+          clockOut: entry.clockOut,
+          location: entry.location,
+          hourlyRate: entry.hourlyRate,
+        };
+
+        // Delete the time entry from the database
+        await storage.db
+          .delete(schema.timeEntries)
+          .where(eq(schema.timeEntries.id, entryId));
+
+        // Log the deletion in audit logs
+        await logAudit(
+          req.session.userId,
+          "delete",
+          "time_entry",
+          entryId,
+          false,
+          [],
+          entryDetails,
+          req.ip,
+        );
+
+        res.json({ success: true, message: "Time entry deleted successfully" });
+      } catch (error) {
+        console.error("Delete time entry error:", error);
+        res.status(500).json({ error: "Failed to delete time entry" });
+      }
+    },
+  );
+
   // ===== Schedule Routes =====
 
   // List schedules
