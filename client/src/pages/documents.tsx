@@ -1031,26 +1031,28 @@ export default function Documents() {
               const allDocsCount = pendingUploadDocs.length + userDocs.length;
 
               return (
-                <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-1">
-                  <TabsTrigger value="all" className="text-xs">
-                    All ({allDocsCount})
-                  </TabsTrigger>
-                  <TabsTrigger value="pending-upload" className="text-xs">
-                    Pending Upload ({pendingUploadDocs.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="pending-approval" className="text-xs">
-                    Pending Approval ({pendingApprovalDocs.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="no-approval" className="text-xs">
-                    No Approval ({noApprovalDocs.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="approved" className="text-xs">
-                    Approved ({approvedDocs.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="expiring" className="text-xs">
-                    Expiring/Expired ({expiringExpiredDocs.length})
-                  </TabsTrigger>
-                </TabsList>
+                <div className="overflow-x-auto pb-2">
+                  <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-6 gap-1">
+                    <TabsTrigger value="all" className="text-xs whitespace-nowrap">
+                      All ({allDocsCount})
+                    </TabsTrigger>
+                    <TabsTrigger value="pending-upload" className="text-xs whitespace-nowrap">
+                      Pending Upload ({pendingUploadDocs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="pending-approval" className="text-xs whitespace-nowrap">
+                      Pending Approval ({pendingApprovalDocs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="no-approval" className="text-xs whitespace-nowrap">
+                      No Approval ({noApprovalDocs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="approved" className="text-xs whitespace-nowrap">
+                      Approved ({approvedDocs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="expiring" className="text-xs whitespace-nowrap">
+                      Expiring/Expired ({expiringExpiredDocs.length})
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
               );
             })()}
 
@@ -1783,18 +1785,20 @@ export default function Documents() {
 
         {/* Tabs */}
         <Tabs defaultValue="my-documents">
-          <TabsList>
-            <TabsTrigger value="my-documents">{isAdmin ? "Documents" : "My Documents"}</TabsTrigger>
-            {!isAdmin && (
-              <TabsTrigger value="expired">Expired</TabsTrigger>
-            )}
-            {isAdmin && (
-              <>
-                <TabsTrigger value="user-documents">All Users</TabsTrigger>
-                <TabsTrigger value="adventhealth">AdventHealth</TabsTrigger>
-              </>
-            )}
-          </TabsList>
+          <div className="overflow-x-auto">
+            <TabsList className="inline-flex w-auto min-w-full sm:w-auto">
+              <TabsTrigger value="my-documents">{isAdmin ? "Documents" : "My Documents"}</TabsTrigger>
+              {!isAdmin && (
+                <TabsTrigger value="expired">Expired</TabsTrigger>
+              )}
+              {isAdmin && (
+                <>
+                  <TabsTrigger value="user-documents">All Users</TabsTrigger>
+                  <TabsTrigger value="adventhealth">AdventHealth</TabsTrigger>
+                </>
+              )}
+            </TabsList>
+          </div>
 
           <TabsContent value="my-documents" className="mt-4">
             <div className="space-y-4">

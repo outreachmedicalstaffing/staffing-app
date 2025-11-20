@@ -379,15 +379,15 @@ export default function Knowledge() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Knowledge Base</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Knowledge Base</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Access policies, procedures, and training materials
           </p>
         </div>
         {isAdmin && (
-          <Button className="bg-red-600 hover:bg-red-700" onClick={() => setShowCreateDialog(true)}>
+          <Button className="bg-red-600 hover:bg-red-700 w-full sm:w-auto" onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create Article
           </Button>
@@ -405,25 +405,27 @@ export default function Knowledge() {
       </div>
 
       <Tabs defaultValue={isAdmin ? "all" : "getting-started"} className="space-y-4">
-        <TabsList>
-          {isAdmin && (
-            <TabsTrigger value="all">
-              All Content
+        <div className="overflow-x-auto">
+          <TabsList className="inline-flex w-auto min-w-full sm:w-auto">
+            {isAdmin && (
+              <TabsTrigger value="all">
+                All Content
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="getting-started">
+              Getting Started
             </TabsTrigger>
-          )}
-          <TabsTrigger value="getting-started">
-            Getting Started
-          </TabsTrigger>
-          <TabsTrigger value="hr">
-            HR
-          </TabsTrigger>
-          <TabsTrigger value="compliance">
-            Compliance
-          </TabsTrigger>
-          <TabsTrigger value="operations">
-            Operations
-          </TabsTrigger>
-        </TabsList>
+            <TabsTrigger value="hr">
+              HR
+            </TabsTrigger>
+            <TabsTrigger value="compliance">
+              Compliance
+            </TabsTrigger>
+            <TabsTrigger value="operations">
+              Operations
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {isAdmin && (
           <TabsContent value="all" className="space-y-4">
@@ -433,7 +435,7 @@ export default function Knowledge() {
                 <CardDescription>{articles.length} items</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {articles.map((article) => (
                     <Card key={article.id} className="hover:shadow-lg transition-shadow">
                       <CardContent className="pt-6">
@@ -488,7 +490,7 @@ export default function Knowledge() {
               <CardDescription>{filterArticlesByCategory("Getting Started").length} items</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filterArticlesByCategory("Getting Started").map((article) => (
                   <Card key={article.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
@@ -542,7 +544,7 @@ export default function Knowledge() {
               <CardDescription>{filterArticlesByCategory("HR").length} items</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filterArticlesByCategory("HR").map((article) => (
                   <Card key={article.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
@@ -596,7 +598,7 @@ export default function Knowledge() {
               <CardDescription>{filterArticlesByCategory("Compliance").length} items</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filterArticlesByCategory("Compliance").map((article) => (
                   <Card key={article.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
@@ -650,7 +652,7 @@ export default function Knowledge() {
               <CardDescription>{filterArticlesByCategory("Operations").length} items</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filterArticlesByCategory("Operations").map((article) => (
                   <Card key={article.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
