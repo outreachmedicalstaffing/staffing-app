@@ -6,12 +6,16 @@ import { Request } from 'express';
 import fs from 'fs';
 const uploadsDir = './uploads';
 const knowledgeUploadsDir = './uploads/knowledge';
+const knowledgeImagesDir = './uploads/knowledge-images';
 const updatesUploadsDir = './uploads/updates';
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 if (!fs.existsSync(knowledgeUploadsDir)) {
   fs.mkdirSync(knowledgeUploadsDir, { recursive: true });
+}
+if (!fs.existsSync(knowledgeImagesDir)) {
+  fs.mkdirSync(knowledgeImagesDir, { recursive: true });
 }
 if (!fs.existsSync(updatesUploadsDir)) {
   fs.mkdirSync(updatesUploadsDir, { recursive: true });
@@ -74,6 +78,42 @@ export const knowledgeUpload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit per file
   },
   fileFilter: fileFilter
+});
+
+// Configure knowledge image upload middleware (saves to /uploads/knowledge-images/)
+const knowledgeImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads/knowledge-images/');
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename: timestamp-randomnumber-originalname
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext);
+    cb(null, `${basename}-${uniqueSuffix}${ext}`);
+  }
+});
+
+// File filter for knowledge images (images only)
+const knowledgeImageFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Allow only image types for inline embedding
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only images (PNG, JPG, JPEG, GIF) are allowed.'));
+  }
+};
+
+export const knowledgeImageUpload = multer({
+  storage: knowledgeImageStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file
+  },
+  fileFilter: knowledgeImageFileFilter
 });
 
 // Configure updates upload middleware (saves to /uploads/updates/)

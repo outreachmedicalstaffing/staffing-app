@@ -20,7 +20,7 @@ import {
   insertShiftTemplateSchema,
 } from "@shared/schema";
 import "./types"; // Import session and request type augmentations
-import { upload, knowledgeUpload, updatesUpload } from "./upload";
+import { upload, knowledgeUpload, knowledgeImageUpload, updatesUpload } from "./upload";
 import path from "path";
 import fs from "fs";
 import { pool } from "./db";
@@ -2834,6 +2834,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("[Upload Knowledge Attachment] Error:", error);
         res.status(500).json({
           error: "Failed to upload attachment",
+          details: error instanceof Error ? error.message : String(error)
+        });
+      }
+    },
+  );
+
+  // Upload image for knowledge article content (Admin/Owner/HR only)
+  app.post(
+    "/api/knowledge/upload-image",
+    requireAuth,
+    requireRole("Owner", "Admin", "HR"),
+    knowledgeImageUpload.single('file'),
+    async (req, res) => {
+      try {
+        console.log("[Upload Knowledge Image] Request received");
+
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        const file = req.file;
+        const fileUrl = `/uploads/knowledge-images/${file.filename}`;
+        const fileSize = (file.size / 1024 / 1024).toFixed(2); // Size in MB
+
+        await logAudit(
+          req.session.userId,
+          "upload",
+          "knowledge_image",
+          file.filename,
+          false,
+          [],
+          {
+            fileName: file.originalname,
+            fileSize: file.size,
+            mimeType: file.mimetype
+          },
+          req.ip,
+        );
+
+        console.log("[Upload Knowledge Image] File uploaded:", {
+          originalName: file.originalname,
+          savedAs: file.filename,
+          size: fileSize + ' MB',
+          url: fileUrl
+        });
+
+        res.json({
+          url: fileUrl,
+          filename: file.originalname,
+          size: fileSize,
+          type: file.mimetype
+        });
+      } catch (error) {
+        console.error("[Upload Knowledge Image] Error:", error);
+        res.status(500).json({
+          error: "Failed to upload image",
           details: error instanceof Error ? error.message : String(error)
         });
       }

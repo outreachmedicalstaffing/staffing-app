@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2, Upload, X, Download, Paperclip } from "lucide-react";
+import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2, Upload, X, Download, Paperclip, Image as ImageIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -87,6 +87,11 @@ export default function Knowledge() {
   const [editContent, setEditContent] = useState("");
   const [editAttachments, setEditAttachments] = useState<string[]>([]);
   const [openEditProgramSelect, setOpenEditProgramSelect] = useState(false);
+
+  // Image upload state
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const newImageInputRef = useRef<HTMLInputElement>(null);
+  const editImageInputRef = useRef<HTMLInputElement>(null);
 
   // Create program groups from the predefined program options
   const programGroups = useMemo((): ProgramGroup[] => {
@@ -222,6 +227,92 @@ export default function Knowledge() {
       setEditAttachments(editAttachments.filter(a => a !== url));
     } else {
       setNewAttachments(newAttachments.filter(a => a !== url));
+    }
+  };
+
+  // Handle image upload for markdown content
+  const handleImageUpload = async (file: File, isEdit: boolean = false) => {
+    if (!file) return;
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 10MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file type (images only)
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Only image files are allowed (PNG, JPG, JPEG, GIF)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/knowledge/upload-image', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+
+      const data = await res.json();
+
+      // Insert markdown image syntax at cursor position
+      const imageMarkdown = `![Image](${data.url})`;
+
+      if (isEdit) {
+        // Get the textarea element
+        const textarea = document.getElementById('edit-article-content') as HTMLTextAreaElement;
+        if (textarea) {
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const updatedContent = editContent.substring(0, start) + imageMarkdown + editContent.substring(end);
+          setEditContent(updatedContent);
+
+          // Set cursor position after the inserted markdown
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + imageMarkdown.length;
+            textarea.focus();
+          }, 0);
+        }
+      } else {
+        // Get the textarea element
+        const textarea = document.getElementById('article-content') as HTMLTextAreaElement;
+        if (textarea) {
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const updatedContent = newContent.substring(0, start) + imageMarkdown + newContent.substring(end);
+          setNewContent(updatedContent);
+
+          // Set cursor position after the inserted markdown
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + imageMarkdown.length;
+            textarea.focus();
+          }, 0);
+        }
+      }
+
+      toast({ title: "Image uploaded successfully" });
+    } catch (error) {
+      console.error('Image upload error:', error);
+      toast({
+        title: "Failed to upload image",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -893,7 +984,34 @@ export default function Knowledge() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="article-content">Content (Supports Markdown)</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="article-content">Content (Supports Markdown)</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={newImageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/gif"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleImageUpload(file, false);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => newImageInputRef.current?.click()}
+                    disabled={uploadingImage}
+                  >
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    {uploadingImage ? 'Uploading...' : 'Add Image'}
+                  </Button>
+                </div>
+              </div>
               <Textarea
                 id="article-content"
                 placeholder="Write your article content here..."
@@ -989,9 +1107,22 @@ export default function Knowledge() {
           </DialogHeader>
 
           <div className="py-4">
-            <div className="prose prose-sm max-w-none whitespace-pre-wrap font-mono text-sm">
-              {viewingArticle?.content || "No content available"}
-            </div>
+            <div
+              className="prose prose-sm max-w-none whitespace-pre-wrap font-mono text-sm"
+              dangerouslySetInnerHTML={{
+                __html: (viewingArticle?.content || "No content available")
+                  .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="pointer-events: none; user-select: none; -webkit-user-drag: none;" oncontextmenu="return false;" draggable="false" />')
+              }}
+              onContextMenu={(e) => {
+                if ((e.target as HTMLElement).tagName === 'IMG') {
+                  e.preventDefault();
+                }
+              }}
+              style={{
+                // Prevent image download via CSS
+                ['--tw-prose-img' as any]: 'pointer-events: none; user-select: none; -webkit-user-drag: none;'
+              }}
+            />
           </div>
 
           {viewingArticle?.attachments && viewingArticle.attachments.length > 0 && (
@@ -1173,7 +1304,34 @@ export default function Knowledge() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="edit-article-content">Content (Supports Markdown)</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-article-content">Content (Supports Markdown)</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={editImageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/gif"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleImageUpload(file, true);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => editImageInputRef.current?.click()}
+                    disabled={uploadingImage}
+                  >
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    {uploadingImage ? 'Uploading...' : 'Add Image'}
+                  </Button>
+                </div>
+              </div>
               <Textarea
                 id="edit-article-content"
                 placeholder="Write your article content here..."
