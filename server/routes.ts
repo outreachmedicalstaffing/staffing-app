@@ -20,7 +20,7 @@ import {
   insertShiftTemplateSchema,
 } from "@shared/schema";
 import "./types"; // Import session and request type augmentations
-import { upload, knowledgeUpload } from "./upload";
+import { upload, knowledgeUpload, updatesUpload } from "./upload";
 import path from "path";
 import fs from "fs";
 import { pool } from "./db";
@@ -3231,6 +3231,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({
           error: "Failed to upload attachment",
           message: error.message
+        });
+      }
+    }
+  );
+
+  // Upload image for update (Admin/Owner only)
+  app.post(
+    "/api/updates/upload",
+    requireAuth,
+    requireRole("Owner", "Admin"),
+    updatesUpload.single('file'),
+    async (req, res) => {
+      try {
+        console.log("[Upload Updates Image] Request received");
+
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        const file = req.file;
+        const fileUrl = `/uploads/updates/${file.filename}`;
+        const fileSize = (file.size / 1024 / 1024).toFixed(2); // Size in MB
+
+        await logAudit(
+          req.session.userId,
+          "upload",
+          "updates_image",
+          file.filename,
+          false,
+          [],
+          {
+            fileName: file.originalname,
+            fileSize: file.size,
+            mimeType: file.mimetype
+          },
+          req.ip,
+        );
+
+        console.log("[Upload Updates Image] File uploaded:", {
+          originalName: file.originalname,
+          savedAs: file.filename,
+          size: fileSize + ' MB',
+          url: fileUrl
+        });
+
+        res.json({
+          url: fileUrl,
+          filename: file.originalname,
+          size: fileSize,
+          type: file.mimetype
+        });
+      } catch (error) {
+        console.error("[Upload Updates Image] Error:", error);
+        res.status(500).json({
+          error: "Failed to upload image",
+          details: error instanceof Error ? error.message : String(error)
         });
       }
     }

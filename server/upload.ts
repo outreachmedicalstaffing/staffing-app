@@ -6,11 +6,15 @@ import { Request } from 'express';
 import fs from 'fs';
 const uploadsDir = './uploads';
 const knowledgeUploadsDir = './uploads/knowledge';
+const updatesUploadsDir = './uploads/updates';
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 if (!fs.existsSync(knowledgeUploadsDir)) {
   fs.mkdirSync(knowledgeUploadsDir, { recursive: true });
+}
+if (!fs.existsSync(updatesUploadsDir)) {
+  fs.mkdirSync(updatesUploadsDir, { recursive: true });
 }
 
 // Configure storage
@@ -70,4 +74,40 @@ export const knowledgeUpload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit per file
   },
   fileFilter: fileFilter
+});
+
+// Configure updates upload middleware (saves to /uploads/updates/)
+const updatesStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads/updates/');
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename: timestamp-randomnumber-originalname
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext);
+    cb(null, `${basename}-${uniqueSuffix}${ext}`);
+  }
+});
+
+// File filter for updates (images only)
+const updatesFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Allow only image types for updates
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only images (PNG, JPG, JPEG, GIF) are allowed.'));
+  }
+};
+
+export const updatesUpload = multer({
+  storage: updatesStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file
+  },
+  fileFilter: updatesFileFilter
 });

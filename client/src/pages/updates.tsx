@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus,
   Eye,
@@ -51,6 +52,7 @@ import {
   Paperclip,
   X,
   Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -78,6 +80,8 @@ interface Update {
   targetGroupIds: string[] | null;
   status: string;
   metadata: string | null;
+  imageUrl: string | null;
+  preventDownload: boolean;
   createdAt: string;
   viewCount: number;
   likeCount: number;
@@ -130,6 +134,8 @@ export default function Updates() {
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -139,6 +145,8 @@ export default function Updates() {
     targetUserIds: [] as string[],
     targetGroupIds: [] as string[],
     status: "published",
+    imageUrl: null as string | null,
+    preventDownload: false,
   });
 
   // Get current user
@@ -463,6 +471,8 @@ export default function Updates() {
       targetUserIds: [],
       targetGroupIds: [],
       status: "published",
+      imageUrl: null,
+      preventDownload: false,
     });
     setAttachment(null);
   };
@@ -544,6 +554,79 @@ export default function Updates() {
     setAttachment(null);
   };
 
+  // Image upload handlers
+  const handleImageButtonClick = () => {
+    if (isUploadingImage) return;
+    imageInputRef.current?.click();
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || isUploadingImage) return;
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Image size must be less than 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file type (images only)
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Error",
+        description: "Only image files are allowed (PNG, JPG, JPEG, GIF)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+
+    try {
+      const formDataObj = new FormData();
+      formDataObj.append('file', file);
+
+      const response = await fetch('/api/updates/upload', {
+        method: 'POST',
+        body: formDataObj,
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      setFormData({ ...formData, imageUrl: data.url });
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      });
+
+    } catch (error: any) {
+      console.error('[Image Upload] Error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingImage(false);
+      if (imageInputRef.current) {
+        imageInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData({ ...formData, imageUrl: null });
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -587,6 +670,8 @@ export default function Updates() {
       targetUserIds: update.targetUserIds || [],
       targetGroupIds: update.targetGroupIds || [],
       status: update.status,
+      imageUrl: update.imageUrl || null,
+      preventDownload: update.preventDownload || false,
     });
     setAttachment(update.attachments && update.attachments.length > 0 ? update.attachments[0] : null);
     setShowCreateDialog(true);
@@ -1127,6 +1212,80 @@ export default function Updates() {
                 </div>
               )}
             </div>
+
+            {/* Image Upload Section */}
+            <div className="border-t pt-4 mt-4">
+              <Label>Image (Optional)</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Add an image to this update (PNG, JPG, JPEG, GIF - max 10MB)
+              </p>
+
+              <input
+                ref={imageInputRef}
+                type="file"
+                onChange={handleImageSelect}
+                style={{ display: 'none' }}
+                accept="image/png,image/jpeg,image/jpg,image/gif"
+              />
+
+              {!formData.imageUrl ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleImageButtonClick}
+                  disabled={isUploadingImage}
+                  className="w-full"
+                >
+                  {isUploadingImage ? (
+                    <>
+                      <Upload className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Add Image
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative border rounded-md overflow-hidden">
+                    <img
+                      src={formData.imageUrl}
+                      alt="Update preview"
+                      className="w-full max-h-64 object-contain bg-muted"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleRemoveImage}
+                      className="absolute top-2 right-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Download Prevention Checkbox */}
+            <div className="flex items-center space-x-2 border-t pt-4 mt-4">
+              <Checkbox
+                id="preventDownload"
+                checked={formData.preventDownload}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, preventDownload: checked as boolean })
+                }
+              />
+              <label
+                htmlFor="preventDownload"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                Disable users from downloading this content to their devices
+              </label>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1173,6 +1332,40 @@ export default function Updates() {
                 <div className="prose prose-sm max-w-none">
                   <p className="whitespace-pre-wrap">{selectedUpdate.content}</p>
                 </div>
+
+                {/* Image */}
+                {selectedUpdate.imageUrl && (
+                  <div className="border-t pt-4">
+                    <div
+                      className="relative border rounded-md overflow-hidden bg-muted"
+                      style={{
+                        userSelect: selectedUpdate.preventDownload ? 'none' : 'auto',
+                        pointerEvents: selectedUpdate.preventDownload ? 'none' : 'auto',
+                      }}
+                      onContextMenu={(e) => selectedUpdate.preventDownload && e.preventDefault()}
+                    >
+                      <img
+                        src={selectedUpdate.imageUrl}
+                        alt="Update image"
+                        className="w-full object-contain"
+                        style={{
+                          userSelect: selectedUpdate.preventDownload ? 'none' : 'auto',
+                          pointerEvents: selectedUpdate.preventDownload ? 'none' : 'auto',
+                        }}
+                        onContextMenu={(e) => selectedUpdate.preventDownload && e.preventDefault()}
+                        draggable={!selectedUpdate.preventDownload}
+                      />
+                      {selectedUpdate.preventDownload && (
+                        <div className="absolute inset-0 bg-transparent" style={{ pointerEvents: 'all' }} />
+                      )}
+                    </div>
+                    {selectedUpdate.preventDownload && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Download protection enabled for this image
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Attachment */}
                 {selectedUpdate.attachments && selectedUpdate.attachments.length > 0 && (

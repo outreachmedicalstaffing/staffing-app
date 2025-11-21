@@ -428,6 +428,8 @@ export const updates = pgTable("updates", {
   targetGroupIds: text("target_group_ids").array(), // For specific groups
   status: text("status").notNull().default("draft"), // draft, published, archived
   metadata: text("metadata"), // JSON metadata for special update types (e.g., time entry approval)
+  imageUrl: text("image_url"), // Uploaded image URL
+  preventDownload: boolean("prevent_download").default(false), // Disable downloading content
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
