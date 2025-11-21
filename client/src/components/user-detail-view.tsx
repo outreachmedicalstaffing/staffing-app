@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react"
+import { Plus, User, MapPin, Phone, Briefcase } from "lucide-react"
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -523,9 +523,12 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                 <TabsContent value="personal-details" className="mt-0">
                   <div className="grid grid-cols-2 gap-6">
                     {/* Basic Information Card */}
-                    <Card>
+                    <Card className="border-l-4 border-l-blue-500 bg-slate-50/50">
                       <CardHeader>
-                        <CardTitle className="text-base">Basic Information</CardTitle>
+                        <CardTitle className="text-base text-blue-700 flex items-center gap-2">
+                          <User className="w-5 h-5" />
+                          Basic Information
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -632,9 +635,12 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     </Card>
 
                     {/* Address & Location Card */}
-                    <Card>
+                    <Card className="border-l-4 border-l-green-500 bg-green-50/30">
                       <CardHeader>
-                        <CardTitle className="text-base">Address & Location</CardTitle>
+                        <CardTitle className="text-base text-green-700 flex items-center gap-2">
+                          <MapPin className="w-5 h-5" />
+                          Address & Location
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
@@ -672,9 +678,12 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     </Card>
 
                     {/* Emergency Contact Card */}
-                    <Card>
+                    <Card className="border-l-4 border-l-orange-500 bg-orange-50/30">
                       <CardHeader>
-                        <CardTitle className="text-base">Emergency Contact</CardTitle>
+                        <CardTitle className="text-base text-orange-700 flex items-center gap-2">
+                          <Phone className="w-5 h-5" />
+                          Emergency Contact
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div>
@@ -696,9 +705,12 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                     </Card>
 
                     {/* Work Preferences Card */}
-                    <Card>
+                    <Card className="border-l-4 border-l-purple-500 bg-purple-50/30">
                       <CardHeader>
-                        <CardTitle className="text-base">Work Preferences</CardTitle>
+                        <CardTitle className="text-base text-purple-700 flex items-center gap-2">
+                          <Briefcase className="w-5 h-5" />
+                          Work Preferences
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div>
