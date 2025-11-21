@@ -72,7 +72,7 @@ interface EditableUser {
   emergencyContact: string;
   shiftPreference: string;
   facility: string;
-  allergies: string;
+  allergies: string[];
   address: string;
   employmentStartDate: string;
   programs: string[];
@@ -169,9 +169,9 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     mobilePhone: customFields.mobilePhone || "",
     birthday: customFields.birthday || "",
     emergencyContact: customFields.emergencyContact || "",
-    shiftPreference: customFields.shiftPreference || "select",
-    facility: customFields.facility || "select",
-    allergies: customFields.allergies || "select",
+    shiftPreference: customFields.shiftPreference || "",
+    facility: customFields.facility || "",
+    allergies: Array.isArray(customFields.allergies) ? customFields.allergies : [],
     address: customFields.address || "",
     employmentStartDate: customFields.employmentStartDate || "05/06/2022",
     programs: customFields.programs || ["Vitas Central Florida"],
@@ -223,18 +223,6 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
       const [firstName, ...lastNameParts] = user.fullName.split(" ");
       const lastName = lastNameParts.join(" ");
 
-      // DEBUG: Log user data to console
-      console.log("=== USER DETAIL MODAL DEBUG ===");
-      console.log("Full user object:", user);
-      console.log("customFields:", customFields);
-      console.log("customFields.mobilePhone:", customFields.mobilePhone);
-      console.log("customFields.shiftPreference:", customFields.shiftPreference);
-      console.log("customFields.facility:", customFields.facility);
-      console.log("customFields.allergies:", customFields.allergies);
-      console.log("customFields.birthday:", customFields.birthday);
-      console.log("customFields.address:", customFields.address);
-      console.log("customFields.emergencyContact:", customFields.emergencyContact);
-
       setFormData({
         firstName: firstName || "",
         lastName: lastName || "",
@@ -244,9 +232,9 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         mobilePhone: customFields.mobilePhone || "",
         birthday: customFields.birthday || "",
         emergencyContact: customFields.emergencyContact || "",
-        shiftPreference: customFields.shiftPreference || "select",
-        facility: customFields.facility || "select",
-        allergies: customFields.allergies || "select",
+        shiftPreference: customFields.shiftPreference || "",
+        facility: customFields.facility || "",
+        allergies: Array.isArray(customFields.allergies) ? customFields.allergies : [],
         address: customFields.address || "",
         employmentStartDate: customFields.employmentStartDate || "05/06/2022",
         programs: customFields.programs || ["Vitas Central Florida"],
@@ -385,9 +373,9 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
       mobilePhone: customFields.mobilePhone || "",
       birthday: customFields.birthday || "",
       emergencyContact: customFields.emergencyContact || "",
-      shiftPreference: customFields.shiftPreference || "select",
-      facility: customFields.facility || "select",
-      allergies: customFields.allergies || "select",
+      shiftPreference: customFields.shiftPreference || "",
+      facility: customFields.facility || "",
+      allergies: Array.isArray(customFields.allergies) ? customFields.allergies : [],
       address: customFields.address || "",
       employmentStartDate: customFields.employmentStartDate || "05/06/2022",
       programs: customFields.programs || ["Vitas Central Florida"],
@@ -671,12 +659,12 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                             disabled={!isEditing}
                           >
                             <SelectTrigger className="mt-1" data-testid="select-facility">
-                              <SelectValue />
+                              <SelectValue placeholder="Select preference" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="select">Select</SelectItem>
-                              <SelectItem value="home">Home or Facility</SelectItem>
-                              <SelectItem value="prefers-facilities">Prefers facilities</SelectItem>
+                              <SelectItem value="Home">Home</SelectItem>
+                              <SelectItem value="Facility">Facility</SelectItem>
+                              <SelectItem value="Both">Both</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -723,36 +711,28 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                             disabled={!isEditing}
                           >
                             <SelectTrigger className="mt-1" data-testid="select-shift-preference">
-                              <SelectValue />
+                              <SelectValue placeholder="Select preference" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="select">Select</SelectItem>
-                              <SelectItem value="day">Day shift only</SelectItem>
-                              <SelectItem value="night">Night shift only</SelectItem>
-                              <SelectItem value="both">Both but prefers nights</SelectItem>
-                              <SelectItem value="any">Day or Night</SelectItem>
+                              <SelectItem value="Day">Day</SelectItem>
+                              <SelectItem value="Night">Night</SelectItem>
+                              <SelectItem value="Either">Either</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div>
                           <Label className="text-sm text-muted-foreground">Allergies</Label>
-                          <Select
-                            value={formData.allergies}
-                            onValueChange={(value) =>
-                              setFormData({ ...formData, allergies: value })
-                            }
-                            disabled={!isEditing}
-                          >
-                            <SelectTrigger className="mt-1" data-testid="select-allergies">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="select">Select</SelectItem>
-                              <SelectItem value="none">None</SelectItem>
-                              <SelectItem value="smoke">Smoke</SelectItem>
-                              <SelectItem value="cats-dogs">Cats, Dogs, Smoke</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {formData.allergies.length > 0 ? (
+                              formData.allergies.map((allergy, idx) => (
+                                <Badge key={idx} variant="secondary">
+                                  {allergy}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-sm text-muted-foreground">No allergies listed</span>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
