@@ -92,6 +92,8 @@ export default function Knowledge() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const newImageInputRef = useRef<HTMLInputElement>(null);
   const editImageInputRef = useRef<HTMLInputElement>(null);
+  const newContentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editContentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Create program groups from the predefined program options
   const programGroups = useMemo((): ProgramGroup[] => {
@@ -254,10 +256,25 @@ export default function Knowledge() {
       return;
     }
 
+    // Get the textarea and save cursor position before upload
+    const textarea = isEdit ? editContentTextareaRef.current : newContentTextareaRef.current;
+    if (!textarea) {
+      toast({
+        title: "Error",
+        description: "Could not find content editor",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const cursorPosition = textarea.selectionStart;
+
     setUploadingImage(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
+
+      console.log('[Image Upload] Uploading file:', file.name);
 
       const res = await fetch('/api/knowledge/upload-image', {
         method: 'POST',
@@ -265,50 +282,43 @@ export default function Knowledge() {
         credentials: 'include',
       });
 
-      if (!res.ok) throw new Error('Upload failed');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || errorData.details || `HTTP ${res.status}`);
+      }
 
       const data = await res.json();
+      console.log('[Image Upload] Success:', data);
 
-      // Insert markdown image syntax at cursor position
-      const imageMarkdown = `![Image](${data.url})`;
+      // Insert markdown image syntax at saved cursor position
+      const imageMarkdown = `\n![Image](${data.url})\n`;
+      const currentContent = isEdit ? editContent : newContent;
+      const newContentValue =
+        currentContent.substring(0, cursorPosition) +
+        imageMarkdown +
+        currentContent.substring(cursorPosition);
 
       if (isEdit) {
-        // Get the textarea element
-        const textarea = document.getElementById('edit-article-content') as HTMLTextAreaElement;
-        if (textarea) {
-          const start = textarea.selectionStart;
-          const end = textarea.selectionEnd;
-          const updatedContent = editContent.substring(0, start) + imageMarkdown + editContent.substring(end);
-          setEditContent(updatedContent);
-
-          // Set cursor position after the inserted markdown
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + imageMarkdown.length;
-            textarea.focus();
-          }, 0);
-        }
+        setEditContent(newContentValue);
       } else {
-        // Get the textarea element
-        const textarea = document.getElementById('article-content') as HTMLTextAreaElement;
-        if (textarea) {
-          const start = textarea.selectionStart;
-          const end = textarea.selectionEnd;
-          const updatedContent = newContent.substring(0, start) + imageMarkdown + newContent.substring(end);
-          setNewContent(updatedContent);
-
-          // Set cursor position after the inserted markdown
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + imageMarkdown.length;
-            textarea.focus();
-          }, 0);
-        }
+        setNewContent(newContentValue);
       }
+
+      // Restore cursor position after the inserted markdown
+      setTimeout(() => {
+        if (textarea) {
+          textarea.selectionStart = textarea.selectionEnd = cursorPosition + imageMarkdown.length;
+          textarea.focus();
+        }
+      }, 10);
 
       toast({ title: "Image uploaded successfully" });
     } catch (error) {
-      console.error('Image upload error:', error);
+      console.error('[Image Upload] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Failed to upload image",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -1013,6 +1023,7 @@ export default function Knowledge() {
                 </div>
               </div>
               <Textarea
+                ref={newContentTextareaRef}
                 id="article-content"
                 placeholder="Write your article content here..."
                 value={newContent}
@@ -1333,6 +1344,7 @@ export default function Knowledge() {
                 </div>
               </div>
               <Textarea
+                ref={editContentTextareaRef}
                 id="edit-article-content"
                 placeholder="Write your article content here..."
                 value={editContent}
