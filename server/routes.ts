@@ -2608,17 +2608,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.knowledgeArticles)
         .orderBy(desc(schema.knowledgeArticles.createdAt));
 
-      // CRITICAL: Owner and Admin ALWAYS see ALL articles
+      // CRITICAL: Owner and Admin ALWAYS see ALL articles (including drafts)
+      // This allows them to edit and manage draft articles
       if (currentUser.role === "Owner" || currentUser.role === "Admin") {
         return res.json(allArticles);
       }
 
-      // Filter articles based on visibility for regular users
+      // Filter articles for regular users (Manager, Staff, LPN, RN, CNA)
+      // Regular users ONLY see published articles, never drafts
       const filteredArticles = allArticles.filter(article => {
-        // Only show published articles to non-admins
+        // FIRST: Filter by publish status - exclude all draft articles
+        // Regular users cannot see drafts at all
         if (article.publishStatus !== "published") {
           return false;
         }
+
+        // SECOND: Apply visibility filtering (only for published articles)
 
         // Handle null/undefined visibility - treat as "all"
         if (!article.visibility || article.visibility === "all") {
