@@ -71,7 +71,6 @@ export default function Knowledge() {
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "Documentation">("Getting Started");
-  const [newStatus, setNewStatus] = useState<"draft" | "published">("draft");
   const [newVisibility, setNewVisibility] = useState("all");
   const [newTargetProgramIds, setNewTargetProgramIds] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
@@ -81,7 +80,6 @@ export default function Knowledge() {
   // Form fields for Edit Article
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "Documentation">("Getting Started");
-  const [editStatus, setEditStatus] = useState<"draft" | "published">("draft");
   const [editVisibility, setEditVisibility] = useState("all");
   const [editTargetProgramIds, setEditTargetProgramIds] = useState<string[]>([]);
   const [editContent, setEditContent] = useState("");
@@ -275,7 +273,7 @@ export default function Knowledge() {
       description: "",
       type: "page",
       category: newCategory,
-      publishStatus: newStatus,
+      publishStatus: "published",
       visibility: newVisibility,
       targetGroupIds: newTargetProgramIds.length > 0 ? newTargetProgramIds : null,
       content: newContent || "",
@@ -285,7 +283,6 @@ export default function Knowledge() {
     // Reset form
     setNewTitle("");
     setNewCategory("Getting Started");
-    setNewStatus("draft");
     setNewVisibility("all");
     setNewTargetProgramIds([]);
     setNewContent("");
@@ -302,7 +299,6 @@ export default function Knowledge() {
     setEditingArticle(article);
     setEditTitle(article.title);
     setEditCategory(article.category);
-    setEditStatus(article.publishStatus);
     setEditVisibility(article.visibility || "all");
     setEditTargetProgramIds(article.targetGroupIds || []);
     setEditContent(article.content || "");
@@ -323,7 +319,7 @@ export default function Knowledge() {
       data: {
         title: editTitle,
         category: editCategory,
-        publishStatus: editStatus,
+        publishStatus: "published",
         visibility: editVisibility,
         targetGroupIds: editTargetProgramIds.length > 0 ? editTargetProgramIds : null,
         content: editContent,
@@ -335,7 +331,6 @@ export default function Knowledge() {
     setEditingArticle(null);
     setEditTitle("");
     setEditCategory("Getting Started");
-    setEditStatus("draft");
     setEditVisibility("all");
     setEditTargetProgramIds([]);
     setEditContent("");
@@ -784,35 +779,20 @@ export default function Knowledge() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="article-category">Category</Label>
-                <Select value={newCategory} onValueChange={(value) => setNewCategory(value as any)}>
-                  <SelectTrigger id="article-category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Getting Started">Getting Started</SelectItem>
-                    <SelectItem value="HR">HR</SelectItem>
-                    <SelectItem value="Compliance">Compliance</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
-                    <SelectItem value="Documentation">Documentation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="article-status">Status</Label>
-                <Select value={newStatus} onValueChange={(value) => setNewStatus(value as any)}>
-                  <SelectTrigger id="article-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="article-category">Category</Label>
+              <Select value={newCategory} onValueChange={(value) => setNewCategory(value as any)}>
+                <SelectTrigger id="article-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Getting Started">Getting Started</SelectItem>
+                  <SelectItem value="HR">HR</SelectItem>
+                  <SelectItem value="Compliance">Compliance</SelectItem>
+                  <SelectItem value="Operations">Operations</SelectItem>
+                  <SelectItem value="Documentation">Documentation</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1077,35 +1057,20 @@ export default function Knowledge() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-article-category">Category</Label>
-                <Select value={editCategory} onValueChange={(value) => setEditCategory(value as any)}>
-                  <SelectTrigger id="edit-article-category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Getting Started">Getting Started</SelectItem>
-                    <SelectItem value="HR">HR</SelectItem>
-                    <SelectItem value="Compliance">Compliance</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
-                    <SelectItem value="Documentation">Documentation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-article-status">Status</Label>
-                <Select value={editStatus} onValueChange={(value) => setEditStatus(value as any)}>
-                  <SelectTrigger id="edit-article-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-article-category">Category</Label>
+              <Select value={editCategory} onValueChange={(value) => setEditCategory(value as any)}>
+                <SelectTrigger id="edit-article-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Getting Started">Getting Started</SelectItem>
+                  <SelectItem value="HR">HR</SelectItem>
+                  <SelectItem value="Compliance">Compliance</SelectItem>
+                  <SelectItem value="Operations">Operations</SelectItem>
+                  <SelectItem value="Documentation">Documentation</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
