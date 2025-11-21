@@ -4,11 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, FileDown, UserPlus, Clock, FileText, Settings as SettingsIcon } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Search, Filter, FileDown, UserPlus, Clock, FileText, Settings as SettingsIcon, Archive, RotateCcw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { UserDetailView } from "@/components/user-detail-view";
 import { AddUserDialog } from "@/components/add-user-dialog";
 import { useLocation } from "wouter";
@@ -38,6 +41,57 @@ export default function Users() {
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
+  });
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [archiveUserId, setArchiveUserId] = useState<string | null>(null);
+  const [restoreUserId, setRestoreUserId] = useState<string | null>(null);
+
+  // Archive user mutation
+  const archiveMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("PATCH", `/api/users/${userId}/archive`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Success",
+        description: "User archived successfully",
+      });
+      setArchiveUserId(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to archive user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Unarchive (restore) user mutation
+  const unarchiveMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("PATCH", `/api/users/${userId}/unarchive`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Success",
+        description: "User restored successfully",
+      });
+      setRestoreUserId(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to restore user",
+        variant: "destructive",
+      });
+    },
   });
 
   // Show loading state while checking permissions
@@ -165,6 +219,7 @@ export default function Users() {
                       <TableHead>Allergies</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Program</TableHead>
+                      {isAdmin && <TableHead className="text-center">Archive</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -209,12 +264,28 @@ export default function Users() {
                             ) : '—'}
                           </TableCell>
                           <TableCell className="text-sm">{customFields.program || '—'}</TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setArchiveUserId(user.id);
+                                }}
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                data-testid={`button-archive-${user.id}`}
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
                     {filteredUsers.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={isAdmin ? 11 : 10} className="text-center text-muted-foreground py-8">
                           No users found
                         </TableCell>
                       </TableRow>
@@ -353,6 +424,7 @@ export default function Users() {
                       <TableHead>Last name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
+                      {isAdmin && <TableHead className="text-center">Restore</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -383,12 +455,28 @@ export default function Users() {
                           <TableCell>
                             <Badge variant="outline">{user.role}</Badge>
                           </TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  unarchiveMutation.mutate(user.id);
+                                }}
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                data-testid={`button-restore-${user.id}`}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
                     {filteredArchived.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground py-8">
                           No archived users found
                         </TableCell>
                       </TableRow>
@@ -411,6 +499,33 @@ export default function Users() {
         open={showAddUserDialog}
         onClose={() => setShowAddUserDialog(false)}
       />
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={!!archiveUserId} onOpenChange={(open) => !open && setArchiveUserId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to archive{" "}
+              <strong>{users.find(u => u.id === archiveUserId)?.fullName}</strong>?
+              They will be moved to the Archived tab and won't be able to log in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (archiveUserId) {
+                  archiveMutation.mutate(archiveUserId);
+                }
+              }}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

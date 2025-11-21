@@ -155,6 +155,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      // Check if user is archived
+      if (user.status === "archived") {
+        return res.status(403).json({ error: "This account has been archived and cannot log in" });
+      }
+
       const validPassword = await bcrypt.compare(password, user.passwordHash);
       if (!validPassword) {
         await logAudit(
@@ -3948,6 +3953,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(userResponse);
     } catch (error) {
       res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  // Archive user
+  app.patch("/api/users/:id/archive", requireRole("Owner", "Admin"), async (req, res) => {
+    try {
+      const user = await storage.updateUser(req.params.id, { status: "archived" });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      await logAudit(
+        req.session.userId,
+        "user.archive",
+        "User",
+        req.params.id,
+        { archivedUser: user.fullName }
+      );
+
+      const { passwordHash: _, ...userResponse } = user;
+      res.json(userResponse);
+    } catch (error: any) {
+      console.error("Error archiving user:", error);
+      res.status(500).json({ error: "Failed to archive user" });
+    }
+  });
+
+  // Unarchive user (restore)
+  app.patch("/api/users/:id/unarchive", requireRole("Owner", "Admin"), async (req, res) => {
+    try {
+      const user = await storage.updateUser(req.params.id, { status: "active" });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      await logAudit(
+        req.session.userId,
+        "user.unarchive",
+        "User",
+        req.params.id,
+        { restoredUser: user.fullName }
+      );
+
+      const { passwordHash: _, ...userResponse } = user;
+      res.json(userResponse);
+    } catch (error: any) {
+      console.error("Error unarchiving user:", error);
+      res.status(500).json({ error: "Failed to unarchive user" });
     }
   });
 
