@@ -2603,28 +2603,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all articles
-      const allArticles = await storage.db
+      let allArticles = await storage.db
         .select()
         .from(schema.knowledgeArticles)
         .orderBy(desc(schema.knowledgeArticles.createdAt));
 
-      // CRITICAL: Owner and Admin ALWAYS see ALL articles (including drafts)
-      // This allows them to edit and manage draft articles
-      if (currentUser.role === "Owner" || currentUser.role === "Admin") {
-        return res.json(allArticles);
+      // STEP 1: Filter by publish status
+      // Owner and Admin see ALL articles (including drafts)
+      // Regular users only see published articles (drafts are hidden)
+      if (currentUser.role !== "Owner" && currentUser.role !== "Admin") {
+        allArticles = allArticles.filter(article => article.publishStatus === "published");
       }
 
-      // Filter articles for regular users (Manager, Staff, LPN, RN, CNA)
-      // Regular users ONLY see published articles, never drafts
+      // STEP 2: Apply visibility filtering (existing logic)
+      // This applies to whatever articles made it through the publishStatus filter
       const filteredArticles = allArticles.filter(article => {
-        // FIRST: Filter by publish status - exclude all draft articles
-        // Regular users cannot see drafts at all
-        if (article.publishStatus !== "published") {
-          return false;
-        }
-
-        // SECOND: Apply visibility filtering (only for published articles)
-
         // Handle null/undefined visibility - treat as "all"
         if (!article.visibility || article.visibility === "all") {
           return true;
