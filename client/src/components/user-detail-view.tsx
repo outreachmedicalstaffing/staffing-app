@@ -141,7 +141,7 @@ const syncJobRatesWithPrograms = (
 };
 
 export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
-  const [activeTab, setActiveTab] = useState("work-rules");
+  const [activeTab, setActiveTab] = useState("personal-details");
   const [isEditing, setIsEditing] = useState(false);
   const [editingOvertimeRules, setEditingOvertimeRules] = useState(false);
   const [editingPayRate, setEditingPayRate] = useState(false);
@@ -479,511 +479,8 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
           </div>
         </DialogHeader>
 
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left Sidebar - Personal Details */}
-          <div className="w-64 border-r bg-muted/30 overflow-y-auto">
-            <div className="p-4">
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search information"
-                  className="pl-9 h-9"
-                  data-testid="input-search-user-info"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold mb-3 flex items-center justify-between">
-                    Personal Details
-                    <ChevronDown className="h-4 w-4" />
-                  </h3>
-
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        First name *
-                      </Label>
-                      <Input
-                        value={formData.firstName}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            firstName: e.target.value,
-                          })
-                        }
-                        disabled={!isEditing}
-                        className="mt-1 h-9"
-                        data-testid="input-first-name"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Last name *
-                      </Label>
-                      <Input
-                        value={formData.lastName}
-                        onChange={(e) =>
-                          setFormData({ ...formData, lastName: e.target.value })
-                        }
-                        disabled={!isEditing}
-                        className="mt-1 h-9"
-                        data-testid="input-last-name"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Mobile phone *
-                      </Label>
-                      <div className="flex gap-2 mt-1">
-                        <Select defaultValue="us" disabled={!isEditing}>
-                          <SelectTrigger className="w-20 h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="us">+1</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          value={formData.mobilePhone}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              mobilePhone: e.target.value,
-                            })
-                          }
-                          disabled={!isEditing}
-                          className="h-9"
-                          data-testid="input-mobile-phone"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Email *
-                      </Label>
-                      <Input
-                        value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
-                        disabled={!isEditing}
-                        className="mt-1 h-9"
-                        data-testid="input-email"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Username
-                      </Label>
-                      <Input
-                        value={formData.username}
-                        onChange={(e) =>
-                          setFormData({ ...formData, username: e.target.value })
-                        }
-                        disabled={!isEditing}
-                        className="mt-1 h-9"
-                        data-testid="input-username"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Password
-                      </Label>
-                      <Input
-                        value="••••••••"
-                        disabled={true}
-                        className="mt-1 h-9"
-                        data-testid="input-password"
-                        title="Password is set (hidden for security)"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Birthday
-                      </Label>
-                      <div className="relative mt-1">
-                        <Input
-                          value={formData.birthday}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              birthday: e.target.value,
-                            })
-                          }
-                          disabled={!isEditing}
-                          className="h-9"
-                          data-testid="input-birthday"
-                        />
-                        <CalendarIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Emergency Contact Name/Number
-                      </Label>
-                      <Input
-                        value={formData.emergencyContact}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            emergencyContact: e.target.value,
-                          })
-                        }
-                        disabled={!isEditing}
-                        className="mt-1 h-9"
-                        data-testid="input-emergency-contact"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Shift Preference
-                      </Label>
-                      <Select
-                        value={formData.shiftPreference}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, shiftPreference: value })
-                        }
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger
-                          className="mt-1 h-9"
-                          data-testid="select-shift-preference"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="select">Select</SelectItem>
-                          <SelectItem value="day">Day shift only</SelectItem>
-                          <SelectItem value="night">
-                            Night shift only
-                          </SelectItem>
-                          <SelectItem value="both">
-                            Both but prefers nights
-                          </SelectItem>
-                          <SelectItem value="any">Day or Night</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Facility/home
-                      </Label>
-                      <Select
-                        value={formData.facility}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, facility: value })
-                        }
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger
-                          className="mt-1 h-9"
-                          data-testid="select-facility"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="select">Select</SelectItem>
-                          <SelectItem value="home">Home or Facility</SelectItem>
-                          <SelectItem value="prefers-facilities">
-                            Prefers facilities
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Allergies
-                      </Label>
-                      <Select
-                        value={formData.allergies}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, allergies: value })
-                        }
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger
-                          className="mt-1 h-9"
-                          data-testid="select-allergies"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="select">Select</SelectItem>
-                          <SelectItem value="none">None</SelectItem>
-                          <SelectItem value="smoke">Smoke</SelectItem>
-                          <SelectItem value="cats-dogs">
-                            Cats, Dogs, Smoke
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Address
-                      </Label>
-                      <Input
-                        value={formData.address}
-                        onChange={(e) =>
-                          setFormData({ ...formData, address: e.target.value })
-                        }
-                        disabled={!isEditing}
-                        className="mt-1 h-9"
-                        data-testid="input-address"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Company Related Info */}
-                <div className="mt-6 pt-6 border-t">
-                  <h3 className="font-semibold mb-3 flex items-center justify-between">
-                    Company Related Info
-                    <ChevronDown className="h-4 w-4" />
-                  </h3>
-
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Title *
-                      </Label>
-                      <Select
-                        value={formData.role}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, role: value })
-                        }
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger
-                          className="mt-1 h-9"
-                          data-testid="select-title"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="RN">RN</SelectItem>
-                          <SelectItem value="LPN">LPN</SelectItem>
-                          <SelectItem value="CNA">CNA</SelectItem>
-                          <SelectItem value="Admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Employment Start Date
-                      </Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            disabled={!isEditing}
-                            className="w-full justify-start text-left font-normal h-9 mt-1"
-                            data-testid="button-employment-start-date"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formData.employmentStartDate || "Pick a date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={
-                              formData.employmentStartDate
-                                ? new Date(formData.employmentStartDate)
-                                : undefined
-                            }
-                            onSelect={(date) => {
-                              if (date) {
-                                setFormData({
-                                  ...formData,
-                                  employmentStartDate: format(
-                                    date,
-                                    "MM/dd/yyyy",
-                                  ),
-                                });
-                              }
-                            }}
-                            disabled={!isEditing}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        Program
-                      </Label>
-                      <div className="mt-1 space-y-2">
-                        <div className="flex flex-wrap gap-1">
-                          {formData.programs.map((program, idx) => (
-                            <Badge
-                              key={idx}
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              {program}
-                              {isEditing && (
-                                <button
-                                  onClick={() => {
-                                    const newPrograms =
-                                      formData.programs.filter(
-                                        (_, i) => i !== idx,
-                                      );
-                                    setFormData({
-                                      ...formData,
-                                      programs: newPrograms,
-                                    });
-                                  }}
-                                  className="ml-1 hover:text-destructive"
-                                  data-testid={`button-remove-program-${idx}`}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              )}
-                            </Badge>
-                          ))}
-                        </div>
-                        <Select
-                          disabled={!isEditing}
-                          onValueChange={(value) => {
-                            // Generate programMap from PROGRAM_OPTIONS
-                            const programMap: Record<string, string> = {
-                              "vitas-nature-coast": "Vitas Nature Coast",
-                              "vitas-citrus": "Vitas Citrus",
-                              "vitas-jacksonville": "Vitas Jacksonville",
-                              "vitas-vfp": "Vitas V/F/P",
-                              "vitas-midstate": "Vitas Midstate",
-                              "vitas-brevard": "Vitas Brevard",
-                              "vitas-dade-monroe": "Vitas Dade/Monroe",
-                              "vitas-palm-beach": "Vitas Palm Beach",
-                              "adventhealth-ipu": "AdventHealth IPU",
-                              "adventhealth-central": "AdventHealth Central Florida",
-                              "vitas-treasure-coast": "Vitas Treasure Coast",
-                              "haven": "Haven",
-                              "vitas-jacksonville-stjohns": "Vitas Jacksonville (St. Johns)",
-                              "vitas-broward": "Vitas Broward",
-                              "vitas-central": "Vitas Central Florida",
-                            };
-                            const programName = programMap[value];
-                            if (
-                              programName &&
-                              !formData.programs.includes(programName)
-                            ) {
-                              setFormData({
-                                ...formData,
-                                programs: [...formData.programs, programName],
-                              });
-                            }
-                          }}
-                        >
-                          <SelectTrigger
-                            className="h-9"
-                            data-testid="select-program"
-                          >
-                            <SelectValue placeholder="Add program" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="vitas-nature-coast">
-                              Vitas Nature Coast
-                            </SelectItem>
-                            <SelectItem value="vitas-citrus">
-                              Vitas Citrus
-                            </SelectItem>
-                            <SelectItem value="vitas-jacksonville">
-                              Vitas Jacksonville
-                            </SelectItem>
-                            <SelectItem value="vitas-vfp">
-                              Vitas V/F/P
-                            </SelectItem>
-                            <SelectItem value="vitas-midstate">
-                              Vitas Midstate
-                            </SelectItem>
-                            <SelectItem value="vitas-brevard">
-                              Vitas Brevard
-                            </SelectItem>
-                            <SelectItem value="vitas-dade-monroe">
-                              Vitas Dade/Monroe
-                            </SelectItem>
-                            <SelectItem value="vitas-palm-beach">
-                              Vitas Palm Beach
-                            </SelectItem>
-                            <SelectItem value="adventhealth-ipu">
-                              AdventHealth IPU
-                            </SelectItem>
-                            <SelectItem value="adventhealth-central">
-                              AdventHealth Central Florida
-                            </SelectItem>
-                            <SelectItem value="vitas-treasure-coast">
-                              Vitas Treasure Coast
-                            </SelectItem>
-                            <SelectItem value="haven">Haven</SelectItem>
-                            <SelectItem value="vitas-jacksonville-stjohns">
-                              Vitas Jacksonville (St. Johns)
-                            </SelectItem>
-                            <SelectItem value="vitas-broward">
-                              Vitas Broward
-                            </SelectItem>
-                            <SelectItem value="vitas-central">
-                              Vitas Central Florida
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {!isViewerAdminOrOwner && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">
-                          Direct manager
-                        </Label>
-                        <Select
-                          value={formData.directManager}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, directManager: value })
-                          }
-                          disabled={!isEditing}
-                        >
-                          <SelectTrigger
-                            className="mt-1 h-9"
-                            data-testid="select-direct-manager"
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="amanda">
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage src="https://api.dicebear.com/7.x/initials/svg?seed=Amanda Ecklind" />
-                                  <AvatarFallback>AE</AvatarFallback>
-                                </Avatar>
-                                <span>Amanda Ecklind</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-            </div>
-
-          {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full overflow-y-auto">
             <Tabs
               value={activeTab}
               onValueChange={setActiveTab}
@@ -991,6 +488,12 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
             >
               <div className="border-b px-6">
                 <TabsList className="h-12">
+                  <TabsTrigger value="personal-details" data-testid="tab-personal-details">
+                    Personal Details
+                  </TabsTrigger>
+                  <TabsTrigger value="company-info" data-testid="tab-company-info">
+                    Company Related Info
+                  </TabsTrigger>
                   <TabsTrigger value="work-rules" data-testid="tab-work-rules">
                     Work Rules
                   </TabsTrigger>
@@ -1016,6 +519,422 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
               </div>
 
               <div className="p-6">
+                {/* Personal Details Tab */}
+                <TabsContent value="personal-details" className="mt-0">
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Basic Information Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Basic Information</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm text-muted-foreground">First name</Label>
+                            <Input
+                              value={formData.firstName}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  firstName: e.target.value,
+                                })
+                              }
+                              disabled={!isEditing}
+                              className="mt-1"
+                              data-testid="input-first-name"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Last name</Label>
+                            <Input
+                              value={formData.lastName}
+                              onChange={(e) =>
+                                setFormData({ ...formData, lastName: e.target.value })
+                              }
+                              disabled={!isEditing}
+                              className="mt-1"
+                              data-testid="input-last-name"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Email</Label>
+                            <Input
+                              value={formData.email}
+                              onChange={(e) =>
+                                setFormData({ ...formData, email: e.target.value })
+                              }
+                              disabled={!isEditing}
+                              className="mt-1"
+                              data-testid="input-email"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Username</Label>
+                            <Input
+                              value={formData.username}
+                              onChange={(e) =>
+                                setFormData({ ...formData, username: e.target.value })
+                              }
+                              disabled={!isEditing}
+                              className="mt-1"
+                              data-testid="input-username"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Mobile phone</Label>
+                            <div className="flex gap-2 mt-1">
+                              <Select defaultValue="us" disabled={!isEditing}>
+                                <SelectTrigger className="w-20">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="us">+1</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                value={formData.mobilePhone}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    mobilePhone: e.target.value,
+                                  })
+                                }
+                                disabled={!isEditing}
+                                data-testid="input-mobile-phone"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Birthday</Label>
+                            <div className="relative mt-1">
+                              <Input
+                                value={formData.birthday}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    birthday: e.target.value,
+                                  })
+                                }
+                                disabled={!isEditing}
+                                data-testid="input-birthday"
+                              />
+                              <CalendarIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Address & Location Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Address & Location</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Address</Label>
+                          <Input
+                            value={formData.address}
+                            onChange={(e) =>
+                              setFormData({ ...formData, address: e.target.value })
+                            }
+                            disabled={!isEditing}
+                            className="mt-1"
+                            data-testid="input-address"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Facility/home preference</Label>
+                          <Select
+                            value={formData.facility}
+                            onValueChange={(value) =>
+                              setFormData({ ...formData, facility: value })
+                            }
+                            disabled={!isEditing}
+                          >
+                            <SelectTrigger className="mt-1" data-testid="select-facility">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="select">Select</SelectItem>
+                              <SelectItem value="home">Home or Facility</SelectItem>
+                              <SelectItem value="prefers-facilities">Prefers facilities</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Emergency Contact Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Emergency Contact</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Contact Name/Number</Label>
+                          <Input
+                            value={formData.emergencyContact}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                emergencyContact: e.target.value,
+                              })
+                            }
+                            disabled={!isEditing}
+                            className="mt-1"
+                            data-testid="input-emergency-contact"
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Work Preferences Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Work Preferences</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Shift Preference</Label>
+                          <Select
+                            value={formData.shiftPreference}
+                            onValueChange={(value) =>
+                              setFormData({ ...formData, shiftPreference: value })
+                            }
+                            disabled={!isEditing}
+                          >
+                            <SelectTrigger className="mt-1" data-testid="select-shift-preference">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="select">Select</SelectItem>
+                              <SelectItem value="day">Day shift only</SelectItem>
+                              <SelectItem value="night">Night shift only</SelectItem>
+                              <SelectItem value="both">Both but prefers nights</SelectItem>
+                              <SelectItem value="any">Day or Night</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Allergies</Label>
+                          <Select
+                            value={formData.allergies}
+                            onValueChange={(value) =>
+                              setFormData({ ...formData, allergies: value })
+                            }
+                            disabled={!isEditing}
+                          >
+                            <SelectTrigger className="mt-1" data-testid="select-allergies">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="select">Select</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
+                              <SelectItem value="smoke">Smoke</SelectItem>
+                              <SelectItem value="cats-dogs">Cats, Dogs, Smoke</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+                {/* Company Related Info Tab */}
+                <TabsContent value="company-info" className="mt-0">
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Employment Details Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Employment Details</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Role</Label>
+                          <Select
+                            value={formData.role}
+                            onValueChange={(value) =>
+                              setFormData({ ...formData, role: value })
+                            }
+                            disabled={!isEditing}
+                          >
+                            <SelectTrigger className="mt-1" data-testid="select-title">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="RN">RN</SelectItem>
+                              <SelectItem value="LPN">LPN</SelectItem>
+                              <SelectItem value="CNA">CNA</SelectItem>
+                              <SelectItem value="Admin">Admin</SelectItem>
+                              <SelectItem value="Owner">Owner</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Employment Start Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                disabled={!isEditing}
+                                className="w-full justify-start text-left font-normal mt-1"
+                                data-testid="button-employment-start-date"
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {formData.employmentStartDate || "Pick a date"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={
+                                  formData.employmentStartDate
+                                    ? new Date(formData.employmentStartDate)
+                                    : undefined
+                                }
+                                onSelect={(date) => {
+                                  if (date) {
+                                    setFormData({
+                                      ...formData,
+                                      employmentStartDate: format(date, "MM/dd/yyyy"),
+                                    });
+                                  }
+                                }}
+                                disabled={!isEditing}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        {!isViewerAdminOrOwner && (
+                          <div>
+                            <Label className="text-sm text-muted-foreground">Direct Manager</Label>
+                            <Select
+                              value={formData.directManager}
+                              onValueChange={(value) =>
+                                setFormData({ ...formData, directManager: value })
+                              }
+                              disabled={!isEditing}
+                            >
+                              <SelectTrigger className="mt-1" data-testid="select-direct-manager">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="amanda">
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage src="https://api.dicebear.com/7.x/initials/svg?seed=Amanda Ecklind" />
+                                      <AvatarFallback>AE</AvatarFallback>
+                                    </Avatar>
+                                    <span>Amanda Ecklind</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Programs/Groups Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Programs & Groups</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div>
+                          <Label className="text-sm text-muted-foreground">Assigned Programs</Label>
+                          <div className="mt-2 space-y-2">
+                            <div className="flex flex-wrap gap-2">
+                              {formData.programs.map((program, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {program}
+                                  {isEditing && (
+                                    <button
+                                      onClick={() => {
+                                        const newPrograms = formData.programs.filter(
+                                          (_, i) => i !== idx,
+                                        );
+                                        setFormData({
+                                          ...formData,
+                                          programs: newPrograms,
+                                        });
+                                      }}
+                                      className="ml-1 hover:text-destructive"
+                                      data-testid={`button-remove-program-${idx}`}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </Badge>
+                              ))}
+                            </div>
+                            {isEditing && (
+                              <Select
+                                disabled={!isEditing}
+                                onValueChange={(value) => {
+                                  const programMap: Record<string, string> = {
+                                    "vitas-nature-coast": "Vitas Nature Coast",
+                                    "vitas-citrus": "Vitas Citrus",
+                                    "vitas-jacksonville": "Vitas Jacksonville",
+                                    "vitas-vfp": "Vitas V/F/P",
+                                    "vitas-midstate": "Vitas Midstate",
+                                    "vitas-brevard": "Vitas Brevard",
+                                    "vitas-dade-monroe": "Vitas Dade/Monroe",
+                                    "vitas-palm-beach": "Vitas Palm Beach",
+                                    "adventhealth-ipu": "AdventHealth IPU",
+                                    "adventhealth-central": "AdventHealth Central Florida",
+                                    "vitas-treasure-coast": "Vitas Treasure Coast",
+                                    "haven": "Haven",
+                                    "vitas-jacksonville-stjohns": "Vitas Jacksonville (St. Johns)",
+                                    "vitas-broward": "Vitas Broward",
+                                    "vitas-central": "Vitas Central Florida",
+                                  };
+                                  const programName = programMap[value];
+                                  if (programName && !formData.programs.includes(programName)) {
+                                    setFormData({
+                                      ...formData,
+                                      programs: [...formData.programs, programName],
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectTrigger data-testid="select-program">
+                                  <SelectValue placeholder="Add program" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="vitas-nature-coast">Vitas Nature Coast</SelectItem>
+                                  <SelectItem value="vitas-citrus">Vitas Citrus</SelectItem>
+                                  <SelectItem value="vitas-jacksonville">Vitas Jacksonville</SelectItem>
+                                  <SelectItem value="vitas-vfp">Vitas V/F/P</SelectItem>
+                                  <SelectItem value="vitas-midstate">Vitas Midstate</SelectItem>
+                                  <SelectItem value="vitas-brevard">Vitas Brevard</SelectItem>
+                                  <SelectItem value="vitas-dade-monroe">Vitas Dade/Monroe</SelectItem>
+                                  <SelectItem value="vitas-palm-beach">Vitas Palm Beach</SelectItem>
+                                  <SelectItem value="adventhealth-ipu">AdventHealth IPU</SelectItem>
+                                  <SelectItem value="adventhealth-central">AdventHealth Central Florida</SelectItem>
+                                  <SelectItem value="vitas-treasure-coast">Vitas Treasure Coast</SelectItem>
+                                  <SelectItem value="haven">Haven</SelectItem>
+                                  <SelectItem value="vitas-jacksonville-stjohns">Vitas Jacksonville (St. Johns)</SelectItem>
+                                  <SelectItem value="vitas-broward">Vitas Broward</SelectItem>
+                                  <SelectItem value="vitas-central">Vitas Central Florida</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
                 <TabsContent value="work-rules" className="mt-0">
                   <div className="space-y-6">
                     {/* Overtime & Pay rules */}
