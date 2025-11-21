@@ -743,11 +743,11 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                 <TabsContent value="company-info" className="mt-0">
                   <div className="grid grid-cols-2 gap-6">
                     {/* Employment Details Card */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Employment Details</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-red-500 p-6">
+                      <h3 className="text-lg font-semibold text-red-600 mb-4">
+                        Employment Details
+                      </h3>
+                      <div className="space-y-4">
                         <div>
                           <Label className="text-sm text-muted-foreground">Role</Label>
                           <Select
@@ -832,15 +832,15 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                             </Select>
                           </div>
                         )}
-                      </CardContent>
+                      </div>
                     </Card>
 
                     {/* Programs/Groups Card */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Programs & Groups</CardTitle>
-                      </CardHeader>
-                      <CardContent>
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-red-500 p-6">
+                      <h3 className="text-lg font-semibold text-red-600 mb-4">
+                        Programs & Groups
+                      </h3>
+                      <div>
                         <div>
                           <Label className="text-sm text-muted-foreground">Assigned Programs</Label>
                           <div className="mt-2 space-y-2">
@@ -922,7 +922,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                             )}
                           </div>
                         </div>
-                      </CardContent>
+                      </div>
                     </Card>
                   </div>
                 </TabsContent>
@@ -930,15 +930,13 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                 <TabsContent value="work-rules" className="mt-0">
                   <div className="space-y-6">
                     {/* Overtime & Pay rules */}
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">
-                            Overtime & Pay rules
-                          </CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-blue-500 p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-blue-600">
+                          Overtime & Pay rules
+                        </h3>
+                      </div>
+                      <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="text-sm text-muted-foreground">
                             Effective date: {overtimeRules.effectiveDate}
@@ -1007,15 +1005,15 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                           <Clock className="h-3 w-3" />
                           View history
                         </Button>
-                      </CardContent>
+                      </div>
                     </Card>
 
                     {/* Pay rate */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Pay rate</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-blue-500 p-6">
+                      <h3 className="text-lg font-semibold text-blue-600 mb-4">
+                        Pay rate
+                      </h3>
+                      <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="text-sm text-muted-foreground">
                             Effective date: {payRate.effectiveDate}
@@ -1102,44 +1100,86 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
                             Show full job list
                           </Button>
                         </div>
-                      </CardContent>
+                      </div>
                     </Card>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="activity" className="mt-0">
-                  <div className="text-center text-muted-foreground py-12">
-                    Activity timeline coming soon
+                  <div className="p-6">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-red-500 p-6">
+                      <h3 className="text-lg font-semibold text-red-600 mb-4">
+                        Activity Timeline
+                      </h3>
+                      <div className="text-center text-muted-foreground py-8">
+                        Activity timeline coming soon
+                      </div>
+                    </Card>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="notes" className="mt-0">
-                  <div className="text-center text-muted-foreground py-12">
-                    Notes section coming soon
+                  <div className="p-6">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-blue-500 p-6">
+                      <h3 className="text-lg font-semibold text-blue-600 mb-4">
+                        Notes
+                      </h3>
+                      <div className="text-center text-muted-foreground py-8">
+                        Notes section coming soon
+                      </div>
+                    </Card>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="forms" className="mt-0">
-                  <div className="text-center text-muted-foreground py-12">
-                    Forms section coming soon
+                  <div className="p-6">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-red-500 p-6">
+                      <h3 className="text-lg font-semibold text-red-600 mb-4">
+                        Forms
+                      </h3>
+                      <div className="text-center text-muted-foreground py-8">
+                        Forms section coming soon
+                      </div>
+                    </Card>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="documents" className="mt-0">
-                  <div className="text-center text-muted-foreground py-12">
-                    Documents section coming soon
+                  <div className="p-6">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-blue-500 p-6">
+                      <h3 className="text-lg font-semibold text-blue-600 mb-4">
+                        Documents
+                      </h3>
+                      <div className="text-center text-muted-foreground py-8">
+                        Documents section coming soon
+                      </div>
+                    </Card>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="timeline" className="mt-0">
-                  <div className="text-center text-muted-foreground py-12">
-                    Timeline section coming soon
+                  <div className="p-6">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-red-500 p-6">
+                      <h3 className="text-lg font-semibold text-red-600 mb-4">
+                        Timeline
+                      </h3>
+                      <div className="text-center text-muted-foreground py-8">
+                        Timeline section coming soon
+                      </div>
+                    </Card>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="payslips" className="mt-0">
-                  <div className="text-center text-muted-foreground py-12">
-                    Payslips section coming soon
+                  <div className="p-6">
+                    <Card className="bg-gray-50 border border-gray-200 border-l-4 border-l-blue-500 p-6">
+                      <h3 className="text-lg font-semibold text-blue-600 mb-4">
+                        Payslips
+                      </h3>
+                      <div className="text-center text-muted-foreground py-8">
+                        Payslips section coming soon
+                      </div>
+                    </Card>
                   </div>
                 </TabsContent>
               </div>
