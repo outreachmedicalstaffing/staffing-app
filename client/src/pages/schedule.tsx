@@ -1113,14 +1113,6 @@ export default function Schedule() {
         </h1>
         {isAdmin && (
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" data-testid="button-permissions">
-              <SettingsIcon className="h-4 w-4 mr-2" />
-              Permissions
-            </Button>
-            <Button variant="outline" size="sm" data-testid="button-requests">
-              <FileText className="h-4 w-4 mr-2" />
-              Requests
-            </Button>
             <Button
               variant="outline"
               size="sm"
