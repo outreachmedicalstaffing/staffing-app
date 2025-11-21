@@ -2608,11 +2608,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.knowledgeArticles)
         .orderBy(desc(schema.knowledgeArticles.createdAt));
 
+      // DEBUG: Log what we received from database
+      console.log("=== KNOWLEDGE ARTICLES DEBUG ===");
+      console.log("Current user role:", currentUser.role);
+      console.log("Total articles from DB:", allArticles.length);
+      console.log("Article publishStatus values:", allArticles.map(a => ({
+        title: a.title,
+        publishStatus: a.publishStatus,
+        publish_status: (a as any).publish_status
+      })));
+
       // STEP 1: Filter by publish status
       // Owner and Admin see ALL articles (including drafts)
       // Regular users only see published articles (drafts are hidden)
-      if (currentUser.role !== "Owner" && currentUser.role !== "Admin") {
-        allArticles = allArticles.filter(article => article.publishStatus === "published");
+      const isOwnerOrAdmin = currentUser.role === "Owner" || currentUser.role === "Admin";
+      console.log("Is Owner or Admin?", isOwnerOrAdmin);
+
+      if (!isOwnerOrAdmin) {
+        console.log("Filtering drafts for regular user...");
+        const beforeCount = allArticles.length;
+        allArticles = allArticles.filter(article => {
+          const status = article.publishStatus || (article as any).publish_status;
+          console.log(`Article "${article.title}": publishStatus="${article.publishStatus}", publish_status="${(article as any).publish_status}", status="${status}"`);
+          return status === "published";
+        });
+        console.log(`Filtered from ${beforeCount} to ${allArticles.length} articles`);
       }
 
       // STEP 2: Apply visibility filtering (existing logic)
