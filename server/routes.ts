@@ -2630,7 +2630,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allArticles = allArticles.filter(article => {
           const status = article.publishStatus || (article as any).publish_status;
           console.log(`Article "${article.title}": publishStatus="${article.publishStatus}", publish_status="${(article as any).publish_status}", status="${status}"`);
-          return status === "published";
+          // Case-insensitive comparison to handle "Published" vs "published"
+          return status?.toLowerCase() === "published";
         });
         console.log(`Filtered from ${beforeCount} to ${allArticles.length} articles`);
       }
