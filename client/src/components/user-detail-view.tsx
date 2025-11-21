@@ -166,7 +166,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     email: user?.email || "",
     username: user?.username || "",
     role: user?.role || "Staff",
-    mobilePhone: user?.phoneNumber || "",
+    mobilePhone: customFields.mobilePhone || "",
     birthday: customFields.birthday || "",
     emergencyContact: customFields.emergencyContact || "",
     shiftPreference: customFields.shiftPreference || "select",
@@ -223,13 +223,25 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
       const [firstName, ...lastNameParts] = user.fullName.split(" ");
       const lastName = lastNameParts.join(" ");
 
+      // DEBUG: Log user data to console
+      console.log("=== USER DETAIL MODAL DEBUG ===");
+      console.log("Full user object:", user);
+      console.log("customFields:", customFields);
+      console.log("customFields.mobilePhone:", customFields.mobilePhone);
+      console.log("customFields.shiftPreference:", customFields.shiftPreference);
+      console.log("customFields.facility:", customFields.facility);
+      console.log("customFields.allergies:", customFields.allergies);
+      console.log("customFields.birthday:", customFields.birthday);
+      console.log("customFields.address:", customFields.address);
+      console.log("customFields.emergencyContact:", customFields.emergencyContact);
+
       setFormData({
         firstName: firstName || "",
         lastName: lastName || "",
         email: user.email || "",
         username: user.username || "",
         role: user.role || "Staff",
-        mobilePhone: user.phoneNumber || "",
+        mobilePhone: customFields.mobilePhone || "",
         birthday: customFields.birthday || "",
         emergencyContact: customFields.emergencyContact || "",
         shiftPreference: customFields.shiftPreference || "select",
@@ -298,6 +310,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     mutationFn: async (data: Partial<EditableUser>) => {
       const fullName = `${data.firstName} ${data.lastName}`.trim();
       const customFields = {
+        mobilePhone: data.mobilePhone,
         birthday: data.birthday,
         emergencyContact: data.emergencyContact,
         shiftPreference: data.shiftPreference,
@@ -327,7 +340,6 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         email: data.email,
         username: data.username,
         role: data.role,
-        phoneNumber: data.mobilePhone,
         defaultHourlyRate: payRate.defaultRate.replace(/[^0-9.]/g, ""),
         jobRates: jobRatesObject,
         customFields,
@@ -370,7 +382,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
       email: user.email,
       username: user.username,
       role: user.role,
-      mobilePhone: user.phoneNumber || "",
+      mobilePhone: customFields.mobilePhone || "",
       birthday: customFields.birthday || "",
       emergencyContact: customFields.emergencyContact || "",
       shiftPreference: customFields.shiftPreference || "select",
