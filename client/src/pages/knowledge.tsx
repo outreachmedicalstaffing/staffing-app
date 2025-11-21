@@ -32,7 +32,7 @@ type Article = {
   title: string;
   description: string | null;
   type: string;
-  category: "Getting Started" | "HR" | "Compliance" | "Operations";
+  category: "Getting Started" | "HR" | "Compliance" | "Operations" | "Documentation";
   publishStatus: "draft" | "published";
   visibility?: string;
   targetGroupIds?: string[] | null;
@@ -70,7 +70,7 @@ export default function Knowledge() {
 
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
-  const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
+  const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "Documentation">("Getting Started");
   const [newStatus, setNewStatus] = useState<"draft" | "published">("draft");
   const [newVisibility, setNewVisibility] = useState("all");
   const [newTargetProgramIds, setNewTargetProgramIds] = useState<string[]>([]);
@@ -80,7 +80,7 @@ export default function Knowledge() {
 
   // Form fields for Edit Article
   const [editTitle, setEditTitle] = useState("");
-  const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations">("Getting Started");
+  const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "Documentation">("Getting Started");
   const [editStatus, setEditStatus] = useState<"draft" | "published">("draft");
   const [editVisibility, setEditVisibility] = useState("all");
   const [editTargetProgramIds, setEditTargetProgramIds] = useState<string[]>([]);
@@ -235,6 +235,8 @@ export default function Knowledge() {
         return "bg-red-100 text-red-800 hover:bg-red-100";
       case "Operations":
         return "bg-purple-100 text-purple-800 hover:bg-purple-100";
+      case "Documentation":
+        return "bg-green-100 text-green-800 hover:bg-green-100";
       default:
         return "bg-gray-100 text-gray-800 hover:bg-gray-100";
     }
@@ -250,6 +252,8 @@ export default function Knowledge() {
         return "text-red-600";
       case "Operations":
         return "text-purple-600";
+      case "Documentation":
+        return "text-green-600";
       default:
         return "text-gray-600";
     }
@@ -423,6 +427,9 @@ export default function Knowledge() {
             </TabsTrigger>
             <TabsTrigger value="operations">
               Operations
+            </TabsTrigger>
+            <TabsTrigger value="documentation">
+              Documentation
             </TabsTrigger>
           </TabsList>
         </div>
@@ -698,6 +705,60 @@ export default function Knowledge() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="documentation" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Documentation</CardTitle>
+              <CardDescription>{filterArticlesByCategory("Documentation").length} items</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filterArticlesByCategory("Documentation").map((article) => (
+                  <Card key={article.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-start space-x-3">
+                          <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base mb-1">{article.title}</h3>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <Badge className={getCategoryColor(article.category)}>
+                            {article.category}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Updated {formatTimestamp(article.lastUpdated)}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Create Article Dialog */}
@@ -735,6 +796,7 @@ export default function Knowledge() {
                     <SelectItem value="HR">HR</SelectItem>
                     <SelectItem value="Compliance">Compliance</SelectItem>
                     <SelectItem value="Operations">Operations</SelectItem>
+                    <SelectItem value="Documentation">Documentation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1014,6 +1076,7 @@ export default function Knowledge() {
                     <SelectItem value="HR">HR</SelectItem>
                     <SelectItem value="Compliance">Compliance</SelectItem>
                     <SelectItem value="Operations">Operations</SelectItem>
+                    <SelectItem value="Documentation">Documentation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
