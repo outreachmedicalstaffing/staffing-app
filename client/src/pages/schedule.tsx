@@ -480,7 +480,11 @@ export default function Schedule() {
   // Filter users based on role:
   // - Admins/owners see all staff users (excluding other admins/owners)
   // - Regular users only see themselves
+  // - Archived users are excluded from the schedule
   const staffUsers = users.filter(user => {
+    // Exclude archived users
+    if (user.status === 'archived') return false;
+
     const role = user.role?.toLowerCase();
     const isStaffUser = role !== 'owner' && role !== 'admin';
 
