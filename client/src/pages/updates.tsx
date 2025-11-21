@@ -32,7 +32,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus,
   Eye,
@@ -49,10 +48,7 @@ import {
   Clock,
   Pencil,
   Search,
-  Paperclip,
   X,
-  Upload,
-  Image as ImageIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -131,11 +127,6 @@ export default function Updates() {
   const [openGroupSelect, setOpenGroupSelect] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [attachment, setAttachment] = useState<Attachment | null>(null);
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -145,8 +136,6 @@ export default function Updates() {
     targetUserIds: [] as string[],
     targetGroupIds: [] as string[],
     status: "published",
-    imageUrl: null as string | null,
-    preventDownload: false,
   });
 
   // Get current user
@@ -241,11 +230,6 @@ export default function Updates() {
     const loadedGroups = loadGroupsFromStorage();
     setGroups(loadedGroups);
   }, []);
-
-  // Debug attachment state changes
-  useEffect(() => {
-    console.log('[Attachment] State changed:', attachment);
-  }, [attachment]);
 
   // Create program groups from the predefined program options
   const autoProgramGroups = useMemo((): Group[] => {
@@ -471,166 +455,7 @@ export default function Updates() {
       targetUserIds: [],
       targetGroupIds: [],
       status: "published",
-      imageUrl: null,
-      preventDownload: false,
     });
-    setAttachment(null);
-  };
-
-  // Button click handler - opens file picker
-  const handleAttachmentButtonClick = () => {
-    if (isUploadingAttachment) {
-      console.log('[Upload] Blocked: already uploading');
-      return;
-    }
-    console.log('[Upload] Opening file picker');
-    fileInputRef.current?.click();
-  };
-
-  // File selection handler - uploads the file
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-
-    if (!file || isUploadingAttachment) {
-      console.log('[Upload] Skipping:', { hasFile: !!file, uploading: isUploadingAttachment });
-      return;
-    }
-
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "File size must be less than 10MB",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log('[Upload] Starting upload for:', file.name);
-    setIsUploadingAttachment(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/updates/attachment', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('[Upload] Success:', data);
-
-      setAttachment(data);
-      toast({
-        title: "Success",
-        description: "File uploaded successfully",
-      });
-
-    } catch (error: any) {
-      console.error('[Upload] Error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to upload file",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingAttachment(false);
-      // Clear the input so the same file can be selected again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleRemoveAttachment = () => {
-    console.log('[Upload] Removing attachment');
-    setAttachment(null);
-  };
-
-  // Image upload handlers
-  const handleImageButtonClick = () => {
-    if (isUploadingImage) return;
-    imageInputRef.current?.click();
-  };
-
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || isUploadingImage) return;
-
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "Image size must be less than 10MB",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate file type (images only)
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Error",
-        description: "Only image files are allowed (PNG, JPG, JPEG, GIF)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsUploadingImage(true);
-
-    try {
-      const formDataObj = new FormData();
-      formDataObj.append('file', file);
-
-      const response = await fetch('/api/updates/upload', {
-        method: 'POST',
-        body: formDataObj,
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      setFormData({ ...formData, imageUrl: data.url });
-      toast({
-        title: "Success",
-        description: "Image uploaded successfully",
-      });
-
-    } catch (error: any) {
-      console.error('[Image Upload] Error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to upload image",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingImage(false);
-      if (imageInputRef.current) {
-        imageInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setFormData({ ...formData, imageUrl: null });
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   const handleCreateUpdate = () => {
@@ -648,7 +473,6 @@ export default function Updates() {
     const dataToSend = {
       ...formData,
       publishDate: publishDateTimestamp,
-      attachments: attachment ? [attachment] : [],
     };
 
     if (editingUpdate) {
@@ -670,10 +494,7 @@ export default function Updates() {
       targetUserIds: update.targetUserIds || [],
       targetGroupIds: update.targetGroupIds || [],
       status: update.status,
-      imageUrl: update.imageUrl || null,
-      preventDownload: update.preventDownload || false,
     });
-    setAttachment(update.attachments && update.attachments.length > 0 ? update.attachments[0] : null);
     setShowCreateDialog(true);
   };
 
@@ -1155,137 +976,6 @@ export default function Updates() {
                 </div>
               </>
             )}
-
-            {/* Attachment Upload Section */}
-            <div className="border-t pt-4 mt-4">
-              <Label>Attachment (Optional)</Label>
-              <p className="text-sm text-muted-foreground mb-2">
-                Add one file to this update (max 10MB)
-              </p>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png,.gif"
-              />
-
-              {!attachment ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAttachmentButtonClick}
-                  disabled={isUploadingAttachment}
-                  className="w-full"
-                >
-                  {isUploadingAttachment ? (
-                    <>
-                      <Upload className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Paperclip className="h-4 w-4 mr-2" />
-                      Add Attachment
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <div className="flex items-center justify-between p-3 border rounded-md bg-muted/50">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Paperclip className="h-4 w-4 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{attachment.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRemoveAttachment}
-                    className="flex-shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Image Upload Section */}
-            <div className="border-t pt-4 mt-4">
-              <Label>Image (Optional)</Label>
-              <p className="text-sm text-muted-foreground mb-2">
-                Add an image to this update (PNG, JPG, JPEG, GIF - max 10MB)
-              </p>
-
-              <input
-                ref={imageInputRef}
-                type="file"
-                onChange={handleImageSelect}
-                style={{ display: 'none' }}
-                accept="image/png,image/jpeg,image/jpg,image/gif"
-              />
-
-              {!formData.imageUrl ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleImageButtonClick}
-                  disabled={isUploadingImage}
-                  className="w-full"
-                >
-                  {isUploadingImage ? (
-                    <>
-                      <Upload className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      Add Image
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <div className="space-y-2">
-                  <div className="relative border rounded-md overflow-hidden">
-                    <img
-                      src={formData.imageUrl}
-                      alt="Update preview"
-                      className="w-full max-h-64 object-contain bg-muted"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleRemoveImage}
-                      className="absolute top-2 right-2"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Download Prevention Checkbox */}
-            <div className="flex items-center space-x-2 border-t pt-4 mt-4">
-              <Checkbox
-                id="preventDownload"
-                checked={formData.preventDownload}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, preventDownload: checked as boolean })
-                }
-              />
-              <label
-                htmlFor="preventDownload"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-              >
-                Disable users from downloading this content to their devices
-              </label>
-            </div>
           </div>
 
           <DialogFooter>
@@ -1332,68 +1022,6 @@ export default function Updates() {
                 <div className="prose prose-sm max-w-none">
                   <p className="whitespace-pre-wrap">{selectedUpdate.content}</p>
                 </div>
-
-                {/* Image */}
-                {selectedUpdate.imageUrl && (
-                  <div className="border-t pt-4">
-                    <div
-                      className="relative border rounded-md overflow-hidden bg-muted"
-                      style={{
-                        userSelect: selectedUpdate.preventDownload ? 'none' : 'auto',
-                        pointerEvents: selectedUpdate.preventDownload ? 'none' : 'auto',
-                      }}
-                      onContextMenu={(e) => selectedUpdate.preventDownload && e.preventDefault()}
-                    >
-                      <img
-                        src={selectedUpdate.imageUrl}
-                        alt="Update image"
-                        className="w-full object-contain"
-                        style={{
-                          userSelect: selectedUpdate.preventDownload ? 'none' : 'auto',
-                          pointerEvents: selectedUpdate.preventDownload ? 'none' : 'auto',
-                        }}
-                        onContextMenu={(e) => selectedUpdate.preventDownload && e.preventDefault()}
-                        draggable={!selectedUpdate.preventDownload}
-                      />
-                      {selectedUpdate.preventDownload && (
-                        <div className="absolute inset-0 bg-transparent" style={{ pointerEvents: 'all' }} />
-                      )}
-                    </div>
-                    {selectedUpdate.preventDownload && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Download protection enabled for this image
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Attachment */}
-                {selectedUpdate.attachments && selectedUpdate.attachments.length > 0 && (
-                  <div className="border-t pt-4">
-                    <h3 className="font-semibold mb-2">Attachment</h3>
-                    <a
-                      href={selectedUpdate.attachments[0].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-3 border rounded-md bg-muted/50 hover:bg-muted transition-colors"
-                    >
-                      <Paperclip className="h-4 w-4 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{selectedUpdate.attachments[0].name}</p>
-                        <p className="text-xs text-muted-foreground">{formatFileSize(selectedUpdate.attachments[0].size)}</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="flex-shrink-0"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </a>
-                  </div>
-                )}
 
                 {/* Stats */}
                 <div className="flex items-center gap-4 py-4 border-y">
