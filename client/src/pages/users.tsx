@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Filter, FileDown, UserPlus, Clock, FileText, Settings as SettingsIcon, Archive, RotateCcw } from "lucide-react";
+import { Search, Filter, FileDown, UserPlus, Clock, FileText, Settings as SettingsIcon, Archive, RotateCcw, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,7 @@ export default function Users() {
   const { toast } = useToast();
   const [archiveUserId, setArchiveUserId] = useState<string | null>(null);
   const [restoreUserId, setRestoreUserId] = useState<string | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
 
   // Archive user mutation
   const archiveMutation = useMutation({
@@ -91,6 +92,34 @@ export default function Users() {
         description: "Failed to restore user",
         variant: "destructive",
       });
+    },
+  });
+
+  // Delete user mutation (only for archived users)
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("DELETE", `/api/users/${userId}`);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete user");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Success",
+        description: "User permanently deleted",
+      });
+      setDeleteUserId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+      setDeleteUserId(null);
     },
   });
 
@@ -425,6 +454,7 @@ export default function Users() {
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
                       {isAdmin && <TableHead className="text-center">Restore</TableHead>}
+                      {isAdmin && <TableHead className="text-center">Delete</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -471,12 +501,28 @@ export default function Users() {
                               </Button>
                             </TableCell>
                           )}
+                          {isAdmin && (
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteUserId(user.id);
+                                }}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                data-testid={`button-delete-${user.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
                     {filteredArchived.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={isAdmin ? 6 : 4} className="text-center text-muted-foreground py-8">
                           No archived users found
                         </TableCell>
                       </TableRow>
@@ -522,6 +568,33 @@ export default function Users() {
               className="bg-orange-600 hover:bg-orange-700"
             >
               Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete{" "}
+              <strong>{users.find(u => u.id === deleteUserId)?.fullName}</strong>?
+              This action cannot be undone and will delete all their data including time entries, schedules, and documents.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteUserId) {
+                  deleteMutation.mutate(deleteUserId);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

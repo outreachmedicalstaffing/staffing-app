@@ -51,6 +51,7 @@ export interface IStorage {
     user: Partial<Omit<InsertUser, "password">> & { passwordHash?: string },
   ): Promise<User | undefined>;
   listUsers(status?: string): Promise<User[]>;
+  deleteUser(id: string): Promise<boolean>;
 
   // Time Entries
   getTimeEntry(id: string): Promise<TimeEntry | undefined>;
@@ -233,6 +234,14 @@ export class DbStorage implements IStorage {
       return await db.select().from(users).where(eq(users.status, status));
     }
     return await db.select().from(users);
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db
+      .delete(users)
+      .where(eq(users.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   // Time Entries

@@ -4004,6 +4004,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user (only archived users can be deleted)
+  app.delete("/api/users/:id", requireRole("Owner", "Admin"), async (req, res) => {
+    try {
+      // First check if user exists and is archived
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Only allow deletion of archived users
+      if (user.status !== "archived") {
+        return res.status(403).json({ error: "Only archived users can be deleted" });
+      }
+
+      // Log the deletion before deleting
+      await logAudit(
+        req.session.userId,
+        "user.delete",
+        "User",
+        req.params.id,
+        { deletedUser: user.fullName }
+      );
+
+      // Delete the user
+      const success = await storage.deleteUser(req.params.id);
+      if (!success) {
+        return res.status(500).json({ error: "Failed to delete user" });
+      }
+
+      res.json({ success: true, message: "User permanently deleted" });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
   // Sync group membership to user.groups field
   app.post(
     "/api/groups/sync",
