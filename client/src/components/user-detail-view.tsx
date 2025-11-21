@@ -166,7 +166,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     email: user?.email || "",
     username: user?.username || "",
     role: user?.role || "Staff",
-    mobilePhone: customFields.mobilePhone || "",
+    mobilePhone: user?.phoneNumber || "",
     birthday: customFields.birthday || "",
     emergencyContact: customFields.emergencyContact || "",
     shiftPreference: customFields.shiftPreference || "select",
@@ -229,7 +229,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         email: user.email || "",
         username: user.username || "",
         role: user.role || "Staff",
-        mobilePhone: customFields.mobilePhone || "",
+        mobilePhone: user.phoneNumber || "",
         birthday: customFields.birthday || "",
         emergencyContact: customFields.emergencyContact || "",
         shiftPreference: customFields.shiftPreference || "select",
@@ -298,7 +298,6 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
     mutationFn: async (data: Partial<EditableUser>) => {
       const fullName = `${data.firstName} ${data.lastName}`.trim();
       const customFields = {
-        mobilePhone: data.mobilePhone,
         birthday: data.birthday,
         emergencyContact: data.emergencyContact,
         shiftPreference: data.shiftPreference,
@@ -328,6 +327,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
         email: data.email,
         username: data.username,
         role: data.role,
+        phoneNumber: data.mobilePhone,
         defaultHourlyRate: payRate.defaultRate.replace(/[^0-9.]/g, ""),
         jobRates: jobRatesObject,
         customFields,
@@ -370,7 +370,7 @@ export function UserDetailView({ user, open, onClose }: UserDetailViewProps) {
       email: user.email,
       username: user.username,
       role: user.role,
-      mobilePhone: customFields.mobilePhone || "",
+      mobilePhone: user.phoneNumber || "",
       birthday: customFields.birthday || "",
       emergencyContact: customFields.emergencyContact || "",
       shiftPreference: customFields.shiftPreference || "select",
