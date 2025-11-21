@@ -1,11 +1,11 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2, Upload, X, Download, Paperclip, Image as ImageIcon } from "lucide-react";
+import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2, Upload, X, Download, Paperclip } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -87,13 +87,6 @@ export default function Knowledge() {
   const [editContent, setEditContent] = useState("");
   const [editAttachments, setEditAttachments] = useState<string[]>([]);
   const [openEditProgramSelect, setOpenEditProgramSelect] = useState(false);
-
-  // Image upload state
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const newImageInputRef = useRef<HTMLInputElement>(null);
-  const editImageInputRef = useRef<HTMLInputElement>(null);
-  const newContentTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const editContentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Create program groups from the predefined program options
   const programGroups = useMemo((): ProgramGroup[] => {
@@ -229,100 +222,6 @@ export default function Knowledge() {
       setEditAttachments(editAttachments.filter(a => a !== url));
     } else {
       setNewAttachments(newAttachments.filter(a => a !== url));
-    }
-  };
-
-  // Handle image upload for markdown content
-  const handleImageUpload = async (file: File, isEdit: boolean = false) => {
-    if (!file) return;
-
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Maximum file size is 10MB",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validate file type (images only)
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Invalid file type",
-        description: "Only image files are allowed (PNG, JPG, JPEG, GIF)",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Get the textarea and save cursor position before upload
-    const textarea = isEdit ? editContentTextareaRef.current : newContentTextareaRef.current;
-    if (!textarea) {
-      toast({
-        title: "Error",
-        description: "Could not find content editor",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const cursorPosition = textarea.selectionStart;
-
-    setUploadingImage(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      console.log('[Image Upload] Uploading file:', file.name);
-
-      const res = await fetch('/api/knowledge/upload-image', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(errorData.error || errorData.details || `HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log('[Image Upload] Success:', data);
-
-      // Insert markdown image syntax at saved cursor position
-      const imageMarkdown = `\n![Image](${data.url})\n`;
-      const currentContent = isEdit ? editContent : newContent;
-      const newContentValue =
-        currentContent.substring(0, cursorPosition) +
-        imageMarkdown +
-        currentContent.substring(cursorPosition);
-
-      if (isEdit) {
-        setEditContent(newContentValue);
-      } else {
-        setNewContent(newContentValue);
-      }
-
-      // Restore cursor position after the inserted markdown
-      setTimeout(() => {
-        if (textarea) {
-          textarea.selectionStart = textarea.selectionEnd = cursorPosition + imageMarkdown.length;
-          textarea.focus();
-        }
-      }, 10);
-
-      toast({ title: "Image uploaded successfully" });
-    } catch (error) {
-      console.error('[Image Upload] Error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast({
-        title: "Failed to upload image",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setUploadingImage(false);
     }
   };
 
@@ -994,36 +893,8 @@ export default function Knowledge() {
             )}
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="article-content">Content (Supports Markdown)</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={newImageInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/gif"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handleImageUpload(file, false);
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => newImageInputRef.current?.click()}
-                    disabled={uploadingImage}
-                  >
-                    <ImageIcon className="h-4 w-4 mr-2" />
-                    {uploadingImage ? 'Uploading...' : 'Add Image'}
-                  </Button>
-                </div>
-              </div>
+              <Label htmlFor="article-content">Content (Supports Markdown)</Label>
               <Textarea
-                ref={newContentTextareaRef}
                 id="article-content"
                 placeholder="Write your article content here..."
                 value={newContent}
@@ -1315,36 +1186,8 @@ export default function Knowledge() {
             )}
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="edit-article-content">Content (Supports Markdown)</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={editImageInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/gif"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handleImageUpload(file, true);
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => editImageInputRef.current?.click()}
-                    disabled={uploadingImage}
-                  >
-                    <ImageIcon className="h-4 w-4 mr-2" />
-                    {uploadingImage ? 'Uploading...' : 'Add Image'}
-                  </Button>
-                </div>
-              </div>
+              <Label htmlFor="edit-article-content">Content (Supports Markdown)</Label>
               <Textarea
-                ref={editContentTextareaRef}
                 id="edit-article-content"
                 placeholder="Write your article content here..."
                 value={editContent}
