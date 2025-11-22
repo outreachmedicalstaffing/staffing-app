@@ -32,7 +32,7 @@ type Article = {
   title: string;
   description: string | null;
   type: string;
-  category: "Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact Info";
+  category: "Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact";
   publishStatus: "draft" | "published";
   visibility?: string;
   targetGroupIds?: string[] | null;
@@ -70,7 +70,7 @@ export default function Knowledge() {
 
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
-  const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact Info">("Getting Started");
+  const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact">("Getting Started");
   const [newVisibility, setNewVisibility] = useState("all");
   const [newTargetProgramIds, setNewTargetProgramIds] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
@@ -79,7 +79,7 @@ export default function Knowledge() {
 
   // Form fields for Edit Article
   const [editTitle, setEditTitle] = useState("");
-  const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact Info">("Getting Started");
+  const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact">("Getting Started");
   const [editVisibility, setEditVisibility] = useState("all");
   const [editTargetProgramIds, setEditTargetProgramIds] = useState<string[]>([]);
   const [editContent, setEditContent] = useState("");
@@ -237,7 +237,7 @@ export default function Knowledge() {
         return "bg-orange-100 text-orange-800 hover:bg-orange-100";
       case "Documentation":
         return "bg-green-100 text-green-800 hover:bg-green-100";
-      case "Contact Info":
+      case "Contact":
         return "bg-teal-100 text-teal-800 hover:bg-teal-100";
       default:
         return "bg-gray-100 text-gray-800 hover:bg-gray-100";
@@ -258,7 +258,7 @@ export default function Knowledge() {
         return "text-orange-600";
       case "Documentation":
         return "text-green-600";
-      case "Contact Info":
+      case "Contact":
         return "text-teal-600";
       default:
         return "text-gray-600";
@@ -438,7 +438,7 @@ export default function Knowledge() {
               Documentation
             </TabsTrigger>
             <TabsTrigger value="contact-info">
-              Contact Info
+              Contact
             </TabsTrigger>
           </TabsList>
         </div>
@@ -826,12 +826,12 @@ export default function Knowledge() {
         <TabsContent value="contact-info" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Contact Info</CardTitle>
-              <CardDescription>{filterArticlesByCategory("Contact Info").length} items</CardDescription>
+              <CardTitle>Contact</CardTitle>
+              <CardDescription>{filterArticlesByCategory("Contact").length} items</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filterArticlesByCategory("Contact Info").map((article) => (
+                {filterArticlesByCategory("Contact").map((article) => (
                   <Card key={article.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
                       <div className="space-y-4">
@@ -914,7 +914,7 @@ export default function Knowledge() {
                   <SelectItem value="Operations">Operations</SelectItem>
                   <SelectItem value="VITAS">VITAS</SelectItem>
                   <SelectItem value="Documentation">Documentation</SelectItem>
-                  <SelectItem value="Contact Info">Contact Info</SelectItem>
+                  <SelectItem value="Contact">Contact</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1194,7 +1194,7 @@ export default function Knowledge() {
                   <SelectItem value="Operations">Operations</SelectItem>
                   <SelectItem value="VITAS">VITAS</SelectItem>
                   <SelectItem value="Documentation">Documentation</SelectItem>
-                  <SelectItem value="Contact Info">Contact Info</SelectItem>
+                  <SelectItem value="Contact">Contact</SelectItem>
                 </SelectContent>
               </Select>
             </div>
