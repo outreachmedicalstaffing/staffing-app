@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, Mail, Phone, Building2, Moon, Sun, Calendar } from "lucide-react";
+import { Search, Mail, Phone, Building2, Moon, Sun, Calendar, Cake } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLocation } from "wouter";
 
 function getInitials(fullName: string): string {
   const names = fullName.trim().split(" ");
@@ -23,8 +24,24 @@ function getInitials(fullName: string): string {
 }
 
 export default function Directory() {
+  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
+
+  // Get current user to check role
+  const { data: currentUser, isLoading: isLoadingUser } = useQuery<User>({
+    queryKey: ["/api/auth/me"],
+  });
+
+  // Check if user is admin or owner
+  const isAdmin = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
+
+  // Redirect non-admin users to dashboard
+  useEffect(() => {
+    if (!isLoadingUser && !isAdmin) {
+      setLocation("/");
+    }
+  }, [isLoadingUser, isAdmin, setLocation]);
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -181,6 +198,14 @@ export default function Directory() {
                       <div className="flex items-center gap-2 text-muted-foreground">
                         {shiftIcon && <shiftIcon className="h-4 w-4 flex-shrink-0" />}
                         <span>{customFields.shiftPreference} shift</span>
+                      </div>
+                    )}
+
+                    {/* Birthday */}
+                    {customFields.birthday && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Cake className="h-4 w-4 flex-shrink-0" />
+                        <span>{new Date(customFields.birthday).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
                       </div>
                     )}
                   </div>
