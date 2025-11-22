@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import { z } from "zod";
-import { eq, and, count, desc } from "drizzle-orm";
+import { eq, and, count, desc, sql } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import {
   insertUserSchema,
@@ -24,7 +24,7 @@ import "./types"; // Import session and request type augmentations
 import { upload, knowledgeUpload, knowledgeImageUpload, updatesUpload } from "./upload";
 import path from "path";
 import fs from "fs";
-import { pool } from "./db";
+import { pool, db } from "./db";
 
 // Middleware to check authentication
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -4533,6 +4533,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  // ===== Temporary Migration Endpoint =====
+
+  // Create contact_resources table (Owner only, temporary)
+  app.post("/api/admin/migrate-contact-resources", requireRole("Owner"), async (req, res) => {
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS contact_resources (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          program_name TEXT NOT NULL,
+          main_phone TEXT,
+          after_hours_phone TEXT,
+          contacts JSONB DEFAULT '[]'::jsonb,
+          address TEXT,
+          notes TEXT,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+      `);
+      res.json({ success: true, message: "contact_resources table created" });
+    } catch (error: any) {
+      console.error("Migration error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
