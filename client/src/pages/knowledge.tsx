@@ -5,10 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2, Upload, X, Download, Paperclip, ChevronDown } from "lucide-react";
+import { Search, Plus, FileText, Eye, Check, ChevronsUpDown, Trash2, Upload, X, Download, Paperclip } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +33,6 @@ type Article = {
   description: string | null;
   type: string;
   category: "Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact";
-  subcategory?: string | null;
   publishStatus: "draft" | "published";
   visibility?: string;
   targetGroupIds?: string[] | null;
@@ -73,7 +71,6 @@ export default function Knowledge() {
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact">("Getting Started");
-  const [newSubcategory, setNewSubcategory] = useState("");
   const [newVisibility, setNewVisibility] = useState("all");
   const [newTargetProgramIds, setNewTargetProgramIds] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
@@ -83,7 +80,6 @@ export default function Knowledge() {
   // Form fields for Edit Article
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact">("Getting Started");
-  const [editSubcategory, setEditSubcategory] = useState("");
   const [editVisibility, setEditVisibility] = useState("all");
   const [editTargetProgramIds, setEditTargetProgramIds] = useState<string[]>([]);
   const [editContent, setEditContent] = useState("");
@@ -285,7 +281,6 @@ export default function Knowledge() {
       description: "",
       type: "page",
       category: newCategory,
-      subcategory: newSubcategory.trim() || null,
       publishStatus: "published",
       visibility: newVisibility,
       targetGroupIds: newTargetProgramIds.length > 0 ? newTargetProgramIds : null,
@@ -296,7 +291,6 @@ export default function Knowledge() {
     // Reset form
     setNewTitle("");
     setNewCategory("Getting Started");
-    setNewSubcategory("");
     setNewVisibility("all");
     setNewTargetProgramIds([]);
     setNewContent("");
@@ -313,7 +307,6 @@ export default function Knowledge() {
     setEditingArticle(article);
     setEditTitle(article.title);
     setEditCategory(article.category);
-    setEditSubcategory(article.subcategory || "");
     setEditVisibility(article.visibility || "all");
     setEditTargetProgramIds(article.targetGroupIds || []);
     setEditContent(article.content || "");
@@ -334,7 +327,6 @@ export default function Knowledge() {
       data: {
         title: editTitle,
         category: editCategory,
-        subcategory: editSubcategory.trim() || null,
         publishStatus: "published",
         visibility: editVisibility,
         targetGroupIds: editTargetProgramIds.length > 0 ? editTargetProgramIds : null,
@@ -347,7 +339,6 @@ export default function Knowledge() {
     setEditingArticle(null);
     setEditTitle("");
     setEditCategory("Getting Started");
-    setEditSubcategory("");
     setEditVisibility("all");
     setEditTargetProgramIds([]);
     setEditContent("");
@@ -731,137 +722,49 @@ export default function Knowledge() {
               <CardDescription>{filterArticlesByCategory("VITAS").length} items</CardDescription>
             </CardHeader>
             <CardContent>
-              {(() => {
-                const vitasArticles = filterArticlesByCategory("VITAS");
-
-                // Group articles by subcategory
-                const grouped = vitasArticles.reduce((acc, article) => {
-                  const key = article.subcategory || "Uncategorized";
-                  if (!acc[key]) acc[key] = [];
-                  acc[key].push(article);
-                  return acc;
-                }, {} as Record<string, Article[]>);
-
-                // Sort subcategories: named folders first (alphabetically), then Uncategorized
-                const sortedSubcategories = Object.keys(grouped).sort((a, b) => {
-                  if (a === "Uncategorized") return 1;
-                  if (b === "Uncategorized") return -1;
-                  return a.localeCompare(b);
-                });
-
-                // If there's only one group and it's uncategorized, show flat list
-                if (sortedSubcategories.length === 1 && sortedSubcategories[0] === "Uncategorized") {
-                  return (
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {vitasArticles.map((article) => (
-                        <Card key={article.id} className="hover:shadow-lg transition-shadow">
-                          <CardContent className="pt-6">
-                            <div className="space-y-4">
-                              <div className="flex items-start space-x-3">
-                                <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                                  {article.description && (
-                                    <p className="text-sm text-muted-foreground">{article.description}</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between pt-2 border-t">
-                                <Badge className={getCategoryColor(article.category)}>
-                                  {article.category}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  Updated {formatTimestamp(article.lastUpdated)}
-                                </span>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View
-                                </Button>
-                                {isAdmin && (
-                                  <>
-                                    <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
-                                      Edit
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  );
-                }
-
-                // Show folder structure with accordion
-                return (
-                  <Accordion type="multiple" defaultValue={sortedSubcategories} className="w-full">
-                    {sortedSubcategories.map((subcategory) => (
-                      <AccordionItem key={subcategory} value={subcategory}>
-                        <AccordionTrigger className="text-base font-semibold hover:no-underline">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-orange-600" />
-                            <span>{subcategory}</span>
-                            <Badge variant="secondary" className="ml-2">
-                              {grouped[subcategory].length}
-                            </Badge>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filterArticlesByCategory("VITAS").map((article) => (
+                  <Card key={article.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-start space-x-3">
+                          <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base mb-1">{article.title}</h3>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
                           </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 pt-4">
-                            {grouped[subcategory].map((article) => (
-                              <Card key={article.id} className="hover:shadow-lg transition-shadow">
-                                <CardContent className="pt-6">
-                                  <div className="space-y-4">
-                                    <div className="flex items-start space-x-3">
-                                      <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
-                                      <div className="flex-1 min-w-0">
-                                        <h3 className="font-semibold text-base mb-1">{article.title}</h3>
-                                        {article.description && (
-                                          <p className="text-sm text-muted-foreground">{article.description}</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center justify-between pt-2 border-t">
-                                      <Badge className={getCategoryColor(article.category)}>
-                                        {article.category}
-                                      </Badge>
-                                      <span className="text-xs text-muted-foreground">
-                                        Updated {formatTimestamp(article.lastUpdated)}
-                                      </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                      <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
-                                        <Eye className="h-4 w-4 mr-2" />
-                                        View
-                                      </Button>
-                                      {isAdmin && (
-                                        <>
-                                          <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
-                                            Edit
-                                          </Button>
-                                          <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                );
-              })()}
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <Badge className={getCategoryColor(article.category)}>
+                            {article.category}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Updated {formatTimestamp(article.lastUpdated)}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1014,21 +917,6 @@ export default function Knowledge() {
                   <SelectItem value="Contact">Contact</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="article-subcategory">
-                Folder / Subcategory <span className="text-xs text-muted-foreground">(Optional)</span>
-              </Label>
-              <Input
-                id="article-subcategory"
-                placeholder="e.g., Vitas Central Florida, Vitas Midstate"
-                value={newSubcategory}
-                onChange={(e) => setNewSubcategory(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Organize articles into folders (e.g., for VITAS regions)
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -1309,21 +1197,6 @@ export default function Knowledge() {
                   <SelectItem value="Contact">Contact</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-article-subcategory">
-                Folder / Subcategory <span className="text-xs text-muted-foreground">(Optional)</span>
-              </Label>
-              <Input
-                id="edit-article-subcategory"
-                placeholder="e.g., Vitas Central Florida, Vitas Midstate"
-                value={editSubcategory}
-                onChange={(e) => setEditSubcategory(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Organize articles into folders (e.g., for VITAS regions)
-              </p>
             </div>
 
             <div className="space-y-2">
