@@ -18,7 +18,6 @@ import UserTimesheets from "@/pages/user-timesheets";
 import Documents from "@/pages/documents";
 import Knowledge from "@/pages/knowledge";
 import Updates from "@/pages/updates";
-import ContactResources from "@/pages/contact-resources";
 import Directory from "@/pages/directory";
 import Users from "@/pages/users";
 import Groups from "@/pages/groups";
@@ -75,7 +74,6 @@ function AuthenticatedRouter() {
       <Route path="/documents" component={Documents} />
       <Route path="/knowledge" component={Knowledge} />
       <Route path="/updates" component={Updates} />
-      <Route path="/contact-resources" component={ContactResources} />
       <Route path="/directory" component={Directory} />
       <Route path="/users" component={Users} />
       <Route path="/groups" component={Groups} />

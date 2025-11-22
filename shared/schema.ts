@@ -596,27 +596,3 @@ export const insertSettingSchema = createInsertSchema(settings).omit({
 
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type Setting = typeof settings.$inferSelect;
-
-// Contact Resources - Important contact information for programs and facilities
-export const contactResources = pgTable("contact_resources", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  programName: text("program_name").notNull(), // e.g., "Vitas Central Florida", "AdventHealth", "Haven"
-  mainPhone: text("main_phone"), // Main office phone number
-  afterHoursPhone: text("after_hours_phone"), // After-hours/emergency number
-  contacts: jsonb("contacts").default(sql`'[]'::jsonb`), // Array of key contacts: [{name, title, phone}]
-  address: text("address"), // Physical address
-  notes: text("notes"), // Additional notes/instructions
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-export const insertContactResourceSchema = createInsertSchema(contactResources).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type InsertContactResource = z.infer<typeof insertContactResourceSchema>;
-export type ContactResource = typeof contactResources.$inferSelect;

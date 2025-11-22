@@ -11,7 +11,6 @@ import {
   FileText,
   User as UserIcon,
   Contact,
-  Phone,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { Link, useLocation } from "wouter";
@@ -40,7 +39,6 @@ const getMenuItems = (isAdmin: boolean) => [
   { title: "Documents", url: "/documents", icon: FileText, adminOnly: false, staffOnly: false },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen, adminOnly: false, staffOnly: false },
   { title: "Updates", url: "/updates", icon: Bell, adminOnly: false, staffOnly: false },
-  { title: "Contact Resources", url: "/contact-resources", icon: Phone, adminOnly: false, staffOnly: false },
   { title: "Directory", url: "/directory", icon: Contact, adminOnly: true, staffOnly: false },
   { title: "Profile", url: "/profile", icon: UserIcon, adminOnly: false, staffOnly: true },
   { title: "Users", url: "/users", icon: Users, adminOnly: true, staffOnly: false },
