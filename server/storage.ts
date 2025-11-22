@@ -13,6 +13,7 @@ import {
   knowledgeArticles,
   auditLogs,
   settings,
+  contactResources,
   type User,
   type InsertUser,
   type TimeEntry,
@@ -37,6 +38,8 @@ import {
   type InsertAuditLog,
   type Setting,
   type InsertSetting,
+  type ContactResource,
+  type InsertContactResource,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -176,6 +179,13 @@ export interface IStorage {
   getSetting(key: string): Promise<Setting | undefined>;
   setSetting(setting: InsertSetting): Promise<Setting>;
   listSettings(): Promise<Setting[]>;
+
+  // Contact Resources
+  getContactResource(id: string): Promise<ContactResource | undefined>;
+  createContactResource(resource: InsertContactResource): Promise<ContactResource>;
+  updateContactResource(id: string, resource: Partial<InsertContactResource>): Promise<ContactResource | undefined>;
+  deleteContactResource(id: string): Promise<boolean>;
+  listContactResources(): Promise<ContactResource[]>;
 
 }
 
@@ -755,6 +765,47 @@ export class DbStorage implements IStorage {
 
   async listSettings(): Promise<Setting[]> {
     return await db.select().from(settings);
+  }
+
+  // Contact Resources
+  async getContactResource(id: string): Promise<ContactResource | undefined> {
+    const result = await db
+      .select()
+      .from(contactResources)
+      .where(eq(contactResources.id, id));
+    return result[0];
+  }
+
+  async createContactResource(resource: InsertContactResource): Promise<ContactResource> {
+    const result = await db
+      .insert(contactResources)
+      .values(resource)
+      .returning();
+    return result[0];
+  }
+
+  async updateContactResource(
+    id: string,
+    resource: Partial<InsertContactResource>,
+  ): Promise<ContactResource | undefined> {
+    const result = await db
+      .update(contactResources)
+      .set({ ...resource, updatedAt: new Date() })
+      .where(eq(contactResources.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteContactResource(id: string): Promise<boolean> {
+    const result = await db
+      .delete(contactResources)
+      .where(eq(contactResources.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async listContactResources(): Promise<ContactResource[]> {
+    return await db.select().from(contactResources);
   }
 }
 

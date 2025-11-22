@@ -18,6 +18,7 @@ import {
   insertSettingSchema,
   insertScheduleSchema,
   insertShiftTemplateSchema,
+  insertContactResourceSchema,
 } from "@shared/schema";
 import "./types"; // Import session and request type augmentations
 import { upload, knowledgeUpload, knowledgeImageUpload, updatesUpload } from "./upload";
@@ -2919,6 +2920,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   );
+
+  // ===== Contact Resources Routes =====
+
+  // List all contact resources (accessible to all authenticated users)
+  app.get("/api/contact-resources", requireAuth, async (req, res) => {
+    try {
+      const resources = await storage.listContactResources();
+      res.json(resources);
+    } catch (error) {
+      console.error("Failed to fetch contact resources:", error);
+      res.status(500).json({ error: "Failed to fetch contact resources" });
+    }
+  });
+
+  // Get a specific contact resource
+  app.get("/api/contact-resources/:id", requireAuth, async (req, res) => {
+    try {
+      const resource = await storage.getContactResource(req.params.id);
+      if (!resource) {
+        return res.status(404).json({ error: "Contact resource not found" });
+      }
+      res.json(resource);
+    } catch (error) {
+      console.error("Failed to fetch contact resource:", error);
+      res.status(500).json({ error: "Failed to fetch contact resource" });
+    }
+  });
+
+  // Create contact resource (Owner/Admin only)
+  app.post("/api/contact-resources", requireRole("Owner", "Admin"), async (req, res) => {
+    try {
+      const data = insertContactResourceSchema.parse(req.body);
+      const resource = await storage.createContactResource(data);
+      await logAudit(
+        req.session.userId,
+        "create",
+        "contact_resource",
+        resource.id,
+        false,
+        [],
+        { programName: resource.programName },
+        req.ip,
+      );
+      res.json(resource);
+    } catch (error) {
+      console.error("Failed to create contact resource:", error);
+      res.status(500).json({ error: "Failed to create contact resource" });
+    }
+  });
+
+  // Update contact resource (Owner/Admin only)
+  app.patch("/api/contact-resources/:id", requireRole("Owner", "Admin"), async (req, res) => {
+    try {
+      const updateSchema = insertContactResourceSchema.partial();
+      const data = updateSchema.parse(req.body);
+      const resource = await storage.updateContactResource(req.params.id, data);
+      if (!resource) {
+        return res.status(404).json({ error: "Contact resource not found" });
+      }
+      await logAudit(
+        req.session.userId,
+        "update",
+        "contact_resource",
+        resource.id,
+        false,
+        [],
+        { programName: resource.programName },
+        req.ip,
+      );
+      res.json(resource);
+    } catch (error) {
+      console.error("Failed to update contact resource:", error);
+      res.status(500).json({ error: "Failed to update contact resource" });
+    }
+  });
+
+  // Delete contact resource (Owner/Admin only)
+  app.delete("/api/contact-resources/:id", requireRole("Owner", "Admin"), async (req, res) => {
+    try {
+      const resource = await storage.getContactResource(req.params.id);
+      if (!resource) {
+        return res.status(404).json({ error: "Contact resource not found" });
+      }
+      await storage.deleteContactResource(req.params.id);
+      await logAudit(
+        req.session.userId,
+        "delete",
+        "contact_resource",
+        req.params.id,
+        false,
+        [],
+        { programName: resource.programName },
+        req.ip,
+      );
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete contact resource:", error);
+      res.status(500).json({ error: "Failed to delete contact resource" });
+    }
+  });
 
   // ===== Updates/Announcements Routes =====
 
