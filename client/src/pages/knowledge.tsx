@@ -96,6 +96,24 @@ export default function Knowledge() {
     }));
   }, []);
 
+  // Get user's assigned programs for filtering
+  const userPrograms = useMemo(() => {
+    if (!currentUser?.customFields) return [];
+    const customFields = currentUser.customFields as { programs?: string[] };
+    return customFields.programs || [];
+  }, [currentUser]);
+
+  // Filter available VITAS programs based on user role
+  const availableVitasPrograms = useMemo(() => {
+    // Admin/Owner can see all programs
+    if (isAdmin) {
+      return PROGRAM_OPTIONS.filter(program => program.toLowerCase().startsWith("vitas"));
+    }
+
+    // Regular users only see their assigned programs
+    return userPrograms.filter(program => program.toLowerCase().startsWith("vitas"));
+  }, [isAdmin, userPrograms]);
+
   // Reset VITAS filter when switching away from VITAS tab
   useEffect(() => {
     if (activeTab !== "vitas") {
@@ -758,14 +776,14 @@ export default function Knowledge() {
                     <SelectValue placeholder="Select program" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All VITAS Programs</SelectItem>
-                    <SelectItem value="Vitas Central Florida">Vitas Central Florida</SelectItem>
-                    <SelectItem value="Vitas Treasure Coast">Vitas Treasure Coast</SelectItem>
-                    <SelectItem value="Vitas V/F/P">Vitas V/F/P</SelectItem>
-                    <SelectItem value="Vitas Midstate">Vitas Midstate</SelectItem>
-                    <SelectItem value="Vitas Brevard">Vitas Brevard</SelectItem>
-                    <SelectItem value="Vitas Nature Coast">Vitas Nature Coast</SelectItem>
-                    <SelectItem value="Vitas Citrus">Vitas Citrus</SelectItem>
+                    <SelectItem value="all">
+                      {isAdmin ? "All VITAS Programs" : "All My Programs"}
+                    </SelectItem>
+                    {availableVitasPrograms.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
