@@ -4113,6 +4113,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Delete a group
+  app.delete(
+    "/api/groups/:id",
+    requireRole("Owner", "Admin"),
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        console.log("[Delete Group] Deleting group", id);
+
+        // Remove this group from all users' groups arrays
+        const allUsers = await storage.db.select({ id: schema.users.id, groups: schema.users.groups }).from(schema.users);
+
+        let updatedCount = 0;
+        for (const user of allUsers) {
+          if (user.groups && user.groups.includes(id)) {
+            const updatedGroups = user.groups.filter(gId => gId !== id);
+            try {
+              await storage.db
+                .update(schema.users)
+                .set({ groups: updatedGroups })
+                .where(eq(schema.users.id, user.id));
+              updatedCount++;
+              console.log("[Delete Group] Removed group from user", user.id);
+            } catch (error) {
+              console.error("[Delete Group] Failed to update user", user.id, error);
+            }
+          }
+        }
+
+        // Log the deletion in audit logs
+        if (req.user?.id) {
+          await storage.createAuditLog({
+            userId: req.user.id,
+            action: 'delete',
+            resourceType: 'group',
+            resourceId: id,
+            ipAddress: req.ip || 'unknown',
+            userAgent: req.get('user-agent') || 'unknown',
+            phiAccessed: false,
+            details: { groupId: id }
+          });
+        }
+
+        console.log("[Delete Group] Successfully removed group from", updatedCount, "users");
+        res.json({
+          success: true,
+          message: `Group deleted and removed from ${updatedCount} users`
+        });
+      } catch (error: any) {
+        console.error("[Delete Group] Error:", error);
+        res.status(500).json({ error: "Failed to delete group" });
+      }
+    }
+  );
+
   // ===== Settings Routes =====
 
   // Get all settings

@@ -21,7 +21,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { PROGRAM_OPTIONS } from "@/lib/constants";
 import { useLocation } from "wouter";
@@ -80,6 +80,7 @@ async function syncGroupsToServer(groups: Group[]) {
 export default function Groups() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
@@ -100,6 +101,27 @@ export default function Groups() {
 
   // Check if user is admin
   const isAdmin = currentUser?.role?.toLowerCase() === "owner" || currentUser?.role?.toLowerCase() === "admin";
+
+  // Delete group mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const res = await apiRequest("DELETE", `/api/groups/${groupId}`);
+      if (!res.ok) throw new Error("Failed to delete group");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Group deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to delete group",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Redirect non-admin users to dashboard
   useEffect(() => {
@@ -373,6 +395,7 @@ export default function Groups() {
   const confirmDeleteGroup = async () => {
     if (!deleteConfirmGroup) return;
 
+    // Update localStorage
     const updatedGroups = groups.filter(g => g.id !== deleteConfirmGroup.id);
     setGroups(updatedGroups);
     saveGroupsToStorage(updatedGroups);
@@ -382,20 +405,8 @@ export default function Groups() {
     newSelected.delete(deleteConfirmGroup.id);
     setSelectedGroups(newSelected);
 
-    // Sync to server
-    try {
-      await syncGroupsToServer(updatedGroups);
-      toast({
-        title: "Success",
-        description: "Group deleted and synced to server",
-      });
-    } catch (error) {
-      toast({
-        title: "Warning",
-        description: "Group deleted locally but failed to sync to server",
-        variant: "destructive",
-      });
-    }
+    // Call DELETE API endpoint
+    await deleteMutation.mutateAsync(deleteConfirmGroup.id);
 
     setDeleteConfirmGroup(null);
   };
@@ -594,7 +605,7 @@ export default function Groups() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Group</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deleteConfirmGroup?.name}"? This action cannot be undone.
+              Are you sure you want to delete "{deleteConfirmGroup?.name}"? This will remove the group from all users.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
