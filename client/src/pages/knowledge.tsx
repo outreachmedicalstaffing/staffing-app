@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +67,8 @@ export default function Knowledge() {
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [deleteConfirmArticle, setDeleteConfirmArticle] = useState<Article | null>(null);
   const [openProgramSelect, setOpenProgramSelect] = useState(false);
+  const [activeTab, setActiveTab] = useState(isAdmin ? "all" : "getting-started");
+  const [vitasProgramFilter, setVitasProgramFilter] = useState<string>("all");
 
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
@@ -93,6 +95,13 @@ export default function Knowledge() {
       name: programName,
     }));
   }, []);
+
+  // Reset VITAS filter when switching away from VITAS tab
+  useEffect(() => {
+    if (activeTab !== "vitas") {
+      setVitasProgramFilter("all");
+    }
+  }, [activeTab]);
 
   // Fetch articles from API
   const { data: articles = [], isLoading } = useQuery<Article[]>({
@@ -270,6 +279,26 @@ export default function Knowledge() {
     return articles.filter((article) => article.category === category);
   };
 
+  const filterVitasArticlesByProgram = (programFilter: string) => {
+    const vitasArticles = filterArticlesByCategory("VITAS");
+
+    if (programFilter === "all") {
+      return vitasArticles;
+    }
+
+    const programId = `auto-program-${programFilter}`;
+
+    return vitasArticles.filter((article) => {
+      // Check if article has this program in targetGroupIds
+      const hasTargetGroup = article.targetGroupIds?.includes(programId);
+
+      // Check if article title contains the program name (case-insensitive)
+      const titleContainsProgram = article.title.toLowerCase().includes(programFilter.toLowerCase());
+
+      return hasTargetGroup || titleContainsProgram;
+    });
+  };
+
   const handleSaveArticle = async () => {
     if (!newTitle.trim()) {
       toast({ title: "Please fill in the title", variant: "destructive" });
@@ -411,7 +440,7 @@ export default function Knowledge() {
         />
       </div>
 
-      <Tabs defaultValue={isAdmin ? "all" : "getting-started"} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="overflow-x-auto">
           <TabsList className="inline-flex w-auto min-w-full sm:w-auto">
             {isAdmin && (
@@ -719,11 +748,29 @@ export default function Knowledge() {
           <Card>
             <CardHeader>
               <CardTitle>VITAS</CardTitle>
-              <CardDescription>{filterArticlesByCategory("VITAS").length} items</CardDescription>
+              <CardDescription>{filterVitasArticlesByProgram(vitasProgramFilter).length} items</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="vitas-program-filter">Filter by Program</Label>
+                <Select value={vitasProgramFilter} onValueChange={setVitasProgramFilter}>
+                  <SelectTrigger id="vitas-program-filter" className="w-full md:w-64">
+                    <SelectValue placeholder="Select program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All VITAS Programs</SelectItem>
+                    <SelectItem value="Vitas Central Florida">Vitas Central Florida</SelectItem>
+                    <SelectItem value="Vitas Treasure Coast">Vitas Treasure Coast</SelectItem>
+                    <SelectItem value="Vitas V/F/P">Vitas V/F/P</SelectItem>
+                    <SelectItem value="Vitas Midstate">Vitas Midstate</SelectItem>
+                    <SelectItem value="Vitas Brevard">Vitas Brevard</SelectItem>
+                    <SelectItem value="Vitas Nature Coast">Vitas Nature Coast</SelectItem>
+                    <SelectItem value="Vitas Citrus">Vitas Citrus</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filterArticlesByCategory("VITAS").map((article) => (
+                {filterVitasArticlesByProgram(vitasProgramFilter).map((article) => (
                   <Card key={article.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="pt-6">
                       <div className="space-y-4">
