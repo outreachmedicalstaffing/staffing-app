@@ -32,7 +32,7 @@ type Article = {
   title: string;
   description: string | null;
   type: string;
-  category: "Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact";
+  category: "Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "AdventHealth" | "Haven" | "Documentation" | "Contact";
   publishStatus: "draft" | "published";
   visibility?: string;
   targetGroupIds?: string[] | null;
@@ -69,10 +69,12 @@ export default function Knowledge() {
   const [openProgramSelect, setOpenProgramSelect] = useState(false);
   const [activeTab, setActiveTab] = useState(isAdmin ? "all" : "getting-started");
   const [vitasProgramFilter, setVitasProgramFilter] = useState<string>("all");
+  const [adventHealthProgramFilter, setAdventHealthProgramFilter] = useState<string>("all");
+  const [havenProgramFilter, setHavenProgramFilter] = useState<string>("all");
 
   // Form fields for Create Article
   const [newTitle, setNewTitle] = useState("");
-  const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact">("Getting Started");
+  const [newCategory, setNewCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "AdventHealth" | "Haven" | "Documentation" | "Contact">("Getting Started");
   const [newVisibility, setNewVisibility] = useState("all");
   const [newTargetProgramIds, setNewTargetProgramIds] = useState<string[]>([]);
   const [newContent, setNewContent] = useState("");
@@ -81,7 +83,7 @@ export default function Knowledge() {
 
   // Form fields for Edit Article
   const [editTitle, setEditTitle] = useState("");
-  const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "Documentation" | "Contact">("Getting Started");
+  const [editCategory, setEditCategory] = useState<"Getting Started" | "HR" | "Compliance" | "Operations" | "VITAS" | "AdventHealth" | "Haven" | "Documentation" | "Contact">("Getting Started");
   const [editVisibility, setEditVisibility] = useState("all");
   const [editTargetProgramIds, setEditTargetProgramIds] = useState<string[]>([]);
   const [editContent, setEditContent] = useState("");
@@ -114,10 +116,38 @@ export default function Knowledge() {
     return userPrograms.filter(program => program.toLowerCase().startsWith("vitas"));
   }, [isAdmin, userPrograms]);
 
-  // Reset VITAS filter when switching away from VITAS tab
+  // Filter available AdventHealth programs based on user role
+  const availableAdventHealthPrograms = useMemo(() => {
+    // Admin/Owner can see all programs
+    if (isAdmin) {
+      return PROGRAM_OPTIONS.filter(program => program.toLowerCase().startsWith("adventhealth"));
+    }
+
+    // Regular users only see their assigned programs
+    return userPrograms.filter(program => program.toLowerCase().startsWith("adventhealth"));
+  }, [isAdmin, userPrograms]);
+
+  // Filter available Haven programs based on user role
+  const availableHavenPrograms = useMemo(() => {
+    // Admin/Owner can see all programs
+    if (isAdmin) {
+      return PROGRAM_OPTIONS.filter(program => program.toLowerCase() === "haven");
+    }
+
+    // Regular users only see their assigned programs
+    return userPrograms.filter(program => program.toLowerCase() === "haven");
+  }, [isAdmin, userPrograms]);
+
+  // Reset filters when switching away from tabs
   useEffect(() => {
     if (activeTab !== "vitas") {
       setVitasProgramFilter("all");
+    }
+    if (activeTab !== "adventhealth") {
+      setAdventHealthProgramFilter("all");
+    }
+    if (activeTab !== "haven") {
+      setHavenProgramFilter("all");
     }
   }, [activeTab]);
 
@@ -262,6 +292,10 @@ export default function Knowledge() {
         return "bg-purple-100 text-purple-800 hover:bg-purple-100";
       case "VITAS":
         return "bg-orange-100 text-orange-800 hover:bg-orange-100";
+      case "AdventHealth":
+        return "bg-indigo-100 text-indigo-800 hover:bg-indigo-100";
+      case "Haven":
+        return "bg-pink-100 text-pink-800 hover:bg-pink-100";
       case "Documentation":
         return "bg-green-100 text-green-800 hover:bg-green-100";
       case "Contact":
@@ -283,6 +317,10 @@ export default function Knowledge() {
         return "text-purple-600";
       case "VITAS":
         return "text-orange-600";
+      case "AdventHealth":
+        return "text-indigo-600";
+      case "Haven":
+        return "text-pink-600";
       case "Documentation":
         return "text-green-600";
       case "Contact":
@@ -307,6 +345,46 @@ export default function Knowledge() {
     const programId = `auto-program-${programFilter}`;
 
     return vitasArticles.filter((article) => {
+      // Check if article has this program in targetGroupIds
+      const hasTargetGroup = article.targetGroupIds?.includes(programId);
+
+      // Check if article title contains the program name (case-insensitive)
+      const titleContainsProgram = article.title.toLowerCase().includes(programFilter.toLowerCase());
+
+      return hasTargetGroup || titleContainsProgram;
+    });
+  };
+
+  const filterAdventHealthArticlesByProgram = (programFilter: string) => {
+    const adventHealthArticles = filterArticlesByCategory("AdventHealth");
+
+    if (programFilter === "all") {
+      return adventHealthArticles;
+    }
+
+    const programId = `auto-program-${programFilter}`;
+
+    return adventHealthArticles.filter((article) => {
+      // Check if article has this program in targetGroupIds
+      const hasTargetGroup = article.targetGroupIds?.includes(programId);
+
+      // Check if article title contains the program name (case-insensitive)
+      const titleContainsProgram = article.title.toLowerCase().includes(programFilter.toLowerCase());
+
+      return hasTargetGroup || titleContainsProgram;
+    });
+  };
+
+  const filterHavenArticlesByProgram = (programFilter: string) => {
+    const havenArticles = filterArticlesByCategory("Haven");
+
+    if (programFilter === "all") {
+      return havenArticles;
+    }
+
+    const programId = `auto-program-${programFilter}`;
+
+    return havenArticles.filter((article) => {
       // Check if article has this program in targetGroupIds
       const hasTargetGroup = article.targetGroupIds?.includes(programId);
 
@@ -480,6 +558,12 @@ export default function Knowledge() {
             </TabsTrigger>
             <TabsTrigger value="vitas">
               VITAS
+            </TabsTrigger>
+            <TabsTrigger value="adventhealth">
+              AdventHealth
+            </TabsTrigger>
+            <TabsTrigger value="haven">
+              Haven
             </TabsTrigger>
             <TabsTrigger value="documentation">
               Documentation
@@ -834,6 +918,150 @@ export default function Knowledge() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="adventhealth" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>AdventHealth</CardTitle>
+              <CardDescription>{filterAdventHealthArticlesByProgram(adventHealthProgramFilter).length} items</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="adventhealth-program-filter">Filter by Program</Label>
+                <Select value={adventHealthProgramFilter} onValueChange={setAdventHealthProgramFilter}>
+                  <SelectTrigger id="adventhealth-program-filter" className="w-full md:w-64">
+                    <SelectValue placeholder="Select program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {isAdmin ? "All AdventHealth Programs" : "All My Programs"}
+                    </SelectItem>
+                    {availableAdventHealthPrograms.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filterAdventHealthArticlesByProgram(adventHealthProgramFilter).map((article) => (
+                  <Card key={article.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-start space-x-3">
+                          <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base mb-1">{article.title}</h3>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <Badge className={getCategoryColor(article.category)}>
+                            {article.category}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Updated {formatTimestamp(article.lastUpdated)}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="haven" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Haven</CardTitle>
+              <CardDescription>{filterHavenArticlesByProgram(havenProgramFilter).length} items</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="haven-program-filter">Filter by Program</Label>
+                <Select value={havenProgramFilter} onValueChange={setHavenProgramFilter}>
+                  <SelectTrigger id="haven-program-filter" className="w-full md:w-64">
+                    <SelectValue placeholder="Select program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {isAdmin ? "All Haven Programs" : "All My Programs"}
+                    </SelectItem>
+                    {availableHavenPrograms.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filterHavenArticlesByProgram(havenProgramFilter).map((article) => (
+                  <Card key={article.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-start space-x-3">
+                          <FileText className={`h-8 w-8 ${getIconColor(article.category)}`} />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base mb-1">{article.title}</h3>
+                            {article.description && (
+                              <p className="text-sm text-muted-foreground">{article.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <Badge className={getCategoryColor(article.category)}>
+                            {article.category}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Updated {formatTimestamp(article.lastUpdated)}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewArticle(article)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleEditArticle(article)}>
+                                Edit
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmArticle(article)} className="text-red-600 hover:text-red-700">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="documentation" className="space-y-4">
           <Card>
             <CardHeader>
@@ -978,6 +1206,8 @@ export default function Knowledge() {
                   <SelectItem value="Compliance">Compliance</SelectItem>
                   <SelectItem value="Operations">Operations</SelectItem>
                   <SelectItem value="VITAS">VITAS</SelectItem>
+                  <SelectItem value="AdventHealth">AdventHealth</SelectItem>
+                  <SelectItem value="Haven">Haven</SelectItem>
                   <SelectItem value="Documentation">Documentation</SelectItem>
                   <SelectItem value="Contact">Contact</SelectItem>
                 </SelectContent>
@@ -1258,6 +1488,8 @@ export default function Knowledge() {
                   <SelectItem value="Compliance">Compliance</SelectItem>
                   <SelectItem value="Operations">Operations</SelectItem>
                   <SelectItem value="VITAS">VITAS</SelectItem>
+                  <SelectItem value="AdventHealth">AdventHealth</SelectItem>
+                  <SelectItem value="Haven">Haven</SelectItem>
                   <SelectItem value="Documentation">Documentation</SelectItem>
                   <SelectItem value="Contact">Contact</SelectItem>
                 </SelectContent>
